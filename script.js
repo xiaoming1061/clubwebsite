@@ -104,8 +104,13 @@
       }
     }
   }, { threshold: 0.12 });
-  document.querySelectorAll(".reveal").forEach((el, i) => {
-    el.style.transitionDelay = (i % 3) * 0.08 + "s";
+  document.querySelectorAll(".reveal").forEach((el) => {
+    let idx = 0;
+    let prev = el;
+    while ((prev = prev.previousElementSibling)) {
+      if (prev.classList.contains("reveal")) idx++;
+    }
+    el.style.transitionDelay = Math.min(idx * 60, 360) + "ms";
     revealIO.observe(el);
   });
 
