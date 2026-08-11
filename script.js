@@ -115,6 +115,35 @@
     revealIO.observe(el);
   });
 
+  /* ---------- 消息堆疊：在文字與頁面左緣之間居中 ---------- */
+  const msgStack = document.querySelector(".msg-stack");
+  const heroText = document.querySelector(".hero-text");
+  const MSG_MAX_W = 380;
+
+  function fitMsgStack() {
+    if (!msgStack || !heroText) return;
+    if (window.matchMedia("(max-width: 820px)").matches) {
+      msgStack.style.left = "";
+      msgStack.style.width = "";
+      return;
+    }
+    const t = heroText.getBoundingClientRect();
+    if (t.left >= 260) {
+      const w = Math.min(MSG_MAX_W, Math.max(200, t.left - 16));
+      msgStack.style.width = Math.round(w) + "px";
+      msgStack.style.left = Math.round(Math.max(8, (t.left - w) / 2)) + "px";
+    } else {
+      msgStack.style.width = "200px";
+      msgStack.style.left = "8px";
+    }
+  }
+
+  fitMsgStack();
+  window.addEventListener("resize", () => {
+    clearTimeout(fitMsgStack._t);
+    fitMsgStack._t = setTimeout(fitMsgStack, 150);
+  });
+
   /* ---------- 數字滾動計數 ---------- */
   const statsEl = document.querySelector(".stats");
   if (statsEl) {

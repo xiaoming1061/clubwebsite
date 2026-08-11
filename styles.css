@@ -465,17 +465,20 @@ h2.title {
   position: absolute;
   top: 16px;
   left: 20px;
-  width: clamp(150px, 17vw, 200px);
+  width: clamp(280px, 32vw, 380px);
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20px;
 }
 
 .msg-item {
   animation: msgDropIn 500ms var(--ease-out) backwards;
   transition: transform 220ms var(--ease-out);
 }
+
+.msg-item:nth-child(even) { --tilt: 1.6deg; }
+.msg-item:nth-child(odd) { --tilt: -1.6deg; }
 
 .msg-item:nth-child(1) { animation-delay: 0ms; }
 .msg-item:nth-child(2) { animation-delay: 130ms; }
@@ -492,8 +495,9 @@ h2.title {
 }
 
 @keyframes msgDropIn {
-  from { opacity: 0; transform: translateY(-14px) scale(.94); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  0%   { opacity: 0; transform: translateY(-16px) scale(.9) rotate(var(--tilt, 0deg)); }
+  55%  { opacity: 1; transform: translateY(3px) scale(1.05) rotate(var(--tilt, 0deg)); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(var(--tilt, 0deg)); }
 }
 
 @keyframes msgFloat {
@@ -700,7 +704,7 @@ h2.title {
   }
 
   .msg-item:hover {
-    transform: scale(1.04);
+    transform: scale(1.05) rotate(0deg);
   }
 }
 
@@ -852,8 +856,9 @@ footer {
   .oc-wrap { width: 100%; max-width: 420px; margin: 0 auto; justify-self: center; }
   .msg-stack {
     position: static;
-    width: 170px;
+    width: 190px;
     margin: -6px auto 0;
+    gap: 10px;
   }
 }
 
