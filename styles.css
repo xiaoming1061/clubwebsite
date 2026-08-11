@@ -154,6 +154,7 @@ nav.links a.active { color: var(--text); }
   max-width: none;
   width: 100%;
   padding: 0 24px;
+  position: relative;
 }
 
 .hero-text {
@@ -462,13 +463,16 @@ h2.title {
 
 .msg-wrap {
   position: absolute;
-  top: 3%;
-  left: -14%;
+  top: 16px;
+  left: 24px;
   width: clamp(160px, 26vw, 300px);
   z-index: 3;
   transform: rotate(-4deg);
   transition: transform 220ms var(--ease-out);
-  animation: msgIn 500ms var(--ease-out) 800ms backwards;
+}
+
+.msg-inner {
+  animation: msgIn 500ms var(--ease-out) 1000ms backwards;
 }
 
 .msg-wrap img {
@@ -476,12 +480,12 @@ h2.title {
   width: 100%;
   height: auto;
   filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .38));
-  animation: msgFloat 5s ease-in-out 1.4s infinite;
+  animation: msgFloat 5s ease-in-out 1600ms infinite;
 }
 
 @keyframes msgIn {
-  from { opacity: 0; transform: translateY(16px) scale(.9) rotate(-4deg); }
-  to   { opacity: 1; transform: translateY(0) scale(1) rotate(-4deg); }
+  from { opacity: 0; transform: translateY(18px) scale(.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes msgFloat {
@@ -838,7 +842,12 @@ footer {
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
   .oc-wrap { width: 100%; max-width: 420px; margin: 0 auto; justify-self: center; }
-  .msg-wrap { left: -2%; top: -6%; width: 150px; }
+  .msg-wrap {
+    position: static;
+    transform: rotate(-4deg);
+    width: 150px;
+    margin: -8px auto 0;
+  }
 }
 
 @media (max-width: 1180px) and (min-width: 821px) {
@@ -861,11 +870,9 @@ footer {
   .marquee-track { animation: none; }
   .combo-pop { animation: comboFade 200ms ease-out forwards; }
   .oc-card img { animation: none; }
-  .msg-wrap {
-    animation: none;
-    transform: rotate(-4deg);
-  }
+  .msg-inner { animation: none; }
   .msg-wrap img { animation: none; }
+  .msg-wrap:hover { transform: rotate(-4deg); }
 
   .btn:hover,
   .btn-primary:hover,
