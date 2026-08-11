@@ -149,7 +149,7 @@ nav.links a.active { color: var(--text); }
 .hero-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 40px;
+  gap: 24px;
   align-items: center;
   max-width: none;
   width: 100%;
@@ -160,7 +160,7 @@ nav.links a.active { color: var(--text); }
   text-align: left;
   max-width: 520px;
   margin-left: auto;
-  margin-right: auto;
+  margin-right: 0;
 }
 
 .hero-text .hero-actions,
