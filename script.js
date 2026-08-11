@@ -188,7 +188,7 @@
         "留言：",
         fd.get("msg") || ""
       ].join("\n");
-      const to = form.dataset.to || "rhythm-club@link.cuhk.edu.hk";
+      const to = form.dataset.to || "hello@rhythmhill.com";
       window.location.href = "mailto:" + to +
         "?subject=" + encodeURIComponent(subject) +
         "&body=" + encodeURIComponent(body);

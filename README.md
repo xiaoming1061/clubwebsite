@@ -10,9 +10,9 @@
 
 ## 上線前記得替換
 
-1. 電郵地址：全站搜尋 `rhythm-club@link.cuhk.edu.hk`，替換為真實電郵（`index.html` 中有 TODO 標記）。
+1. 電郵地址：全站搜尋 `hello@rhythmhill.com`，替換為真實電郵（`index.html` 中有 TODO 標記）。
 2. 社交媒體：`index.html` 中 WhatsApp / Instagram / Discord 目前標示「待補充」。
-3. 會員註冊表：頁面下載連結指向 `../不存在的山城音游社会员注册.xlsx`，如檔案位置改變請同步更新。
+3. 會員註冊表：為避免個人資料公開下載，頁面目前以「郵件索取」代替公開連結。
 4. 意向表：無後端時以 mailto 開啟郵件客戶端；未來可改接 Google Form 或表單服務。
 
 ## 小彩蛋
@@ -25,4 +25,4 @@
 
 ## 發佈
 
-整個資料夾（含 `../不存在的山城音游社会员注册.xlsx`）可上傳到 GitHub Pages / Netlify / Vercel 等靜態託管服務。
+整個資料夾可上傳到 GitHub Pages / Netlify / Vercel 等靜態託管服務。
