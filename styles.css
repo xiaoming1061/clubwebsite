@@ -468,7 +468,7 @@ h2.title {
 .msg-stack {
   grid-area: msgs;
   position: static;
-  width: clamp(240px, 28vw, 360px);
+  width: clamp(200px, 22vw, 280px);
   justify-self: start;
   z-index: 3;
   display: flex;
@@ -900,13 +900,13 @@ footer {
     top: 16px;
     left: 20px;
     grid-area: auto;
-    width: clamp(280px, 32vw, 380px);
-    gap: 20px;
+    width: clamp(200px, 24vw, 280px);
+    gap: 14px;
   }
 }
 
 @media (min-width: 1901px) and (max-width: 2164px) {
-  .msg-stack { width: 240px; }
+  .msg-stack { width: 220px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
