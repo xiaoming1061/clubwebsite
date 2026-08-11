@@ -150,9 +150,10 @@ nav.links a.active { color: var(--text); }
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
+    "mtop mascot"
     "text mascot"
-    "msgs mascot";
-  gap: 24px;
+    "mmsgs mascot";
+  gap: 28px 24px;
   align-items: center;
   max-width: none;
   width: 100%;
@@ -465,8 +466,8 @@ h2.title {
   white-space: nowrap;
 }
 
-.msg-stack {
-  grid-area: msgs;
+.msg-stack,
+.msg-stack-top {
   position: static;
   width: clamp(240px, 28vw, 360px);
   justify-self: start;
@@ -476,6 +477,9 @@ h2.title {
   gap: 16px;
 }
 
+.msg-stack { grid-area: mmsgs; }
+.msg-stack-top { grid-area: mtop; }
+
 .msg-item {
   animation: msgDropIn 500ms var(--ease-out) backwards;
   transition: transform 220ms var(--ease-out);
@@ -484,12 +488,12 @@ h2.title {
 .msg-item:nth-child(even) { --tilt: 1.6deg; }
 .msg-item:nth-child(odd) { --tilt: -1.6deg; }
 
-.msg-item:nth-child(1) { animation-delay: 0ms; }
-.msg-item:nth-child(2) { animation-delay: 130ms; }
-.msg-item:nth-child(3) { animation-delay: 260ms; }
-.msg-item:nth-child(4) { animation-delay: 390ms; }
-.msg-item:nth-child(5) { animation-delay: 520ms; }
-.msg-item:nth-child(6) { animation-delay: 650ms; }
+.msg-stack-top .msg-item:nth-child(1) { animation-delay: 0ms; }
+.msg-stack-top .msg-item:nth-child(2) { animation-delay: 130ms; }
+.msg-stack-top .msg-item:nth-child(3) { animation-delay: 260ms; }
+.msg-stack:not(.msg-stack-top) .msg-item:nth-child(1) { animation-delay: 390ms; }
+.msg-stack:not(.msg-stack-top) .msg-item:nth-child(2) { animation-delay: 520ms; }
+.msg-stack:not(.msg-stack-top) .msg-item:nth-child(3) { animation-delay: 650ms; }
 
 .msg-item img {
   display: block;
@@ -856,8 +860,9 @@ footer {
   .hero-inner {
     grid-template-columns: 1fr;
     grid-template-areas:
+      "mtop"
       "text"
-      "msgs"
+      "mmsgs"
       "mascot";
     gap: 32px 0;
     max-width: 640px;
@@ -870,7 +875,8 @@ footer {
   }
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
-  .msg-stack {
+  .msg-stack,
+  .msg-stack-top {
     width: min(240px, 78vw);
     justify-self: center;
     margin: 0;
@@ -885,28 +891,6 @@ footer {
 
 @media (max-width: 1500px) and (min-width: 1181px) {
   .oc-wrap { max-width: min(50vw, 760px); }
-}
-
-@media (min-width: 1901px) {
-  .hero-inner {
-    grid-template-areas: "text mascot";
-  }
-  .hero-text {
-    margin-left: auto;
-    margin-right: 0;
-  }
-  .msg-stack {
-    position: absolute;
-    top: 16px;
-    left: 20px;
-    grid-area: auto;
-    width: clamp(280px, 32vw, 380px);
-    gap: 20px;
-  }
-}
-
-@media (min-width: 1901px) and (max-width: 2164px) {
-  .msg-stack { width: 240px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

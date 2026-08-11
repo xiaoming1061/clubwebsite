@@ -115,39 +115,6 @@
     revealIO.observe(el);
   });
 
-  /* ---------- 消息堆疊：在文字與頁面左緣之間居中 ---------- */
-  const msgStack = document.querySelector(".msg-stack");
-  const heroText = document.querySelector(".hero-text");
-  const MSG_MAX_W = 380;
-
-  function fitMsgStack() {
-    if (!msgStack || !heroText) return;
-    if (window.innerWidth < 1901) {
-      msgStack.style.left = "";
-      msgStack.style.width = "";
-      return;
-    }
-    const t = heroText.getBoundingClientRect();
-    const innerLeft = msgStack.offsetParent ? msgStack.offsetParent.getBoundingClientRect().left : 0;
-    let w, left;
-    if (t.left >= 260) {
-      w = Math.min(MSG_MAX_W, Math.max(200, t.left - 44));
-      left = Math.max(8, (t.left - w) / 2 - innerLeft);
-      left = Math.min(left, t.left - w - 12 - innerLeft);
-    } else {
-      w = 200;
-      left = Math.min(8, t.left - w - 12 - innerLeft);
-    }
-    msgStack.style.width = Math.round(w) + "px";
-    msgStack.style.left = Math.round(left) + "px";
-  }
-
-  fitMsgStack();
-  window.addEventListener("resize", () => {
-    clearTimeout(fitMsgStack._t);
-    fitMsgStack._t = setTimeout(fitMsgStack, 150);
-  });
-
   /* ---------- 數字滾動計數 ---------- */
   const statsEl = document.querySelector(".stats");
   if (statsEl) {
