@@ -421,25 +421,27 @@ h2.title {
 
 .oc-card {
   position: relative;
-  border-radius: 24px;
-  padding: 10px;
-  background: linear-gradient(135deg, rgba(55, 230, 245, .55), rgba(139, 124, 246, .55) 50%, rgba(244, 114, 224, .55));
-  box-shadow: 0 20px 60px rgba(139, 124, 246, .25);
-  transition: transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out);
+  line-height: 0;
+  transition: transform 220ms var(--ease-out);
 }
 
 .oc-card img {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 16px;
+  filter: drop-shadow(0 24px 44px rgba(139, 124, 246, .35));
+  animation: mascotFloat 4.8s ease-in-out infinite;
+}
+
+@keyframes mascotFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
 }
 
 .oc-badge {
   position: absolute;
-  top: 22px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12px;
+  right: 12px;
   background: rgba(8, 8, 15, .72);
   backdrop-filter: blur(8px);
   color: var(--gold);
@@ -645,9 +647,8 @@ h2.title {
     box-shadow: var(--shadow);
   }
 
-  .oc-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 26px 70px rgba(139, 124, 246, .4);
+  .oc-wrap:hover .oc-card {
+    transform: translateY(-5px) scale(1.01);
   }
 }
 
@@ -810,13 +811,14 @@ footer {
 
   .marquee-track { animation: none; }
   .combo-pop { animation: comboFade 200ms ease-out forwards; }
+  .oc-card img { animation: none; }
 
   .btn:hover,
   .btn-primary:hover,
   .btn-ghost:hover,
   .card:hover,
   .game-card:hover,
-  .oc-card:hover {
+  .oc-wrap:hover .oc-card {
     transform: none;
   }
 }
