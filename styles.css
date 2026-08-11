@@ -461,30 +461,38 @@ h2.title {
   white-space: nowrap;
 }
 
-.msg-wrap {
+.msg-stack {
   position: absolute;
   top: 16px;
-  left: 24px;
-  width: clamp(160px, 26vw, 300px);
+  left: 20px;
+  width: clamp(150px, 17vw, 200px);
   z-index: 3;
-  transform: rotate(-4deg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.msg-item {
+  animation: msgDropIn 500ms var(--ease-out) backwards;
   transition: transform 220ms var(--ease-out);
 }
 
-.msg-inner {
-  animation: msgIn 500ms var(--ease-out) 1000ms backwards;
-}
+.msg-item:nth-child(1) { animation-delay: 0ms; }
+.msg-item:nth-child(2) { animation-delay: 130ms; }
+.msg-item:nth-child(3) { animation-delay: 260ms; }
+.msg-item:nth-child(4) { animation-delay: 390ms; }
+.msg-item:nth-child(5) { animation-delay: 520ms; }
 
-.msg-wrap img {
+.msg-item img {
   display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .38));
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .35));
   animation: msgFloat 5s ease-in-out 1600ms infinite;
 }
 
-@keyframes msgIn {
-  from { opacity: 0; transform: translateY(18px) scale(.92); }
+@keyframes msgDropIn {
+  from { opacity: 0; transform: translateY(-14px) scale(.94); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -691,8 +699,8 @@ h2.title {
     transform: translateY(-5px) scale(1.01);
   }
 
-  .msg-wrap:hover {
-    transform: rotate(0deg) scale(1.04);
+  .msg-item:hover {
+    transform: scale(1.04);
   }
 }
 
@@ -842,11 +850,10 @@ footer {
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
   .oc-wrap { width: 100%; max-width: 420px; margin: 0 auto; justify-self: center; }
-  .msg-wrap {
+  .msg-stack {
     position: static;
-    transform: rotate(-4deg);
-    width: 150px;
-    margin: -8px auto 0;
+    width: 170px;
+    margin: -6px auto 0;
   }
 }
 
@@ -870,9 +877,9 @@ footer {
   .marquee-track { animation: none; }
   .combo-pop { animation: comboFade 200ms ease-out forwards; }
   .oc-card img { animation: none; }
-  .msg-inner { animation: none; }
-  .msg-wrap img { animation: none; }
-  .msg-wrap:hover { transform: rotate(-4deg); }
+  .msg-item { animation: none; }
+  .msg-item img { animation: none; }
+  .msg-item:hover { transform: none; }
 
   .btn:hover,
   .btn-primary:hover,
