@@ -149,13 +149,17 @@ nav.links a.active { color: var(--text); }
 .hero-inner {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 56px;
+  gap: 40px;
   align-items: center;
-  max-width: 1240px;
+  max-width: none;
   width: 100%;
+  padding: 0 24px;
 }
 
-.hero-text { text-align: left; }
+.hero-text {
+  text-align: left;
+  max-width: 520px;
+}
 
 .hero-text .hero-actions,
 .hero-text .stats { justify-content: flex-start; }
@@ -415,7 +419,7 @@ h2.title {
 
 .oc-wrap {
   position: relative;
-  max-width: 640px;
+  max-width: min(70vw, 1100px);
   width: 100%;
   justify-self: end;
 }
@@ -798,7 +802,7 @@ footer {
   .hero-text { text-align: center; }
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
-  .oc-wrap { max-width: 420px; margin: 0 auto; justify-self: center; }
+  .oc-wrap { width: 100%; max-width: 420px; margin: 0 auto; justify-self: center; }
 }
 
 @media (max-width: 1180px) and (min-width: 821px) {
