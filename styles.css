@@ -460,6 +460,35 @@ h2.title {
   white-space: nowrap;
 }
 
+.msg-wrap {
+  position: absolute;
+  top: 3%;
+  left: -14%;
+  width: clamp(160px, 26vw, 300px);
+  z-index: 3;
+  transform: rotate(-4deg);
+  transition: transform 220ms var(--ease-out);
+  animation: msgIn 500ms var(--ease-out) 800ms backwards;
+}
+
+.msg-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, .38));
+  animation: msgFloat 5s ease-in-out 1.4s infinite;
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(16px) scale(.9) rotate(-4deg); }
+  to   { opacity: 1; transform: translateY(0) scale(1) rotate(-4deg); }
+}
+
+@keyframes msgFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 /* ---------------- Games ---------------- */
 
 .games-grid {
@@ -657,6 +686,10 @@ h2.title {
   .oc-wrap:hover .oc-card {
     transform: translateY(-5px) scale(1.01);
   }
+
+  .msg-wrap:hover {
+    transform: rotate(0deg) scale(1.04);
+  }
 }
 
 .form-card {
@@ -805,6 +838,7 @@ footer {
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
   .oc-wrap { width: 100%; max-width: 420px; margin: 0 auto; justify-self: center; }
+  .msg-wrap { left: -2%; top: -6%; width: 150px; }
 }
 
 @media (max-width: 1180px) and (min-width: 821px) {
@@ -827,6 +861,11 @@ footer {
   .marquee-track { animation: none; }
   .combo-pop { animation: comboFade 200ms ease-out forwards; }
   .oc-card img { animation: none; }
+  .msg-wrap {
+    animation: none;
+    transform: rotate(-4deg);
+  }
+  .msg-wrap img { animation: none; }
 
   .btn:hover,
   .btn-primary:hover,
