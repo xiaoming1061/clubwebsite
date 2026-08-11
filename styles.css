@@ -467,15 +467,6 @@ h2.title {
   animation: mascotFloat 4.8s ease-in-out infinite;
 }
 
-.oc-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  mix-blend-mode: screen;
-}
-
 @keyframes mascotFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-9px); }
@@ -952,7 +943,6 @@ footer {
   .marquee-track { animation: none; }
   .combo-pop { animation: comboFade 200ms ease-out forwards; }
   .oc-card img { animation: none; }
-  .oc-card video { display: none; }
   .msg-item { animation: none; }
   .msg-item img { animation: none; }
   .hero-title::before { animation: none; opacity: .5; }
