@@ -138,7 +138,6 @@ nav.links a.active { color: var(--text); }
 .hero {
   min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -146,6 +145,20 @@ nav.links a.active { color: var(--text); }
   position: relative;
   z-index: 1;
 }
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: 1.12fr .88fr;
+  gap: 56px;
+  align-items: center;
+  max-width: 1120px;
+  width: 100%;
+}
+
+.hero-text { text-align: left; }
+
+.hero-text .hero-actions,
+.hero-text .stats { justify-content: flex-start; }
 
 .hero-kicker {
   letter-spacing: .35em;
@@ -398,16 +411,13 @@ h2.title {
 
 .diff p { font-size: 14px; color: var(--muted); }
 
-/* ---------------- Character ---------------- */
+/* ---------------- Mascot ---------------- */
 
-.character-grid {
-  display: grid;
-  grid-template-columns: minmax(300px, 420px) 1fr;
-  gap: 56px;
-  align-items: center;
+.oc-wrap {
+  position: relative;
+  max-width: 420px;
+  justify-self: center;
 }
-
-.oc-wrap { position: relative; }
 
 .oc-card {
   position: relative;
@@ -439,12 +449,6 @@ h2.title {
   border-radius: 999px;
   border: 1px solid rgba(255, 224, 102, .35);
   white-space: nowrap;
-}
-
-.oc-tags {
-  display: flex;
-  gap: 10px;
-  margin-top: 22px;
 }
 
 /* ---------------- Games ---------------- */
@@ -721,16 +725,6 @@ footer {
 
 .foot-brand { font-weight: 800; }
 
-.foot-links {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.foot-links a { color: var(--muted); font-size: 13.5px; text-decoration: none; transition: color .2s; }
-.foot-links a:hover { color: var(--cyan); }
-
 .disclaimer { font-size: 12px; color: #76768c; max-width: 720px; }
 .copyright { font-size: 12.5px; color: var(--muted); }
 
@@ -798,13 +792,11 @@ footer {
   header.nav { padding: 12px 18px; }
   .hero { padding-top: 110px; }
   section.block { padding: 72px 20px; }
-  .character-grid {
-    grid-template-columns: 1fr;
-    gap: 36px;
-  }
-  .oc-wrap { max-width: 420px; margin: 0 auto; }
-  .oc-info { text-align: center; }
-  .oc-tags { justify-content: center; }
+  .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+  .hero-text { text-align: center; }
+  .hero-text .hero-actions,
+  .hero-text .stats { justify-content: center; }
+  .oc-wrap { max-width: 320px; margin: 0 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -110,7 +110,8 @@
     while ((prev = prev.previousElementSibling)) {
       if (prev.classList.contains("reveal")) idx++;
     }
-    el.style.transitionDelay = Math.min(idx * 60, 360) + "ms";
+    const delay = el.dataset.delay !== undefined ? Number(el.dataset.delay) : Math.min(idx * 60, 360);
+    if (!reduceMotion) el.style.transitionDelay = delay + "ms";
     revealIO.observe(el);
   });
 
