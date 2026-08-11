@@ -489,6 +489,7 @@ h2.title {
 .msg-item:nth-child(3) { animation-delay: 260ms; }
 .msg-item:nth-child(4) { animation-delay: 390ms; }
 .msg-item:nth-child(5) { animation-delay: 520ms; }
+.msg-item:nth-child(6) { animation-delay: 650ms; }
 
 .msg-item img {
   display: block;
