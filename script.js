@@ -129,14 +129,17 @@
     }
     const t = heroText.getBoundingClientRect();
     const innerLeft = msgStack.offsetParent ? msgStack.offsetParent.getBoundingClientRect().left : 0;
+    let w, left;
     if (t.left >= 260) {
-      const w = Math.min(MSG_MAX_W, Math.max(200, t.left - 16));
-      msgStack.style.width = Math.round(w) + "px";
-      msgStack.style.left = Math.round(Math.max(8, (t.left - w) / 2 - innerLeft)) + "px";
+      w = Math.min(MSG_MAX_W, Math.max(200, t.left - 44));
+      left = Math.max(8, (t.left - w) / 2 - innerLeft);
+      left = Math.min(left, t.left - w - 12 - innerLeft);
     } else {
-      msgStack.style.width = "200px";
-      msgStack.style.left = "8px";
+      w = 200;
+      left = Math.min(8, t.left - w - 12 - innerLeft);
     }
+    msgStack.style.width = Math.round(w) + "px";
+    msgStack.style.left = Math.round(left) + "px";
   }
 
   fitMsgStack();

@@ -904,6 +904,10 @@ footer {
   }
 }
 
+@media (min-width: 1901px) and (max-width: 2164px) {
+  .msg-stack { width: 240px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 
