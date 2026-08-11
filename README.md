@@ -11,9 +11,8 @@
 ## 上線前記得替換
 
 1. 電郵地址：全站搜尋 `hello@rhythmhill.com`，替換為真實電郵（`index.html` 中有 TODO 標記）。
-2. 社交媒體：`index.html` 中 WhatsApp / Instagram / Discord 目前標示「待補充」。
-3. 會員註冊表：為避免個人資料公開下載，頁面目前以「郵件索取」代替公開連結。
-4. 意向表：無後端時以 mailto 開啟郵件客戶端；未來可改接 Google Form 或表單服務。
+2. 聯絡方式：加入區塊保留電郵與 WeChat（ID：`gywxhxzcdsyshxbwzhs`）。
+3. 會員註冊表：為避免個人資料公開下載，以「郵件索取」代替公開連結（頁尾保留索取連結）。
 
 ## 小彩蛋
 

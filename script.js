@@ -172,26 +172,4 @@
     resetTimer = setTimeout(() => { combo = 0; }, 1600);
   });
 
-  /* ---------- 會員意向表（mailto） ---------- */
-  const form = document.getElementById("join-form");
-  if (form) {
-    form.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const name = fd.get("name") || "未署名";
-      const subject = "加入意願｜不存在的山城音游社 - " + name;
-      const body = [
-        "姓名：" + (fd.get("name") || ""),
-        "電郵：" + (fd.get("email") || ""),
-        "最常玩的遊戲：" + (fd.get("game") || ""),
-        "",
-        "留言：",
-        fd.get("msg") || ""
-      ].join("\n");
-      const to = form.dataset.to || "hello@rhythmhill.com";
-      window.location.href = "mailto:" + to +
-        "?subject=" + encodeURIComponent(subject) +
-        "&body=" + encodeURIComponent(body);
-    });
-  }
 })();

@@ -571,10 +571,12 @@ h2.title {
 
 .join-grid {
   display: grid;
-  grid-template-columns: 1.05fr .95fr;
+  grid-template-columns: 1fr;
   gap: 40px;
   align-items: start;
 }
+
+.join-info { max-width: 720px; }
 
 .join-info p { color: var(--muted); margin-bottom: 18px; }
 
