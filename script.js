@@ -118,7 +118,7 @@
   /* ---------- 消息堆疊：在文字與頁面左緣之間居中 ---------- */
   const msgStack = document.querySelector(".msg-stack");
   const heroText = document.querySelector(".hero-text");
-  const MSG_MAX_W = 280;
+  const MSG_MAX_W = 340;
 
   function fitMsgStack() {
     if (!msgStack || !heroText) return;

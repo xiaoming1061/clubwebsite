@@ -180,12 +180,34 @@ nav.links a.active { color: var(--text); }
 }
 
 .hero-title {
+  position: relative;
   font-size: clamp(44px, 9vw, 96px);
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -0.025em;
   font-optical-sizing: auto;
   margin-bottom: 18px;
+}
+
+.hero-title::before {
+  content: "";
+  position: absolute;
+  inset: 10% 2%;
+  background: radial-gradient(closest-side, rgba(139, 124, 246, .4), transparent 72%);
+  filter: blur(22px);
+  opacity: .55;
+  animation: titleGlow 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-title > span {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes titleGlow {
+  0%, 100% { opacity: .35; }
+  50% { opacity: .85; }
 }
 
 .hero-title .strike {
@@ -468,7 +490,7 @@ h2.title {
 .msg-stack {
   grid-area: msgs;
   position: static;
-  width: clamp(200px, 22vw, 280px);
+  width: clamp(220px, 25vw, 340px);
   justify-self: start;
   z-index: 3;
   display: flex;
@@ -496,7 +518,7 @@ h2.title {
   width: 100%;
   height: auto;
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .35));
-  animation: msgFloat 5s ease-in-out 1600ms infinite;
+  animation: msgFloat 4.5s ease-in-out 1600ms infinite;
 }
 
 @keyframes msgDropIn {
@@ -506,8 +528,8 @@ h2.title {
 }
 
 @keyframes msgFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-9px) scale(1.02); }
 }
 
 /* ---------------- Games ---------------- */
@@ -900,13 +922,13 @@ footer {
     top: 16px;
     left: 20px;
     grid-area: auto;
-    width: clamp(200px, 24vw, 280px);
+    width: clamp(220px, 26vw, 340px);
     gap: 14px;
   }
 }
 
 @media (min-width: 1901px) and (max-width: 2164px) {
-  .msg-stack { width: 220px; }
+  .msg-stack { width: 260px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -923,6 +945,7 @@ footer {
   .oc-card img { animation: none; }
   .msg-item { animation: none; }
   .msg-item img { animation: none; }
+  .hero-title::before { animation: none; opacity: .5; }
   .msg-item:hover { transform: none; }
 
   .btn:hover,
