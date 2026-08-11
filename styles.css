@@ -148,10 +148,10 @@ nav.links a.active { color: var(--text); }
 
 .hero-inner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 56px;
   align-items: center;
-  max-width: 1120px;
+  max-width: 1240px;
   width: 100%;
 }
 
@@ -415,8 +415,9 @@ h2.title {
 
 .oc-wrap {
   position: relative;
-  max-width: 540px;
-  justify-self: center;
+  max-width: 640px;
+  width: 100%;
+  justify-self: end;
 }
 
 .oc-card {
@@ -791,13 +792,21 @@ footer {
   .join-grid { grid-template-columns: 1fr; }
   nav.links { display: none; }
   header.nav { padding: 12px 18px; }
-  .hero { padding-top: 110px; }
+  .hero { padding: 110px 16px 64px; }
   section.block { padding: 72px 20px; }
   .hero-inner { grid-template-columns: 1fr; gap: 40px; }
   .hero-text { text-align: center; }
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
-  .oc-wrap { max-width: 400px; margin: 0 auto; }
+  .oc-wrap { max-width: 420px; margin: 0 auto; justify-self: center; }
+}
+
+@media (max-width: 1180px) and (min-width: 821px) {
+  .hero-inner {
+    max-width: 1060px;
+    gap: 44px;
+  }
+  .oc-wrap { max-width: 500px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
