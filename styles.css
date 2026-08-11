@@ -148,7 +148,7 @@ nav.links a.active { color: var(--text); }
 
 .hero-inner {
   display: grid;
-  grid-template-columns: 1.12fr .88fr;
+  grid-template-columns: 1fr 1fr;
   gap: 56px;
   align-items: center;
   max-width: 1120px;
@@ -415,7 +415,7 @@ h2.title {
 
 .oc-wrap {
   position: relative;
-  max-width: 420px;
+  max-width: 540px;
   justify-self: center;
 }
 
@@ -797,7 +797,7 @@ footer {
   .hero-text { text-align: center; }
   .hero-text .hero-actions,
   .hero-text .stats { justify-content: center; }
-  .oc-wrap { max-width: 320px; margin: 0 auto; }
+  .oc-wrap { max-width: 400px; margin: 0 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
