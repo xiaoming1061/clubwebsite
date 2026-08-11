@@ -122,16 +122,17 @@
 
   function fitMsgStack() {
     if (!msgStack || !heroText) return;
-    if (window.matchMedia("(max-width: 820px)").matches) {
+    if (window.innerWidth < 1901) {
       msgStack.style.left = "";
       msgStack.style.width = "";
       return;
     }
     const t = heroText.getBoundingClientRect();
+    const innerLeft = msgStack.offsetParent ? msgStack.offsetParent.getBoundingClientRect().left : 0;
     if (t.left >= 260) {
       const w = Math.min(MSG_MAX_W, Math.max(200, t.left - 16));
       msgStack.style.width = Math.round(w) + "px";
-      msgStack.style.left = Math.round(Math.max(8, (t.left - w) / 2)) + "px";
+      msgStack.style.left = Math.round(Math.max(8, (t.left - w) / 2 - innerLeft)) + "px";
     } else {
       msgStack.style.width = "200px";
       msgStack.style.left = "8px";
