@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>試玩 · 不存在的山城音游社</title>
+  <meta name="description" content="不存在的山城音游社試玩小遊戲：用 D F J K 跟上節拍，體驗《Unus Mundus》。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♪</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="play.css">
+  <script>document.documentElement.classList.add('js-anim');</script>
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <header class="nav">
+    <a class="brand" href="index.html">
+      <span class="logo">♪</span>
+      <span>山城音游社</span>
+    </a>
+    <nav class="links" aria-label="主選單">
+      <a href="index.html#about">關於</a>
+      <a href="index.html#games">遊戲</a>
+      <a href="index.html#activities">活動</a>
+      <a href="index.html#join">加入</a>
+      <a href="play.html" class="active">試玩</a>
+    </nav>
+    <span class="nav-pill">BETA</span>
+  </header>
+
+  <main class="game-page">
+    <div class="game-shell">
+      <div class="game-layout">
+        <div class="game-main">
+          <div class="hud">
+            <div class="hud-item">
+              <span class="hud-label">SCORE</span>
+              <b id="score">0</b>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">ACC</span>
+              <b id="acc">100.0%</b>
+            </div>
+            <div class="hud-item hud-combo">
+              <b id="combo">0</b>
+              <span class="hud-label">COMBO</span>
+            </div>
+            <div class="hud-item hud-progress">
+              <span class="hud-label">PROGRESS</span>
+              <div class="progress"><i id="progress"></i></div>
+            </div>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="lanes" id="lanes">
+              <div class="lane" data-lane="0"><span class="key">D</span></div>
+              <div class="lane" data-lane="1"><span class="key">F</span></div>
+              <div class="lane" data-lane="2"><span class="key">J</span></div>
+              <div class="lane" data-lane="3"><span class="key">K</span></div>
+            </div>
+            <div class="judge-line" aria-hidden="true"></div>
+            <div class="note-layer" id="noteLayer"></div>
+            <div class="fx-layer" id="fxLayer"></div>
+
+            <div class="overlay pause-overlay hidden" id="pauseOverlay">
+              <div class="panel">
+                <h2>暫停</h2>
+                <div class="overlay-actions">
+                  <button class="btn btn-primary" id="resumeBtn">繼續</button>
+                  <button class="btn btn-ghost" id="retryBtn">重來</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-panel" aria-label="即時調整">
+          <p class="side-title">即時調整</p>
+          <div class="setting-row">
+            <label for="sideSpeed">流速 <span class="setting-val" id="sideSpeedVal">2</span></label>
+            <input type="range" id="sideSpeed" min="0" max="10" step="1" value="2">
+            <div class="setting-scale"><span>0 慢</span><span>10 快</span></div>
+          </div>
+          <div class="setting-row">
+            <label for="sideOffset">延遲（毫秒）<span class="setting-val" id="sideOffsetVal">0ms</span></label>
+            <input type="range" id="sideOffset" min="-200" max="200" step="10" value="0">
+            <div class="setting-scale"><span>-200</span><span>0</span><span>+200</span></div>
+            <p class="setting-hint">正數＝音符提早</p>
+          </div>
+
+          <div class="lb-block">
+            <div class="lb-head">
+              <p class="side-title">排行榜</p>
+              <button id="lbRefresh" class="lb-refresh" aria-label="刷新排行榜">↻</button>
+            </div>
+            <ol id="leaderboard" class="lb-list"></ol>
+            <p class="lb-note" id="lbNote"></p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="panel">
+        <p class="kicker">PLAYABLE DEMO</p>
+        <h1 class="song-title grad">UNUS MUNDUS</h1>
+        <p class="song-meta">BPM 178　·　社團主題曲　·　試玩譜面</p>
+        <ul class="help">
+          <li><span class="kbd">D</span><span class="kbd">F</span><span class="kbd">J</span><span class="kbd">K</span> 對應四條軌道</li>
+          <li>手機上直接點擊軌道即可</li>
+          <li>音符落至發光橫線時按下，越準分數越高</li>
+          <li>長條音符＝按住直到尾端結束</li>
+        </ul>
+
+        <div class="settings">
+          <div class="setting-row">
+            <label for="setOffset">延遲（毫秒）<span class="setting-val" id="offsetVal">0ms</span></label>
+            <input type="range" id="setOffset" min="-200" max="200" step="10" value="0">
+            <div class="setting-scale"><span>-200</span><span>0</span><span>+200</span></div>
+            <p class="setting-hint">正數＝音符提早，負數＝音符延後</p>
+          </div>
+          <div class="setting-row">
+            <label for="setSpeed">流速 <span class="setting-val" id="speedVal">2</span></label>
+            <input type="range" id="setSpeed" min="0" max="10" step="1" value="2">
+            <div class="setting-scale"><span>0 慢</span><span>5</span><span>10 快</span></div>
+            <p class="setting-hint">等級越高，音符落得越快</p>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-start" id="startBtn">開始演奏</button>
+        <p class="form-note">建議佩戴耳機　·　從主歌前奏開始</p>
+        <p class="editor-link"><a href="editor.html">譜面編輯器</a></p>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="panel">
+        <p class="kicker">RESULT</p>
+        <div class="rank" id="rank">S</div>
+        <h2 class="score-final" id="finalScore">0</h2>
+        <div class="result-grid">
+          <div><b id="rPerfect">0</b><span>PERFECT</span></div>
+          <div><b id="rGood">0</b><span>GOOD</span></div>
+          <div><b id="rMiss">0</b><span>MISS</span></div>
+          <div><b id="rCombo">0</b><span>MAX COMBO</span></div>
+          <div><b id="rAcc">0%</b><span>ACCURACY</span></div>
+        </div>
+        <div class="leader-submit">
+          <input id="nameInput" maxlength="12" placeholder="輸入暱稱後提交成績" autocomplete="off">
+          <button id="submitScoreBtn" class="btn btn-primary btn-sm">提交</button>
+        </div>
+        <p class="submit-status" id="submitStatus"></p>
+        <div class="overlay-actions">
+          <button class="btn btn-primary" id="againBtn">再玩一次</button>
+          <a class="btn btn-ghost" href="index.html">回首頁</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="foot-wrap">
+      <div class="foot-brand">♪ 不存在的山城音游社</div>
+      <p class="copyright">© 2026 不存在的山城音游社 · Made with ♥</p>
+    </div>
+  </footer>
+
+  <audio id="music" src="assets/Unus%20Mundus.mp3" preload="auto"></audio>
+  <script src="play.js"></script>
+</body>
+</html>

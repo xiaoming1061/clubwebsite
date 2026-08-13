@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>譜面編輯器 · 不存在的山城音游社</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♪</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="editor.css">
+  <script>document.documentElement.classList.add('js-anim');</script>
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="index.html">
+      <span class="logo">♪</span>
+      <span>山城音游社</span>
+    </a>
+    <nav class="links" aria-label="主選單">
+      <a href="play.html">試玩</a>
+      <a href="editor.html" class="active">譜面編輯器</a>
+    </nav>
+    <span class="nav-pill">EDITOR</span>
+  </header>
+
+  <main class="editor-page">
+    <div class="editor-top">
+      <div class="editor-title">
+        <h1>UNUS MUNDUS</h1>
+        <p>BPM 178　·　點擊新增／拖曳移動／雙擊刪除　·　長按工具＝向下拖出長條音符</p>
+      </div>
+      <div class="toolbar">
+        <button id="playBtn" class="btn btn-primary btn-sm">▶ 播放</button>
+        <span id="timeDisplay" class="time-display">0:00.000</span>
+        <label class="tool">縮放
+          <input type="range" id="zoom" min="40" max="600" step="10" value="160">
+        </label>
+        <label class="tool">對齊
+          <select id="snap">
+            <option value="1">1/1</option>
+            <option value="2" selected>1/2</option>
+            <option value="4">1/4</option>
+            <option value="8">1/8</option>
+            <option value="16">1/16</option>
+          </select>
+        </label>
+        <label class="tool">類型
+          <select id="noteType">
+            <option value="tap" selected>點按</option>
+            <option value="hold">長按</option>
+          </select>
+        </label>
+        <span id="noteCount" class="note-count">0 音符</span>
+      </div>
+    </div>
+
+    <div class="editor-body">
+      <div class="playfield" id="playfield">
+        <div class="ef-lanes" id="efLanes" aria-hidden="true"></div>
+        <div class="ef-track" id="efTrack">
+          <div class="ef-ruler" id="efRuler" aria-hidden="true"></div>
+          <div class="ef-notes" id="efNotes"></div>
+        </div>
+        <div class="ef-judge" id="efJudge" aria-hidden="true"></div>
+        <div class="ef-preview" id="efPreview" aria-hidden="true"></div>
+      </div>
+
+      <aside class="editor-side">
+        <h3>匯入 / 匯出</h3>
+        <p class="side-note">JSON 格式與遊戲譜面完全一致（t / lane / chord / hold）</p>
+        <textarea id="chartText" spellcheck="false" rows="9"></textarea>
+        <div class="side-btns">
+          <button id="exportBtn" class="btn btn-ghost btn-sm">匯出到文字框</button>
+          <button id="copyBtn" class="btn btn-ghost btn-sm">複製</button>
+          <button id="downloadBtn" class="btn btn-ghost btn-sm">下載 JSON</button>
+          <button id="importBtn" class="btn btn-primary btn-sm">載入文字框</button>
+          <button id="resetBtn" class="btn btn-ghost btn-sm">恢復預設</button>
+        </div>
+        <p class="side-note">編輯會自動存於本機瀏覽器；匯出後把 JSON 貼進 play.js 的譜面陣列即可上線。</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <div class="foot-wrap">
+      <div class="foot-brand">♪ 不存在的山城音游社</div>
+      <p class="copyright">© 2026 不存在的山城音游社 · Made with ♥</p>
+    </div>
+  </footer>
+
+  <audio id="music" src="assets/Unus%20Mundus.mp3" preload="auto"></audio>
+  <script src="editor.js"></script>
+</body>
+</html>

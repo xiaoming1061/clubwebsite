@@ -1,0 +1,285 @@
+/* ---------------- 譜面編輯器 ---------------- */
+
+.editor-page {
+  padding: 96px 24px 40px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.editor-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.editor-title h1 {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.editor-title p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+}
+
+.time-display {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--cyan);
+  letter-spacing: .03em;
+  font-size: 14px;
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tool input[type="range"] {
+  width: 110px;
+  accent-color: var(--violet);
+}
+
+.tool select {
+  background: rgba(8, 8, 15, .7);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.note-count {
+  font-size: 12.5px;
+  color: var(--gold);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.editor-body {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+
+/* ----- 遊玩區 ----- */
+
+.playfield {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: min(max(480px, calc(100dvh - 250px)), 900px);
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(139, 124, 246, .10), transparent 60%),
+    rgba(12, 12, 22, .82);
+  box-shadow: var(--shadow);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.ef-lanes {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  pointer-events: none;
+}
+
+.ef-lane {
+  border-right: 1px dashed rgba(255, 255, 255, .22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .035), transparent 55%);
+}
+
+.ef-lane:last-child { border-right: none; }
+
+.ef-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.ef-ruler {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ef-beat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, .06);
+}
+
+.ef-notes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ef-note {
+  position: absolute;
+  width: 21%;
+  height: 34px;
+  border-radius: 12px;
+  pointer-events: auto;
+  cursor: grab;
+  border: 1px solid rgba(255, 255, 255, .35);
+}
+
+.ef-note:active { cursor: grabbing; }
+
+.ef-note.lane0 { background: linear-gradient(180deg, #37e6f5, #1aa6bd); box-shadow: 0 0 14px rgba(55, 230, 245, .7); }
+.ef-note.lane1 { background: linear-gradient(180deg, #8b7cf6, #5a4bd0); box-shadow: 0 0 14px rgba(139, 124, 246, .75); }
+.ef-note.lane2 { background: linear-gradient(180deg, #f472e0, #c048b0); box-shadow: 0 0 14px rgba(244, 114, 224, .7); }
+.ef-note.lane3 { background: linear-gradient(180deg, #ffe066, #d8a82e); box-shadow: 0 0 14px rgba(255, 224, 102, .7); }
+
+.ef-note.hold {
+  border-radius: 10px 10px 6px 6px;
+}
+
+.ef-note.hold::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 34px;
+  border-radius: 9px 9px 5px 5px;
+  background: rgba(255, 255, 255, .30);
+  border-bottom: 1px solid rgba(255, 255, 255, .45);
+}
+
+.ef-preview {
+  position: absolute;
+  width: 21%;
+  border-radius: 10px 10px 6px 6px;
+  background: rgba(255, 255, 255, .25);
+  border: 2px dashed rgba(255, 255, 255, .7);
+  pointer-events: none;
+  display: none;
+  z-index: 3;
+}
+
+.ef-judge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 90px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(139, 124, 246, 1) 18%, rgba(55, 230, 245, 1) 50%, rgba(244, 114, 224, 1) 82%, transparent);
+  box-shadow: 0 0 22px rgba(139, 124, 246, .95), 0 0 6px rgba(55, 230, 245, .7);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ----- 側欄 ----- */
+
+.editor-side {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.editor-side h3 {
+  font-size: 14px;
+  letter-spacing: .12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.side-note {
+  font-size: 12px;
+  color: #8a8aa0;
+  line-height: 1.6;
+}
+
+.editor-side textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 160px;
+  background: rgba(8, 8, 15, .7);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font: 11.5px/1.5 Consolas, "Cascadia Mono", monospace;
+  outline: none;
+}
+
+.editor-side textarea:focus {
+  border-color: var(--cyan);
+}
+
+.side-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ----- 行動裝置 ----- */
+
+@media (max-width: 900px) {
+  .editor-body {
+    flex-direction: column;
+  }
+
+  .playfield {
+    height: 60vh;
+    min-height: 420px;
+  }
+
+  .editor-side {
+    flex: none;
+    width: 100%;
+  }
+}
