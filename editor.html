@@ -26,7 +26,7 @@
     <div class="editor-top">
       <div class="editor-title">
         <h1>UNUS MUNDUS</h1>
-        <p>BPM 178　·　點擊新增／拖曳移動／雙擊刪除　·　長按工具＝向下拖出長條音符</p>
+        <p>BPM 120 · 32分網格 · 播放中按 A S D F J K L ; 即時錄譜 · 編輯／刪除模式切換</p>
       </div>
       <div class="toolbar">
         <button id="playBtn" class="btn btn-primary btn-sm">▶ 播放</button>
@@ -34,21 +34,20 @@
         <label class="tool">縮放
           <input type="range" id="zoom" min="40" max="600" step="10" value="160">
         </label>
-        <label class="tool">對齊
-          <select id="snap">
-            <option value="1">1/1</option>
-            <option value="2" selected>1/2</option>
-            <option value="4">1/4</option>
-            <option value="8">1/8</option>
-            <option value="16">1/16</option>
-          </select>
+        <label class="tool">位置
+          <input type="range" id="pos" min="0" max="1000" step="1" value="0">
         </label>
+        <span class="time-display" id="posVal">0:00</span>
         <label class="tool">類型
           <select id="noteType">
             <option value="tap" selected>點按</option>
             <option value="hold">長按</option>
           </select>
         </label>
+        <div class="mode-toggle" role="group" aria-label="編輯模式">
+          <button id="modeEdit" class="mode-btn active" type="button">編輯</button>
+          <button id="modeDelete" class="mode-btn" type="button">刪除</button>
+        </div>
         <span id="noteCount" class="note-count">0 音符</span>
       </div>
     </div>
@@ -57,11 +56,12 @@
       <div class="playfield" id="playfield">
         <div class="ef-lanes" id="efLanes" aria-hidden="true"></div>
         <div class="ef-track" id="efTrack">
-          <div class="ef-ruler" id="efRuler" aria-hidden="true"></div>
+          <div class="ef-grid" aria-hidden="true"></div>
+          <div class="ef-time" id="efTime" aria-hidden="true"></div>
           <div class="ef-notes" id="efNotes"></div>
+          <div class="ef-preview" id="efPreview" aria-hidden="true"></div>
         </div>
         <div class="ef-judge" id="efJudge" aria-hidden="true"></div>
-        <div class="ef-preview" id="efPreview" aria-hidden="true"></div>
       </div>
 
       <aside class="editor-side">

@@ -302,7 +302,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   z-index: 1;
 }
 
@@ -329,6 +329,10 @@
 .lane:nth-child(2).flash { background: rgba(139, 124, 246, .12); }
 .lane:nth-child(3).flash { background: rgba(244, 114, 224, .10); }
 .lane:nth-child(4).flash { background: rgba(255, 224, 102, .10); }
+.lane:nth-child(5).flash { background: rgba(110, 200, 255, .10); }
+.lane:nth-child(6).flash { background: rgba(183, 156, 255, .12); }
+.lane:nth-child(7).flash { background: rgba(255, 156, 232, .10); }
+.lane:nth-child(8).flash { background: rgba(255, 206, 107, .10); }
 
 .lane .key {
   position: absolute;
@@ -353,6 +357,10 @@
 .lane:nth-child(2) .key { color: var(--violet); border-color: rgba(139, 124, 246, .4); }
 .lane:nth-child(3) .key { color: var(--magenta); border-color: rgba(244, 114, 224, .35); }
 .lane:nth-child(4) .key { color: var(--gold); border-color: rgba(255, 224, 102, .35); }
+.lane:nth-child(5) .key { color: #6ec8ff; border-color: rgba(110, 200, 255, .4); }
+.lane:nth-child(6) .key { color: #b79cff; border-color: rgba(183, 156, 255, .42); }
+.lane:nth-child(7) .key { color: #ff9ce8; border-color: rgba(255, 156, 232, .38); }
+.lane:nth-child(8) .key { color: #ffce6b; border-color: rgba(255, 206, 107, .4); }
 
 .lane.press .key {
   background: rgba(255, 255, 255, .14);
@@ -379,7 +387,7 @@
 
 .note {
   position: absolute;
-  width: 21%;
+  width: 10.5%;
   left: 0;
   height: 34px;
   border-radius: 12px;
@@ -439,6 +447,10 @@
 .note.n1 { --nc: rgba(139, 124, 246, .85); background: linear-gradient(180deg, #8b7cf6, #5a4bd0); }
 .note.n2 { --nc: rgba(244, 114, 224, .8); background: linear-gradient(180deg, #f472e0, #c048b0); }
 .note.n3 { --nc: rgba(255, 224, 102, .8); background: linear-gradient(180deg, #ffe066, #d8a82e); }
+.note.n4 { --nc: rgba(110, 200, 255, .8); background: linear-gradient(180deg, #6ec8ff, #3f92cc); }
+.note.n5 { --nc: rgba(183, 156, 255, .85); background: linear-gradient(180deg, #b79cff, #8168d8); }
+.note.n6 { --nc: rgba(255, 156, 232, .8); background: linear-gradient(180deg, #ff9ce8, #cc62b8); }
+.note.n7 { --nc: rgba(255, 206, 107, .8); background: linear-gradient(180deg, #ffce6b, #d8a02e); }
 
 /* hit flash burst at the judge line */
 .burst {

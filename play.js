@@ -3,12 +3,12 @@
 
   /* ================= 譜面 ================= */
   // [時間(秒), 軌道(0-3), 是否雙押]
-  const RAW = [];
+  const RAW = [{"t":0.25,"lane":6,"chord":false},{"t":0.5,"lane":6,"chord":false},{"t":1,"lane":5,"chord":false},{"t":1.5,"lane":4,"chord":false},{"t":2,"lane":3,"chord":false},{"t":2.5,"lane":4,"chord":false},{"t":3,"lane":3,"chord":false},{"t":3.5,"lane":4,"chord":false},{"t":4,"lane":5,"chord":false},{"t":4.5,"lane":4,"chord":false},{"t":5,"lane":3,"chord":false},{"t":5.5,"lane":4,"chord":false},{"t":6,"lane":3,"chord":false},{"t":6.25,"lane":5,"chord":false},{"t":6.5,"lane":6,"chord":false},{"t":6.75,"lane":7,"chord":false},{"t":7,"lane":6,"chord":false},{"t":7.5,"lane":5,"chord":false},{"t":7.75,"lane":4,"chord":false},{"t":8,"lane":4,"chord":false},{"t":8.5,"lane":3,"chord":false},{"t":8.75,"lane":2,"chord":false},{"t":9,"lane":1,"chord":false},{"t":9.25,"lane":0,"chord":false},{"t":9.5,"lane":1,"chord":false},{"t":10,"lane":4,"chord":false},{"t":10.5,"lane":5,"chord":false},{"t":11,"lane":4,"chord":false},{"t":11.5,"lane":3,"chord":false},{"t":12,"lane":4,"chord":false},{"t":12.5,"lane":3,"chord":false},{"t":13,"lane":2,"chord":false},{"t":13.5,"lane":1,"chord":false},{"t":14,"lane":4,"chord":false},{"t":14.5,"lane":4,"chord":false},{"t":15,"lane":3,"chord":false},{"t":15.25,"lane":2,"chord":false},{"t":15.5,"lane":1,"chord":false},{"t":16,"lane":3,"chord":false},{"t":16,"lane":4,"chord":false},{"t":16.25,"lane":4,"chord":false},{"t":16.5,"lane":5,"chord":false},{"t":16.75,"lane":6,"chord":false},{"t":17,"lane":7,"chord":false},{"t":17.25,"lane":6,"chord":false},{"t":17.5,"lane":5,"chord":false},{"t":17.75,"lane":4,"chord":false},{"t":18,"lane":4,"chord":false},{"t":18.25,"lane":3,"chord":false},{"t":18.5,"lane":1,"chord":false},{"t":18.75,"lane":0,"chord":false},{"t":19,"lane":1,"chord":false},{"t":19.25,"lane":2,"chord":false},{"t":19.5,"lane":3,"chord":false},{"t":19.75,"lane":4,"chord":false},{"t":19.875,"lane":5,"chord":false},{"t":20,"lane":0,"chord":false},{"t":20,"lane":7,"chord":false},{"t":20.25,"lane":6,"chord":false},{"t":20.5,"lane":5,"chord":false},{"t":20.75,"lane":4,"chord":false},{"t":21,"lane":3,"chord":false},{"t":21.25,"lane":2,"chord":false},{"t":21.5,"lane":0,"chord":false},{"t":21.75,"lane":1,"chord":false},{"t":22,"lane":4,"chord":false},{"t":22.25,"lane":5,"chord":false},{"t":22.5,"lane":6,"chord":false},{"t":22.75,"lane":7,"chord":false},{"t":23,"lane":6,"chord":false},{"t":23.25,"lane":5,"chord":false},{"t":23.5,"lane":4,"chord":false},{"t":24,"lane":2,"chord":false},{"t":24,"lane":6,"chord":false},{"t":24.25,"lane":5,"chord":false},{"t":24.5,"lane":4,"chord":false},{"t":25,"lane":3,"chord":false},{"t":25.25,"lane":2,"chord":false},{"t":25.5,"lane":1,"chord":false},{"t":25.625,"lane":0,"chord":false},{"t":25.75,"lane":1,"chord":false},{"t":26,"lane":4,"chord":false},{"t":26.25,"lane":5,"chord":false},{"t":26.5,"lane":5,"chord":false},{"t":26.625,"lane":7,"chord":false},{"t":27,"lane":6,"chord":false},{"t":27.25,"lane":4,"chord":false},{"t":27.5,"lane":3,"chord":false},{"t":27.75,"lane":2,"chord":false},{"t":28,"lane":3,"chord":false},{"t":28,"lane":4,"chord":false},{"t":28.25,"lane":2,"chord":false},{"t":28.5,"lane":1,"chord":false},{"t":28.75,"lane":0,"chord":false},{"t":29,"lane":1,"chord":false},{"t":29.25,"lane":2,"chord":false},{"t":29.5,"lane":3,"chord":false},{"t":29.75,"lane":4,"chord":false},{"t":30,"lane":3,"chord":false},{"t":30.25,"lane":4,"chord":false},{"t":30.5,"lane":5,"chord":false},{"t":30.75,"lane":6,"chord":false},{"t":31,"lane":7,"chord":false},{"t":31.25,"lane":6,"chord":false},{"t":31.5,"lane":5,"chord":false},{"t":31.75,"lane":4,"chord":false},{"t":32,"lane":3,"chord":false},{"t":32,"lane":4,"chord":false},{"t":32.25,"lane":3,"chord":false},{"t":32.5,"lane":2,"chord":false},{"t":32.625,"lane":0,"chord":false},{"t":32.75,"lane":0,"chord":false},{"t":33,"lane":1,"chord":false},{"t":33.25,"lane":2,"chord":false},{"t":33.5,"lane":3,"chord":false},{"t":34,"lane":1,"chord":false},{"t":34.25,"lane":2,"chord":false},{"t":34.5,"lane":4,"chord":false},{"t":35,"lane":3,"chord":false},{"t":35.25,"lane":2,"chord":false},{"t":35.5,"lane":1,"chord":false},{"t":36,"lane":2,"chord":false},{"t":36,"lane":4,"chord":false},{"t":36.25,"lane":4,"chord":false},{"t":36.5,"lane":5,"chord":false},{"t":37,"lane":4,"chord":false},{"t":37.25,"lane":3,"chord":false},{"t":37.5,"lane":2,"chord":false},{"t":37.75,"lane":1,"chord":false},{"t":38,"lane":3,"chord":false},{"t":38.25,"lane":3,"chord":false},{"t":38.5,"lane":4,"chord":false},{"t":39,"lane":3,"chord":false},{"t":39.25,"lane":2,"chord":false},{"t":39.5,"lane":1,"chord":false},{"t":40,"lane":3,"chord":false},{"t":40,"lane":4,"chord":false},{"t":40.25,"lane":4,"chord":false},{"t":40.5,"lane":5,"chord":false},{"t":41,"lane":6,"chord":false},{"t":41.25,"lane":7,"chord":false},{"t":41.5,"lane":6,"chord":false},{"t":41.75,"lane":5,"chord":false},{"t":42,"lane":3,"chord":false},{"t":42.25,"lane":2,"chord":false},{"t":42.5,"lane":1,"chord":false},{"t":43,"lane":0,"chord":false},{"t":43.25,"lane":1,"chord":false},{"t":43.5,"lane":2,"chord":false},{"t":44,"lane":2,"chord":false},{"t":44,"lane":5,"chord":false},{"t":44.25,"lane":3,"chord":false},{"t":44.5,"lane":4,"chord":false},{"t":44.625,"lane":5,"chord":false},{"t":44.875,"lane":5,"chord":false},{"t":45,"lane":6,"chord":false},{"t":45.125,"lane":7,"chord":false},{"t":45.25,"lane":6,"chord":false},{"t":45.375,"lane":5,"chord":false},{"t":45.5,"lane":4,"chord":false},{"t":45.75,"lane":3,"chord":false},{"t":46,"lane":4,"chord":false},{"t":46.25,"lane":3,"chord":false},{"t":46.5,"lane":1,"chord":false},{"t":46.75,"lane":0,"chord":false},{"t":47,"lane":1,"chord":false},{"t":47.25,"lane":2,"chord":false},{"t":47.5,"lane":3,"chord":false},{"t":47.875,"lane":4,"chord":false},{"t":48,"lane":2,"chord":false},{"t":48,"lane":5,"chord":false},{"t":48.25,"lane":6,"chord":false},{"t":48.375,"lane":7,"chord":false},{"t":48.5,"lane":6,"chord":false},{"t":48.625,"lane":5,"chord":false},{"t":48.875,"lane":4,"chord":false},{"t":49,"lane":3,"chord":false},{"t":49.125,"lane":2,"chord":false},{"t":49.25,"lane":0,"chord":false},{"t":49.5,"lane":1,"chord":false},{"t":50,"lane":4,"chord":false},{"t":50.5,"lane":5,"chord":false},{"t":50.75,"lane":6,"chord":false},{"t":51,"lane":7,"chord":false},{"t":51.5,"lane":6,"chord":false},{"t":52,"lane":4,"chord":false},{"t":52.5,"lane":4,"chord":false},{"t":53,"lane":3,"chord":false},{"t":53.25,"lane":2,"chord":false},{"t":53.5,"lane":1,"chord":false},{"t":53.625,"lane":0,"chord":false},{"t":54,"lane":2,"chord":false},{"t":54.25,"lane":3,"chord":false},{"t":54.5,"lane":4,"chord":false},{"t":54.625,"lane":5,"chord":false},{"t":54.75,"lane":7,"chord":false},{"t":54.875,"lane":7,"chord":false},{"t":55,"lane":6,"chord":false},{"t":55.25,"lane":5,"chord":false},{"t":55.5,"lane":4,"chord":false},{"t":56,"lane":3,"chord":false},{"t":56,"lane":5,"chord":false},{"t":56.25,"lane":4,"chord":false},{"t":56.5,"lane":5,"chord":false},{"t":56.625,"lane":6,"chord":false},{"t":56.75,"lane":7,"chord":false},{"t":57,"lane":7,"chord":false},{"t":57.25,"lane":7,"chord":false},{"t":57.5,"lane":6,"chord":false},{"t":58,"lane":3,"chord":false},{"t":58.25,"lane":2,"chord":false},{"t":58.5,"lane":1,"chord":false},{"t":58.625,"lane":0,"chord":false},{"t":58.75,"lane":0,"chord":false},{"t":59,"lane":0,"chord":false},{"t":59.0833,"lane":1,"chord":false},{"t":59.1667,"lane":0,"chord":false},{"t":59.25,"lane":1,"chord":false},{"t":59.3333,"lane":0,"chord":false},{"t":59.4167,"lane":1,"chord":false},{"t":59.5,"lane":0,"chord":false},{"t":60,"lane":3,"chord":false},{"t":60,"lane":4,"chord":false},{"t":60.25,"lane":4,"chord":false},{"t":60.5,"lane":5,"chord":false},{"t":60.625,"lane":6,"chord":false},{"t":61,"lane":7,"chord":false},{"t":61.25,"lane":6,"chord":false},{"t":61.5,"lane":5,"chord":false},{"t":61.75,"lane":4,"chord":false},{"t":62,"lane":3,"chord":false},{"t":62.25,"lane":4,"chord":false},{"t":62.5,"lane":5,"chord":false},{"t":62.625,"lane":6,"chord":false},{"t":63,"lane":7,"chord":false},{"t":63.125,"lane":6,"chord":false},{"t":63.25,"lane":5,"chord":false},{"t":63.5,"lane":4,"chord":false},{"t":64,"lane":3,"chord":false},{"t":64,"lane":4,"chord":false},{"t":64.25,"lane":4,"chord":false},{"t":64.5,"lane":5,"chord":false},{"t":64.625,"lane":6,"chord":false},{"t":65,"lane":6,"chord":false},{"t":65.25,"lane":7,"chord":false},{"t":65.5,"lane":7,"chord":false},{"t":65.625,"lane":6,"chord":false},{"t":65.75,"lane":5,"chord":false},{"t":66,"lane":4,"chord":false},{"t":66.25,"lane":6,"chord":false},{"t":66.5,"lane":7,"chord":false},{"t":66.625,"lane":7,"chord":false},{"t":67,"lane":7,"chord":false},{"t":67.0833,"lane":6,"chord":false},{"t":67.1667,"lane":7,"chord":false},{"t":67.25,"lane":6,"chord":false},{"t":67.3333,"lane":7,"chord":false},{"t":67.4167,"lane":6,"chord":false},{"t":67.5,"lane":7,"chord":false},{"t":68,"lane":2,"chord":false},{"t":68,"lane":5,"chord":false},{"t":68.25,"lane":4,"chord":false},{"t":68.375,"lane":3,"chord":false},{"t":68.5,"lane":1,"chord":false},{"t":68.625,"lane":0,"chord":false},{"t":69,"lane":1,"chord":false},{"t":69.25,"lane":2,"chord":false},{"t":69.5,"lane":3,"chord":false},{"t":69.625,"lane":4,"chord":false},{"t":69.75,"lane":5,"chord":false},{"t":70,"lane":4,"chord":false},{"t":70.25,"lane":5,"chord":false},{"t":70.5,"lane":5,"chord":false},{"t":70.625,"lane":6,"chord":false},{"t":71,"lane":7,"chord":false},{"t":71.25,"lane":6,"chord":false},{"t":71.5,"lane":5,"chord":false},{"t":72,"lane":3,"chord":false},{"t":72,"lane":4,"chord":false},{"t":72.25,"lane":5,"chord":false},{"t":72.5,"lane":6,"chord":false},{"t":72.625,"lane":7,"chord":false},{"t":73,"lane":6,"chord":false},{"t":73.25,"lane":5,"chord":false},{"t":73.5,"lane":4,"chord":false},{"t":74,"lane":3,"chord":false},{"t":74.25,"lane":4,"chord":false},{"t":74.5,"lane":5,"chord":false},{"t":74.625,"lane":6,"chord":false},{"t":75,"lane":6,"chord":false},{"t":75.0833,"lane":5,"chord":false},{"t":75.1667,"lane":6,"chord":false},{"t":75.25,"lane":5,"chord":false},{"t":75.3333,"lane":6,"chord":false},{"t":75.4167,"lane":5,"chord":false},{"t":75.5,"lane":6,"chord":false},{"t":76,"lane":3,"chord":false},{"t":76,"lane":5,"chord":false},{"t":76.25,"lane":2,"chord":false},{"t":76.5,"lane":1,"chord":false},{"t":76.625,"lane":0,"chord":false},{"t":77,"lane":0,"chord":false},{"t":77.125,"lane":0,"chord":false},{"t":77.25,"lane":1,"chord":false},{"t":77.5,"lane":2,"chord":false},{"t":78,"lane":2,"chord":false},{"t":78.5,"lane":1,"chord":false},{"t":79,"lane":0,"chord":false},{"t":79.5,"lane":0,"chord":false},{"t":80,"lane":2,"chord":false},{"t":80,"lane":5,"chord":false},{"t":80.25,"lane":3,"chord":false},{"t":80.5,"lane":4,"chord":false},{"t":80.625,"lane":5,"chord":false},{"t":80.75,"lane":6,"chord":false},{"t":80.875,"lane":7,"chord":false},{"t":81,"lane":6,"chord":false},{"t":81.125,"lane":5,"chord":false},{"t":81.25,"lane":4,"chord":false},{"t":81.5,"lane":3,"chord":false},{"t":81.625,"lane":2,"chord":false},{"t":82,"lane":4,"chord":false},{"t":82.25,"lane":4,"chord":false},{"t":82.5,"lane":5,"chord":false},{"t":83,"lane":6,"chord":false},{"t":83.25,"lane":7,"chord":false},{"t":83.5,"lane":6,"chord":false},{"t":84,"lane":3,"chord":false},{"t":84,"lane":4,"chord":false},{"t":84.25,"lane":2,"chord":false},{"t":84.5,"lane":1,"chord":false},{"t":84.75,"lane":0,"chord":false},{"t":85,"lane":1,"chord":false},{"t":85.25,"lane":2,"chord":false},{"t":85.5,"lane":3,"chord":false},{"t":86,"lane":4,"chord":false},{"t":86.25,"lane":2,"chord":false},{"t":86.5,"lane":1,"chord":false},{"t":87,"lane":0,"chord":false},{"t":87.25,"lane":1,"chord":false},{"t":87.5,"lane":2,"chord":false},{"t":87.75,"lane":3,"chord":false},{"t":88,"lane":3,"chord":false},{"t":88,"lane":4,"chord":false},{"t":88.25,"lane":2,"chord":false},{"t":88.5,"lane":1,"chord":false},{"t":89,"lane":2,"chord":false},{"t":89.25,"lane":3,"chord":false},{"t":89.5,"lane":4,"chord":false},{"t":89.875,"lane":5,"chord":false},{"t":90,"lane":6,"chord":false},{"t":90.25,"lane":7,"chord":false},{"t":90.5,"lane":6,"chord":false},{"t":91,"lane":4,"chord":false},{"t":91.25,"lane":3,"chord":false},{"t":91.5,"lane":2,"chord":false},{"t":92,"lane":3,"chord":false},{"t":92,"lane":5,"chord":false},{"t":92.25,"lane":2,"chord":false},{"t":92.5,"lane":1,"chord":false},{"t":93,"lane":2,"chord":false},{"t":93.25,"lane":3,"chord":false},{"t":93.5,"lane":4,"chord":false},{"t":94,"lane":4,"chord":false},{"t":94.25,"lane":5,"chord":false},{"t":94.5,"lane":6,"chord":false},{"t":95,"lane":7,"chord":false},{"t":95.25,"lane":6,"chord":false},{"t":95.5,"lane":5,"chord":false},{"t":96,"lane":3,"chord":false},{"t":96,"lane":4,"chord":false},{"t":96.25,"lane":2,"chord":false},{"t":96.5,"lane":1,"chord":false},{"t":97,"lane":0,"chord":false},{"t":97.25,"lane":1,"chord":false},{"t":97.5,"lane":3,"chord":false},{"t":97.75,"lane":4,"chord":false},{"t":98,"lane":5,"chord":false},{"t":98.25,"lane":3,"chord":false},{"t":98.5,"lane":2,"chord":false},{"t":98.75,"lane":1,"chord":false},{"t":99,"lane":0,"chord":false},{"t":99.5,"lane":1,"chord":false},{"t":100,"lane":2,"chord":false},{"t":100.5,"lane":3,"chord":false},{"t":101,"lane":4,"chord":false},{"t":101.5,"lane":3,"chord":false},{"t":102,"lane":4,"chord":false},{"t":102.5,"lane":3,"chord":false},{"t":103,"lane":4,"chord":false},{"t":103.25,"lane":5,"chord":false},{"t":103.5,"lane":6,"chord":false},{"t":103.75,"lane":7,"chord":false},{"t":104,"lane":4,"chord":false},{"t":104.25,"lane":3,"chord":false},{"t":104.5,"lane":2,"chord":false},{"t":105,"lane":3,"chord":false},{"t":105.25,"lane":4,"chord":false},{"t":105.5,"lane":5,"chord":false},{"t":106,"lane":4,"chord":false},{"t":106.5,"lane":3,"chord":false},{"t":107,"lane":4,"chord":false},{"t":107.25,"lane":5,"chord":false}];
 
   const NOTES = [];
   for (const { t, lane, chord, hold } of RAW) {
     NOTES.push({ t, lane, holdEnd: hold || null });
-    if (chord) NOTES.push({ t, lane: (lane + 1) % 4, holdEnd: hold || null });
+    if (chord) NOTES.push({ t, lane: (lane + 1) % 8, holdEnd: hold || null });
   }
   NOTES.sort((a, b) => a.t - b.t);
   const HAS_NOTES = NOTES.length > 0;
@@ -16,11 +16,11 @@
   const LAST_T = HAS_NOTES ? Math.max(...NOTES.map(n => n.holdEnd || n.t)) : 0;
 
   /* ================= 設定 ================= */
-  const KEYS = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
+  const KEYS = { KeyA: 0, KeyS: 1, KeyD: 2, KeyF: 3, KeyJ: 4, KeyK: 5, KeyL: 6, Semicolon: 7 };
   const PERFECT_WIN = 0.050;   // 秒
   const GOOD_WIN = 0.120;
   const MISS_WIN = 0.150;
-  const START_AT = HAS_NOTES ? 14.8 : 0;   // 空譜面：從 0:00 完整播放
+    const PREROLL_MARGIN = 0.25;   // 預滾：首音符在頂部上方出現的額外距離（秒）
   const LEAD = 2.2;            // 音符提前出現秒數
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -130,6 +130,10 @@
   let counts = { perfect: 0, good: 0, miss: 0 };
   let notes = [];
   let nextIdx = 0;
+  let clockOffset = 0;       // 遊戲時間偏移（預滾階段逐步推進）
+  let prerolling = false;    // 音樂開始前的靜音滾入階段
+  let prerollStartT = 0;     // 預滾起始偏移
+  let prerollStartAt = 0;    // 預滾起始時間戳
   let rafId = 0;
   let audioCtx = null;
 
@@ -176,6 +180,10 @@
     return stage.clientHeight * 0.88;
   }
 
+  function gameT() {
+    return clockOffset + (prerolling ? 0 : audio.currentTime) + SYNC / 1000;
+  }
+
   function resetGame() {
     score = 0;
     combo = 0;
@@ -199,13 +207,20 @@
     resetGame();
     audio.pause();
     audio.volume = 0;
-    audio.currentTime = START_AT;
+    audio.currentTime = 0;
     audio.play().catch(() => {});
+    // 預滾起點：讓首音符從頂部上方滾入，音樂在首拍前才響起
+    clockOffset = FIRST_T - lineY() / SPEED - PREROLL_MARGIN;
+    if (clockOffset > -0.15) clockOffset = -0.15; // 至少保留一小段滾入時間
+    prerollStartT = clockOffset;
     state = "countdown";
     runCountdown(() => {
       setTimeout(() => {
-        audio.currentTime = START_AT;   // 對齊：倒數期間靜音時鐘已走，回到起點
-        audio.volume = 1;
+        // 倒數結束：音樂先暫停，進入靜音滾入階段，讓首音符從頂部出現
+        audio.pause();
+        audio.currentTime = 0;
+        prerolling = true;
+        prerollStartAt = performance.now();
         state = "playing";
         rafId = requestAnimationFrame(tick);
       }, 500);
@@ -246,7 +261,17 @@
   /* ================= 主迴圈 ================= */
   function tick() {
     if (state !== "playing") return;
-    const t = audio.currentTime + SYNC / 1000;
+    if (prerolling) {
+      clockOffset = prerollStartT + (performance.now() - prerollStartAt) / 1000;
+      if (clockOffset >= 0) {
+        prerolling = false;
+        clockOffset = 0;
+        audio.currentTime = 0;
+        audio.volume = 1;
+        audio.play().catch(() => {});
+      }
+    }
+    const t = gameT();
 
     while (nextIdx < NOTES.length && NOTES[nextIdx].t - t < LEAD) {
       spawnNote(NOTES[nextIdx]);
@@ -281,7 +306,7 @@
   function spawnNote(n) {
     const el = document.createElement("div");
     el.className = "note n" + n.lane + (n.holdEnd ? " hold" : "");
-    el.style.left = (n.lane * 25 + 2).toFixed(2) + "%";
+    el.style.left = (n.lane * 12.5 + 1.25).toFixed(2) + "%";
     if (n.holdEnd) {
       el.style.height = ((n.holdEnd - n.t) * SPEED + HEAD_H).toFixed(1) + "px";
     }
@@ -301,9 +326,9 @@
 
   /* ================= 判定 ================= */
   function pressLane(lane) {
-    if (state !== "playing") return;
+    if (state !== "playing" || prerolling) return;
     flashLane(lane);
-    const t = audio.currentTime + SYNC / 1000;
+    const t = gameT();
     let best = null;
     let bestD = Infinity;
     for (const n of notes) {
@@ -397,8 +422,8 @@
   }
 
   function releaseLane(lane) {
-    if (state !== "playing") return;
-    const t = audio.currentTime + SYNC / 1000;
+    if (state !== "playing" || prerolling) return;
+    const t = gameT();
     for (const n of notes) {
       if (n.judged || !n.holding || n.lane !== lane) continue;
       if (t < n.holdEnd - 0.08) breakHold(n);
@@ -428,7 +453,7 @@
     el.className = "judge-text " + kind;
     el.textContent = kind === "perfect" ? "PERFECT" : kind === "good" ? "GOOD" : "MISS";
     el.style.top = (lineY() - 64) + "px";
-    el.style.left = lane !== undefined ? ((lane + 0.5) / 4 * 100) + "%" : "50%";
+    el.style.left = lane !== undefined ? ((lane + 0.5) / 8 * 100) + "%" : "50%";
     fxLayer.appendChild(el);
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
     setTimeout(() => el.remove(), 320);
@@ -438,7 +463,7 @@
     const el = document.createElement("div");
     el.className = "burst " + kind;
     el.style.top = lineY() + "px";
-    el.style.left = ((n.lane + 0.5) / 4 * 100) + "%";
+    el.style.left = ((n.lane + 0.5) / 8 * 100) + "%";
     fxLayer.appendChild(el);
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
     setTimeout(() => el.remove(), 240);
@@ -601,7 +626,12 @@
   function resumeGame() {
     if (state !== "paused") return;
     pauseOverlay.classList.add("hidden");
-    audio.play().catch(() => {});
+    if (prerolling) {
+      prerollStartT = clockOffset;
+      prerollStartAt = performance.now();
+    } else {
+      audio.play().catch(() => {});
+    }
     state = "playing";
     rafId = requestAnimationFrame(tick);
   }

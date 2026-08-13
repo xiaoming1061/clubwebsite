@@ -85,6 +85,37 @@
   outline: none;
 }
 
+.mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color .2s ease, background .2s ease;
+}
+
+.mode-btn.active {
+  background: var(--grad);
+  color: #0a0a14;
+  font-weight: 800;
+}
+
+.mode-btn:hover:not(.active) {
+  color: var(--text);
+}
+
 .note-count {
   font-size: 12.5px;
   color: var(--gold);
@@ -117,11 +148,22 @@
   touch-action: none;
 }
 
+.playfield.delete-mode {
+  cursor: crosshair;
+}
+
+.playfield.delete-mode .ef-note {
+  cursor: pointer;
+}
+
 .ef-lanes {
   position: absolute;
-  inset: 0;
+  left: 56px;
+  right: 0;
+  top: 0;
+  bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   pointer-events: none;
 }
 
@@ -134,25 +176,49 @@
 
 .ef-track {
   position: absolute;
-  left: 0;
+  left: 56px;
   right: 0;
   top: 0;
   will-change: transform;
   pointer-events: none;
 }
 
-.ef-ruler {
+.ef-grid {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.ef-beat {
+.ef-gline {
   position: absolute;
   left: 0;
   right: 0;
   height: 1px;
-  background: rgba(255, 255, 255, .06);
+  background: rgba(255, 255, 255, .09);
+}
+
+.ef-gline.beat {
+  height: 2px;
+  background: rgba(255, 255, 255, .3);
+}
+
+.ef-time {
+  position: absolute;
+  left: -56px;
+  top: 0;
+  height: 100%;
+  width: 52px;
+  pointer-events: none;
+}
+
+.ef-time span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .ef-notes {
@@ -163,7 +229,7 @@
 
 .ef-note {
   position: absolute;
-  width: 21%;
+  width: 10.5%;
   height: 34px;
   border-radius: 12px;
   pointer-events: auto;
@@ -173,10 +239,19 @@
 
 .ef-note:active { cursor: grabbing; }
 
+.ef-note.selected {
+  outline: 2px solid #fff;
+  box-shadow: 0 0 22px rgba(255, 255, 255, .9);
+}
+
 .ef-note.lane0 { background: linear-gradient(180deg, #37e6f5, #1aa6bd); box-shadow: 0 0 14px rgba(55, 230, 245, .7); }
 .ef-note.lane1 { background: linear-gradient(180deg, #8b7cf6, #5a4bd0); box-shadow: 0 0 14px rgba(139, 124, 246, .75); }
 .ef-note.lane2 { background: linear-gradient(180deg, #f472e0, #c048b0); box-shadow: 0 0 14px rgba(244, 114, 224, .7); }
 .ef-note.lane3 { background: linear-gradient(180deg, #ffe066, #d8a82e); box-shadow: 0 0 14px rgba(255, 224, 102, .7); }
+.ef-note.lane4 { background: linear-gradient(180deg, #6ec8ff, #3f92cc); box-shadow: 0 0 14px rgba(110, 200, 255, .7); }
+.ef-note.lane5 { background: linear-gradient(180deg, #b79cff, #8168d8); box-shadow: 0 0 14px rgba(183, 156, 255, .75); }
+.ef-note.lane6 { background: linear-gradient(180deg, #ff9ce8, #cc62b8); box-shadow: 0 0 14px rgba(255, 156, 232, .7); }
+.ef-note.lane7 { background: linear-gradient(180deg, #ffce6b, #d8a02e); box-shadow: 0 0 14px rgba(255, 206, 107, .7); }
 
 .ef-note.hold {
   border-radius: 10px 10px 6px 6px;
@@ -207,7 +282,7 @@
 
 .ef-judge {
   position: absolute;
-  left: 0;
+  left: 56px;
   right: 0;
   bottom: 90px;
   height: 3px;
