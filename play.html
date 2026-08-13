@@ -49,6 +49,10 @@
               <span class="hud-label">PROGRESS</span>
               <div class="progress"><i id="progress"></i></div>
             </div>
+            <div class="hud-item hud-actions">
+              <button class="hud-btn" id="pauseBtn" type="button">⏸ 暫停</button>
+              <button class="hud-btn" id="restartBtn" type="button">↻ 重開</button>
+            </div>
           </div>
 
           <div class="stage" id="stage">
@@ -109,8 +113,9 @@
           <li><span class="kbd">D</span><span class="kbd">F</span><span class="kbd">J</span><span class="kbd">K</span> 對應四條軌道</li>
           <li>手機上直接點擊軌道即可</li>
           <li>音符落至發光橫線時按下，越準分數越高</li>
-          <li>長條音符＝按住直到尾端結束</li>
         </ul>
+
+        <p id="emptyNotice" class="empty-chart-note hidden">譜面暫空，等待你的創作——在遊玩頁輸入 ↑↑↓↓←→←→BA 開啟隱藏編輯器。</p>
 
         <div class="settings">
           <div class="setting-row">
@@ -129,7 +134,6 @@
 
         <button class="btn btn-primary btn-start" id="startBtn">開始演奏</button>
         <p class="form-note">建議佩戴耳機　·　從主歌前奏開始</p>
-        <p class="editor-link"><a href="editor.html">譜面編輯器</a></p>
       </div>
     </div>
 

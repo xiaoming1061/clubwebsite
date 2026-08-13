@@ -3,7 +3,7 @@
 
   /* ================= 譜面 ================= */
   // [時間(秒), 軌道(0-3), 是否雙押]
-  const RAW = [{"t":16.684,"lane":2,"chord":false},{"t":17.02,"lane":3,"chord":false},{"t":17.357,"lane":0,"chord":false},{"t":17.694,"lane":1,"chord":false},{"t":18.019,"lane":2,"chord":false},{"t":18.355,"lane":3,"chord":false},{"t":22.117,"lane":2,"chord":false},{"t":22.686,"lane":0,"chord":false},{"t":23.023,"lane":1,"chord":false},{"t":23.359,"lane":2,"chord":false},{"t":23.684,"lane":3,"chord":false},{"t":24.184,"lane":0,"chord":false},{"t":24.52,"lane":1,"chord":false},{"t":24.857,"lane":2,"chord":false},{"t":25.182,"lane":3,"chord":false},{"t":25.519,"lane":0,"chord":false},{"t":25.855,"lane":1,"chord":false},{"t":26.192,"lane":2,"chord":false},{"t":26.691,"lane":3,"chord":false},{"t":27.191,"lane":0,"chord":false},{"t":27.516,"lane":1,"chord":false},{"t":28.026,"lane":2,"chord":false},{"t":28.363,"lane":3,"chord":false},{"t":28.688,"lane":0,"chord":false},{"t":29.025,"lane":1,"chord":false},{"t":29.362,"lane":2,"chord":false},{"t":29.687,"lane":3,"chord":false},{"t":30.023,"lane":0,"chord":false},{"t":30.36,"lane":1,"chord":false},{"t":30.859,"lane":2,"chord":false},{"t":31.184,"lane":3,"chord":false},{"t":31.521,"lane":0,"chord":false},{"t":32.02,"lane":1,"chord":false},{"t":32.357,"lane":2,"chord":false},{"t":32.694,"lane":3,"chord":false},{"t":33.019,"lane":0,"chord":false},{"t":33.518,"lane":1,"chord":false},{"t":33.855,"lane":2,"chord":false},{"t":34.191,"lane":3,"chord":false},{"t":34.516,"lane":0,"chord":false},{"t":34.853,"lane":1,"chord":false},{"t":35.352,"lane":2,"chord":false},{"t":35.689,"lane":3,"chord":false},{"t":36.026,"lane":0,"chord":false},{"t":36.513,"lane":1,"chord":false},{"t":36.85,"lane":2,"chord":false},{"t":37.361,"lane":3,"chord":false},{"t":37.686,"lane":0,"chord":false},{"t":38.023,"lane":1,"chord":false},{"t":38.359,"lane":2,"chord":false},{"t":38.859,"lane":3,"chord":false},{"t":39.184,"lane":0,"chord":false},{"t":39.52,"lane":1,"chord":false},{"t":39.857,"lane":2,"chord":false},{"t":40.194,"lane":3,"chord":false},{"t":40.519,"lane":0,"chord":false},{"t":40.856,"lane":1,"chord":false},{"t":41.192,"lane":2,"chord":false},{"t":41.552,"lane":3,"chord":false},{"t":41.854,"lane":0,"chord":false},{"t":42.191,"lane":1,"chord":false},{"t":42.69,"lane":2,"chord":false},{"t":43.027,"lane":3,"chord":false},{"t":43.352,"lane":0,"chord":false},{"t":43.688,"lane":1,"chord":false},{"t":44.025,"lane":2,"chord":false},{"t":44.35,"lane":3,"chord":false},{"t":44.849,"lane":0,"chord":false},{"t":45.685,"lane":2,"chord":false},{"t":46.184,"lane":3,"chord":false},{"t":46.521,"lane":0,"chord":false},{"t":47.276,"lane":2,"chord":false},{"t":48.019,"lane":1,"chord":false},{"t":48.356,"lane":2,"chord":false},{"t":48.855,"lane":3,"chord":false},{"t":49.191,"lane":0,"chord":false},{"t":49.691,"lane":1,"chord":false},{"t":50.016,"lane":2,"chord":false},{"t":50.77,"lane":1,"chord":false},{"t":51.107,"lane":2,"chord":false},{"t":51.606,"lane":3,"chord":false},{"t":52.187,"lane":2,"chord":false},{"t":52.941,"lane":1,"chord":false},{"t":53.278,"lane":2,"chord":false},{"t":53.94,"lane":0,"chord":false},{"t":54.602,"lane":3,"chord":false},{"t":54.938,"lane":0,"chord":true},{"t":55.438,"lane":1,"chord":false},{"t":55.937,"lane":2,"chord":false},{"t":56.274,"lane":3,"chord":false},{"t":56.773,"lane":0,"chord":true},{"t":57.109,"lane":1,"chord":false},{"t":57.609,"lane":2,"chord":false},{"t":57.945,"lane":3,"chord":false},{"t":58.445,"lane":0,"chord":true},{"t":58.77,"lane":1,"chord":false},{"t":59.106,"lane":2,"chord":false},{"t":59.606,"lane":3,"chord":false},{"t":60.105,"lane":0,"chord":true},{"t":60.604,"lane":1,"chord":false},{"t":61.022,"lane":2,"chord":false},{"t":61.521,"lane":3,"chord":false},{"t":61.939,"lane":0,"chord":true},{"t":62.276,"lane":1,"chord":false},{"t":62.601,"lane":2,"chord":false},{"t":62.938,"lane":3,"chord":false},{"t":63.274,"lane":0,"chord":true},{"t":63.611,"lane":1,"chord":false},{"t":63.936,"lane":2,"chord":false},{"t":64.273,"lane":3,"chord":false},{"t":64.61,"lane":0,"chord":true},{"t":64.935,"lane":1,"chord":false},{"t":65.271,"lane":2,"chord":false},{"t":65.608,"lane":3,"chord":false},{"t":65.945,"lane":0,"chord":true},{"t":66.606,"lane":3,"chord":false,"hold":68.2},{"t":66.943,"lane":0,"chord":false},{"t":67.268,"lane":1,"chord":false},{"t":67.942,"lane":0,"chord":true},{"t":68.441,"lane":1,"chord":false},{"t":68.94,"lane":2,"chord":false},{"t":69.277,"lane":3,"chord":false},{"t":69.776,"lane":0,"chord":true},{"t":70.275,"lane":1,"chord":false},{"t":70.612,"lane":2,"chord":false},{"t":71.111,"lane":3,"chord":false},{"t":71.436,"lane":0,"chord":true},{"t":71.773,"lane":1,"chord":false},{"t":72.272,"lane":2,"chord":false},{"t":72.609,"lane":3,"chord":false},{"t":72.945,"lane":0,"chord":true},{"t":73.271,"lane":1,"chord":false},{"t":73.607,"lane":2,"chord":false},{"t":73.944,"lane":3,"chord":false},{"t":74.269,"lane":0,"chord":true},{"t":74.606,"lane":1,"chord":false},{"t":75.105,"lane":2,"chord":false},{"t":75.442,"lane":3,"chord":false},{"t":75.778,"lane":0,"chord":true},{"t":76.103,"lane":1,"chord":false},{"t":76.44,"lane":2,"chord":false},{"t":76.939,"lane":3,"chord":false},{"t":77.439,"lane":0,"chord":true},{"t":77.775,"lane":1,"chord":false},{"t":78.274,"lane":2,"chord":false},{"t":78.774,"lane":3,"chord":false},{"t":84.277,"lane":1,"chord":false,"hold":86.0},{"t":86.274,"lane":0,"chord":false},{"t":88.271,"lane":2,"chord":false,"hold":89.9},{"t":90.279,"lane":0,"chord":false},{"t":92.299,"lane":2,"chord":false,"hold":94.0},{"t":94.285,"lane":0,"chord":false},{"t":96.282,"lane":3,"chord":false,"hold":97.9},{"t":98.278,"lane":1,"chord":false}];
+  const RAW = [];
 
   const NOTES = [];
   for (const { t, lane, chord, hold } of RAW) {
@@ -11,15 +11,16 @@
     if (chord) NOTES.push({ t, lane: (lane + 1) % 4, holdEnd: hold || null });
   }
   NOTES.sort((a, b) => a.t - b.t);
-  const FIRST_T = NOTES[0].t;
-  const LAST_T = Math.max(...NOTES.map(n => n.holdEnd || n.t));
+  const HAS_NOTES = NOTES.length > 0;
+  const FIRST_T = HAS_NOTES ? NOTES[0].t : 0;
+  const LAST_T = HAS_NOTES ? Math.max(...NOTES.map(n => n.holdEnd || n.t)) : 0;
 
   /* ================= 設定 ================= */
   const KEYS = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
   const PERFECT_WIN = 0.050;   // 秒
   const GOOD_WIN = 0.120;
   const MISS_WIN = 0.150;
-  const START_AT = 14.8;       // 從主歌前奏開始，跳過寂靜開場
+  const START_AT = HAS_NOTES ? 14.8 : 0;   // 空譜面：從 0:00 完整播放
   const LEAD = 2.2;            // 音符提前出現秒數
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -196,15 +197,23 @@
 
   function startGame() {
     resetGame();
+    audio.pause();
+    audio.volume = 0;
     audio.currentTime = START_AT;
     audio.play().catch(() => {});
-    state = "playing";
-    runCountdown();
-    rafId = requestAnimationFrame(tick);
+    state = "countdown";
+    runCountdown(() => {
+      setTimeout(() => {
+        audio.currentTime = START_AT;   // 對齊：倒數期間靜音時鐘已走，回到起點
+        audio.volume = 1;
+        state = "playing";
+        rafId = requestAnimationFrame(tick);
+      }, 500);
+    });
   }
 
   /* ================= 倒數 ================= */
-  function runCountdown() {
+  function runCountdown(onDone) {
     let i = 3;
     const step = () => {
       if (i > 0) {
@@ -214,10 +223,7 @@
       } else {
         showCount("GO");
         setTimeout(() => {
-          countdownEl.animate([
-            { opacity: 1, transform: "translate(-50%, -50%) scale(1)" },
-            { opacity: 0, transform: "translate(-50%, -50%) scale(1.1)" }
-          ], { duration: 220, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+          if (onDone) onDone();
         }, 480);
       }
     };
@@ -262,7 +268,8 @@
 
     updateHud(t);
 
-    if (t > LAST_T + 2.2 || audio.ended) {
+    const endT = HAS_NOTES ? LAST_T + 2.2 : audio.duration - 0.3;
+    if (t >= endT || audio.ended) {
       finish();
       return;
     }
@@ -442,7 +449,8 @@
     const acc = total ? (counts.perfect + counts.good * 0.6) / total * 100 : 100;
     accEl.textContent = acc.toFixed(1) + "%";
     scoreEl.textContent = score;
-    const p = Math.min(1, Math.max(0, (t - FIRST_T) / (LAST_T - FIRST_T)));
+    const span = HAS_NOTES ? (LAST_T - FIRST_T) : audio.duration;
+    const p = span > 0 ? Math.min(1, Math.max(0, (t - (HAS_NOTES ? FIRST_T : 0)) / span)) : 0;
     progressEl.style.width = (p * 100).toFixed(1) + "%";
   }
 
@@ -450,7 +458,7 @@
   function finish() {
     state = "done";
     cancelAnimationFrame(rafId);
-    audio.pause();
+    // 不暫停音樂：讓完整版播到自然結束
 
     const total = counts.perfect + counts.good + counts.miss;
     const acc = total ? (counts.perfect + counts.good * 0.6) / total * 100 : 100;
@@ -474,7 +482,14 @@
     })();
     submitStatus.textContent = "";
     submitStatus.className = "submit-status";
-    submitBtn.disabled = false;
+    if (HAS_NOTES) {
+      submitBtn.disabled = false;
+      nameInput.disabled = false;
+    } else {
+      submitBtn.disabled = true;
+      nameInput.disabled = true;
+      submitStatus.textContent = "空譜面不計入排行榜";
+    }
     resultOverlay.classList.remove("hidden");
   }
 
@@ -605,6 +620,11 @@
     initAudioCtx();
     startGame();
   });
+  $("pauseBtn").addEventListener("click", pauseGame);
+  $("restartBtn").addEventListener("click", () => {
+    initAudioCtx();
+    startGame();
+  });
 
   let touchLane = null;
   lanesEl.forEach((el) => {
@@ -659,5 +679,32 @@
     if (ev.key === "Enter") submitScore();
   });
   loadLeaderboard();
+
+  /* 空譜面提示 */
+  const emptyNotice = $("emptyNotice");
+  if (!HAS_NOTES && emptyNotice) {
+    emptyNotice.classList.remove("hidden");
+    $("startBtn").textContent = "♪ 試聽完整版";
+  }
+
+  /* ================= 隱藏菜單（Konami 密技） ================= */
+  const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "KeyB", "KeyA"];
+  let konamiIdx = 0;
+  window.addEventListener("keydown", (ev) => {
+    if (ev.code.indexOf("Arrow") === 0) ev.preventDefault();
+    if (ev.code === KONAMI[konamiIdx]) {
+      konamiIdx++;
+      if (konamiIdx === KONAMI.length) {
+        konamiIdx = 0;
+        const toast = document.createElement("div");
+        toast.className = "konami-toast show";
+        toast.textContent = "♪ 隱藏菜單開啟";
+        document.body.appendChild(toast);
+        setTimeout(() => { location.href = "editor.html"; }, 650);
+      }
+    } else {
+      konamiIdx = ev.code === KONAMI[0] ? 1 : 0;
+    }
+  });
 
 })();
