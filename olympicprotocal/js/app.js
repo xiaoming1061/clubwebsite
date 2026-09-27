@@ -794,13 +794,27 @@
       : "没找到时间刻度";
 
     box.hidden = false;
+    var rejected = result.rejected || [];
+
     $("#ocrDebugSummary").textContent =
       "文字块 " + result.wordCount + " 个 · 分割模式 " + result.mode +
       (result.variant ? " · 像素处理 " + result.variant : "") +
       " · 试了 " + result.tries + " 遍 · 列：" + (cols || "没找到") +
-      " · " + axis + " · 拼出课程 " + (result.courses || []).length + " 条";
-    $("#ocrDebugText").textContent =
-      (result.text || "").slice(0, 4000) || "（引擎没有返回文字内容）";
+      " · " + axis + " · 拼出课程 " + (result.courses || []).length + " 条" +
+      " · 丢弃 " + rejected.length + " 个格子";
+
+    var parts = [];
+    if (rejected.length) {
+      parts.push("【被丢弃的格子】判定标准是必须同时有「4 字母 + 4 数字」的课程代号和课程类型：");
+      rejected.forEach(function (r) {
+        parts.push("· " + r.reason + "：" + r.text);
+      });
+      parts.push("");
+    }
+    parts.push("【引擎识别到的原文】");
+    parts.push((result.text || "").slice(0, 4000) || "（引擎没有返回文字内容）");
+
+    $("#ocrDebugText").textContent = parts.join("\n");
   }
 
   function handleOcrFile(file) {

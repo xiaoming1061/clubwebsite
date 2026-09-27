@@ -49,6 +49,32 @@ window.OP = window.OP || {};
     "讲座", "导修", "实验", "实验课", "大会", "研讨", "实践", "课程", "课"
   ];
 
+  /**
+   * 课程代号：4 个字母 + 4 位数字，例如 BMEG 2210、ENGL 1001。
+   * 中间允许空格或连字符，字母必须大写——这样 "Room 1234" 这类不会被误判。
+   */
+  var COURSE_CODE_RE = /\b([A-Z]{4})[\s\-–—]*([0-9A-Za-z]{4})\b/;
+
+  /* OCR 在数字位置常把 0/O、1/I、5/S、8/B 认混，这里纠回来 */
+  var DIGIT_FIXES = [
+    [/[OoQq]/g, "0"],
+    [/[Il|!]/g, "1"],
+    [/[Zz]/g, "2"],
+    [/[Ss]/g, "5"],
+    [/[Gg]/g, "6"],
+    [/[Bb]/g, "8"]
+  ];
+
+  function fixDigits(text) {
+    var result = String(text);
+    DIGIT_FIXES.forEach(function (pair) { result = result.replace(pair[0], pair[1]); });
+    return result;
+  }
+
+  function isValidCourseCode(code) {
+    return /^[A-Z]{4} [0-9]{4}$/.test(String(code || ""));
+  }
+
   var NON_SECTION = ["lecture", "tutorial", "laboratory", "assembly", "waiting",
     "location", "venue", "tba", "am", "pm"];
 
@@ -406,17 +432,20 @@ window.OP = window.OP || {};
       out.end = pad2(parseInt(tm[3], 10)) + ":" + tm[4];
     }
 
-    /* --- 课程代码 --- */
-    var cm = /\b([A-Z]{2,5})\s?([0-9]{3,4})\b/.exec(flat);
+    /* --- 课程代号：必须是 4 字母 + 4 数字 --- */
+    var cm = COURSE_CODE_RE.exec(flat);
     var codeLineIndex = -1;
     if (cm) {
-      out.code = cm[1] + " " + cm[2];
+      var digits = fixDigits(cm[2]);
+      out.code = /^[0-9]{4}$/.test(digits) ? cm[1] + " " + digits : "";
+      out.rawCode = cm[1] + " " + cm[2];
+
       for (var i = 0; i < lines.length; i++) {
         if (lines[i].indexOf(cm[1]) >= 0 && lines[i].indexOf(cm[2]) >= 0) { codeLineIndex = i; break; }
       }
 
-      /* 代码同一行的破折号后面就是课节号 */
-      if (codeLineIndex >= 0) {
+      /* 代号同一行的破折号后面就是课节号 */
+      if (out.code && codeLineIndex >= 0) {
         var after = lines[codeLineIndex].slice(lines[codeLineIndex].indexOf(cm[2]) + cm[2].length);
         var sm = /\b([A-Z]{1,5}[0-9]{0,3})\b/.exec(after.replace(/[-–—]/g, " "));
         if (sm && !isTypeWord(sm[1]) && NON_SECTION.indexOf(lower(sm[1])) === -1) {
@@ -512,6 +541,7 @@ window.OP = window.OP || {};
     });
 
     var courses = [];
+    var rejected = [];
 
     columns.forEach(function (col) {
       var colWords = content.filter(function (w) {
@@ -524,8 +554,18 @@ window.OP = window.OP || {};
         var lines = groupLines(block.words);
         var item = parseBlockLines(lines);
 
-        /* 既没代码也不像课程类型，多半是误识别的零碎文字 */
-        if (!item.code && !item.type) return;
+        /* 收紧判定：必须同时有「4 字母 + 4 数字」的课程代号，和已知的课程类型。
+           宁可漏掉，也不要把零碎文字当成课程。
+           被丢掉的格子记下来，否则出错时只会看到"少了几条课"而不知道为什么。 */
+        if (!isValidCourseCode(item.code) || !item.type) {
+          if (rejected.length < 12 && lines.join(" ").trim().length > 6) {
+            rejected.push({
+              reason: !item.code ? "没有找到 4 字母 + 4 数字的课程代号" : "没有找到课程类型",
+              text: lines.join(" / ")
+            });
+          }
+          return;
+        }
 
         item.weekday = col.day;
 
@@ -550,7 +590,13 @@ window.OP = window.OP || {};
       return a.weekday - b.weekday || hm(a.start) - hm(b.start);
     });
 
-    return { courses: courses, columns: columns, timeAxis: timeAxis, warnings: warnings };
+    return {
+      courses: courses,
+      columns: columns,
+      timeAxis: timeAxis,
+      warnings: warnings,
+      rejected: rejected
+    };
   }
 
   /**
@@ -1021,6 +1067,9 @@ window.OP = window.OP || {};
     splitBlocks: splitBlocks,
     groupLines: groupLines,
     parseVenue: parseVenue,
+    COURSE_CODE_RE: COURSE_CODE_RE,
+    fixDigits: fixDigits,
+    isValidCourseCode: isValidCourseCode,
     stripTypeWords: stripTypeWords,
     mergeTypeLines: mergeTypeLines,
     canonicalType: canonicalType,
