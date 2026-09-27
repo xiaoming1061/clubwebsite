@@ -1,7 +1,13 @@
-/* 校园简图：用 SVG 画楼栋点位、当前位置和当天的路线链
+/* 校园简图：用 SVG 画今天的行程
+ *
+ * 重点是三类信息，其余楼栋只当背景：
+ *   我的位置       —— 会脉冲的圆点
+ *   下一节课        —— 高亮 + 「下一节」旗标
+ *   今天要去的楼栋   —— 按先后编号，标出上课时间
+ * 其它楼栋画成很小的暗点，不给名字，免得抢戏。
  *
  * 这是按真实经纬度等比投影出来的示意图，不是街道地图，
- * 所以不会有道路细节；需要真实的转弯导航时，用「路线」页里的地图跳转按钮。
+ * 需要转弯导航时用「路线」页里的地图跳转按钮。
  */
 
 window.OP = window.OP || {};
@@ -12,8 +18,8 @@ window.OP = window.OP || {};
   var W = 1000;
   var H = 700;
   var PAD = 1.32;   // 视野留白系数
-  var LAT_M = 110540;                       // 1 度纬度 ≈ 米
-  var LNG_M = 111320;                       // 1 度经度 ≈ 米（赤道），再乘 cos(纬度)
+  var LAT_M = 110540;
+  var LNG_M = 111320;
 
   function esc(text) {
     return String(text === undefined || text === null ? "" : text)
@@ -21,6 +27,10 @@ window.OP = window.OP || {};
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function hasCoords(b) {
+    return !!(b && typeof b.lat === "number" && typeof b.lng === "number");
   }
 
   function makeProjector(points) {
@@ -33,10 +43,10 @@ window.OP = window.OP || {};
     var cLng = (minLng + maxLng) / 2;
 
     var mPerLng = LNG_M * Math.cos((cLat * Math.PI) / 180);
-    var spanX = Math.max((maxLng - minLng) * mPerLng, 120);   // 至少留 120 米的尺度
+    var spanX = Math.max((maxLng - minLng) * mPerLng, 120);
     var spanY = Math.max((maxLat - minLat) * LAT_M, 120);
 
-    /* 横向纵向用同一个比例尺，保证不会被拉扁 */
+    /* 横纵用同一个比例尺，画面才不会被拉扁 */
     var scale = Math.min(W / (spanX * PAD), H / (spanY * PAD));
 
     return function (point) {
@@ -61,78 +71,105 @@ window.OP = window.OP || {};
   /**
    * @param {SVGElement} svg
    * @param {object} opts
-   *   buildings  [{ id, name, lat, lng }]
-   *   position   { lat, lng } | null
-   *   activeId   下一节课所在楼栋的 id
-   *   legs       buildLegs() 的结果，用来画路线链和距离
+   *   buildings  [{ id, name, lat, lng }]  全部楼栋，只用来当背景
+   *   position   { lat, lng } | null       我的位置
+   *   stops      [{ building, order, time, isNext }]  今天要去的楼栋，按顺序
+   *   detourFactor                          直线距离折算成步行距离的系数
    */
   function render(svg, opts) {
     if (!svg) return;
     opts = opts || {};
 
-    var buildings = (opts.buildings || []).filter(function (b) {
-      return typeof b.lat === "number" && typeof b.lng === "number";
+    var all = (opts.buildings || []).filter(hasCoords);
+    var stops = (opts.stops || []).filter(function (s) {
+      return s && hasCoords(s.building);
     });
 
-    if (!buildings.length) {
+    var focused = {};
+    stops.forEach(function (s) { focused[s.building.id] = true; });
+
+    if (!all.length) {
       svg.innerHTML = '<text x="500" y="350" class="bld-label">还没有楼栋坐标，去「设置」里添加</text>';
       return;
     }
 
-    var points = buildings.map(function (b) { return { lat: b.lat, lng: b.lng }; });
-    if (opts.position) points.push({ lat: opts.position.lat, lng: opts.position.lng });
+    /* 取景范围只按"今天要去的楼 + 我的位置"来算，
+       这样画面会自然放大到有用的那块，而不是被上百栋楼撑开 */
+    var frame = stops.map(function (s) { return s.building; });
+    if (opts.position) frame.push(opts.position);
+    if (frame.length < 2) frame = frame.concat(all);
 
-    var project = makeProjector(points);
+    var project = makeProjector(frame);
     var parts = [grid()];
 
-    /* ---- 路线链 ---- */
-    var legs = opts.legs || [];
-    if (opts.position && legs.length) {
-      var chain = [{ x: project(opts.position).x, y: project(opts.position).y }];
-      legs.forEach(function (leg) {
-        if (leg.toPoint) {
-          var p = project(leg.toPoint);
-          chain.push({ x: p.x, y: p.y });
-        }
-      });
-      if (chain.length > 1) {
-        parts.push('<polyline class="route-line" points="' +
-          chain.map(function (p) { return p.x.toFixed(1) + "," + p.y.toFixed(1); }).join(" ") +
-          '"/>');
-      }
-      /* 每段的距离标注 */
-      legs.forEach(function (leg, i) {
-        if (!leg.metrics || !leg.toPoint) return;
-        var a = project(i === 0 ? opts.position : legs[i - 1].toPoint);
-        var b = project(leg.toPoint);
-        var mx = (a.x + b.x) / 2;
-        var my = (a.y + b.y) / 2 - 12;
-        parts.push('<text class="dist-label" x="' + mx.toFixed(0) + '" y="' + my.toFixed(0) + '">' +
-          esc(OP.Geo.formatDistance(leg.metrics.distance)) + "</text>");
-      });
+    /* ---- 背景楼栋：很小的暗点，不给名字 ---- */
+    all.forEach(function (b) {
+      if (focused[b.id]) return;
+      var p = project(b);
+      parts.push('<circle class="bld-ghost" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="6"/>');
+    });
+
+    /* ---- 行程点：我的位置 → 第一节 → 第二节 … ---- */
+    var nodes = [];
+    if (opts.position) nodes.push({ point: opts.position, stop: null });
+    stops.forEach(function (s) { nodes.push({ point: s.building, stop: s }); });
+
+    if (nodes.length > 1) {
+      parts.push('<polyline class="route-line" points="' + nodes.map(function (n) {
+        var p = project(n.point);
+        return p.x.toFixed(1) + "," + p.y.toFixed(1);
+      }).join(" ") + '"/>');
     }
 
-    /* ---- 楼栋 ---- */
-    buildings.forEach(function (b) {
+    /* ---- 每段的距离（和路线列表用同一套折算方式，数字对得上） ---- */
+    var detour = Number(opts.detourFactor) || 1.3;
+    for (var i = 1; i < nodes.length; i++) {
+      var straight = OP.Geo.haversine(nodes[i - 1].point, nodes[i].point);
+      if (straight === null) continue;
+
+      var a = project(nodes[i - 1].point);
+      var b2 = project(nodes[i].point);
+      parts.push('<text class="dist-label" x="' + ((a.x + b2.x) / 2).toFixed(0) +
+        '" y="' + ((a.y + b2.y) / 2 - 12).toFixed(0) + '">' +
+        esc(OP.Geo.formatDistance(straight * detour)) + "</text>");
+    }
+
+    /* ---- 今天要去的楼栋 ---- */
+    stops.forEach(function (s) {
+      var b = s.building;
       var p = project(b);
-      var active = opts.activeId && b.id === opts.activeId;
-      parts.push('<g>' +
-        '<circle class="bld' + (active ? " is-active" : "") + '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="21"/>' +
-        '<text class="bld-label' + (active ? " is-active" : "") + '" x="' + p.x.toFixed(1) + '" y="' +
-        (p.y + 7).toFixed(1) + '" style="font-size:19px">' + esc(b.id) + "</text>" +
-        '<text class="bld-label' + (active ? " is-active" : "") + '" x="' + p.x.toFixed(1) + '" y="' +
-        (p.y + 44).toFixed(1) + '" style="font-size:18px">' + esc(b.name) + "</text>" +
+      var r = s.isNext ? 24 : 19;
+
+      parts.push("<g>" +
+        '<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
+          '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '"/>' +
+        '<text class="bld-order' + (s.isNext ? " is-next" : "") +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 7).toFixed(1) + '">' +
+          esc(s.order || "") + "</text>" +
+        '<text class="bld-label' + (s.isNext ? " is-next" : "") +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 26).toFixed(1) + '">' +
+          esc(b.name) + "</text>" +
+        (s.time
+          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 48).toFixed(1) + '">' +
+            esc(s.time) + "</text>"
+          : "") +
+        (s.isNext
+          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 12).toFixed(1) + '">下一节</text>'
+          : "") +
         "</g>");
     });
 
     /* ---- 我的位置 ---- */
     if (opts.position) {
       var me = project(opts.position);
-      parts.push('<g>' +
+      parts.push("<g>" +
         '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="12"/>' +
         '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="9"/>' +
         '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 24).toFixed(1) + '">我的位置</text>' +
         "</g>");
+    } else if (stops.length) {
+      /* 没定位时在图上说一句，免得以为坏了 */
+      parts.push('<text class="map-note" x="500" y="666">打开定位后会显示你的位置</text>');
     }
 
     svg.innerHTML = parts.join("");

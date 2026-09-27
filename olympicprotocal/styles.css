@@ -339,6 +339,45 @@ body {
 .bld { fill: #24344f; stroke: #3a4f74; stroke-width: 2; }
 .bld.is-active { fill: var(--accent); stroke: #bff4ff; }
 
+/* 今天要去的楼栋 */
+.bld.is-today { fill: #16324a; stroke: var(--accent); stroke-width: 3; }
+/* 下一节课所在的那栋 */
+.bld.is-next { fill: var(--accent); stroke: #bff4ff; stroke-width: 3; }
+
+/* 其余楼栋只留个暗点当背景，不给名字 */
+.bld-ghost { fill: #24344f; opacity: 0.45; }
+
+.bld-order {
+  fill: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-family: inherit;
+}
+.bld-order.is-next { fill: #04121c; font-weight: 800; }
+
+.bld-time {
+  fill: var(--text-faint);
+  font-size: 16px;
+  text-anchor: middle;
+  font-family: inherit;
+}
+
+.bld-flag {
+  fill: var(--accent);
+  font-size: 17px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-family: inherit;
+}
+
+.map-note {
+  fill: var(--text-faint);
+  font-size: 18px;
+  text-anchor: middle;
+  font-family: inherit;
+}
+
 .bld-label {
   fill: var(--text-dim);
   font-size: 20px;
@@ -347,7 +386,17 @@ body {
   font-family: inherit;
 }
 
+/* 地图上的文字都加一层描边光晕：楼名、时间和距离经常挨得很近，
+   没有光晕时叠在一起就看不清了 */
+.bld-label, .bld-time, .bld-flag, .dist-label, .me-label, .map-note {
+  paint-order: stroke;
+  stroke: #0a1120;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
 .bld-label.is-active { fill: #04121c; font-weight: 800; }
+.bld-label.is-next { fill: var(--accent); font-weight: 700; }
 
 .route-line {
   fill: none;
@@ -388,6 +437,7 @@ body {
 .dot-me { background: var(--accent); }
 .dot-next { background: var(--accent); box-shadow: 0 0 0 3px rgba(56, 225, 255, 0.24); }
 .dot-b { background: #3a4f74; }
+.dot-today { background: #16324a; box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* ---------- 路线 ---------- */
 

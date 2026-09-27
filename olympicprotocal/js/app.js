@@ -297,11 +297,31 @@
     var buffer = Number(data.settings.bufferMinutes) || 0;
     var route = info.route;
 
+    /* 今天要去的楼栋：同一栋去了两次就合并成一条，时间都列出来 */
+    var byId = {};
+    var stops = [];
+    P.todayCourses(data, state.now).forEach(function (course) {
+      var b = P.buildingById(data, course.buildingId);
+      if (!b || typeof b.lat !== "number" || typeof b.lng !== "number") return;
+
+      if (!byId[b.id]) {
+        byId[b.id] = { building: b, order: stops.length + 1, times: [], isNext: false };
+        stops.push(byId[b.id]);
+      }
+      byId[b.id].times.push(course.start);
+    });
+
+    var nextBuildingId = route.length && route[0].building ? route[0].building.id : null;
+    stops.forEach(function (s) {
+      s.time = s.times.join(" · ");
+      s.isNext = s.building.id === nextBuildingId;
+    });
+
     OP.MapView.render($("#mapSvg"), {
       buildings: buildings,
       position: info.position,
-      activeId: route.length && route[0].building ? route[0].building.id : null,
-      legs: route
+      stops: stops,
+      detourFactor: data.settings.detourFactor
     });
 
     var box = $("#routeList");
