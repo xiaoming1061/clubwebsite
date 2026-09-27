@@ -50,6 +50,7 @@ window.OP.DEFAULT_DATA = {
     termStart: "2026-09-01",
     simulate: null,         // { lat, lng } 手动指定的位置，便于在电脑上测试
     placesRadius: 800,
-    placesMerge: true       // 合并坐标几乎重合的点位
+    placesMerge: true,      // 合并坐标几乎重合的点位
+    placesEnglish: true     // 地图取楼栋时优先用英文名，中文名存成别名
   }
 };

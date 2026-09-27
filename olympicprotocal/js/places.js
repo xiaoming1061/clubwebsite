@@ -25,6 +25,65 @@ window.OP = window.OP || {};
     "中心", "学院", "楼", "校区", "Lecture", "Building", "Hall", "Centre", "Center", "Laboratory"
   ];
 
+  /* OSM 里一栋楼常常同时挂着好几个名字标记，全都收下来，
+     这样不管是中文课表还是英文课表都能对上 */
+  var NAME_TAGS = [
+    "name", "name:zh", "name:zh-Hant", "name:zh-Hans", "name:en",
+    "int_name", "alt_name", "official_name", "short_name"
+  ];
+
+  function collectNames(tags) {
+    var seen = {};
+    var all = [];
+
+    NAME_TAGS.forEach(function (tag) {
+      var value = tags[tag];
+      if (!value) return;
+      /* 有些标记用分号分隔多个别名 */
+      String(value).split(";").forEach(function (part) {
+        var name = part.trim();
+        if (!name) return;
+        var key = name.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        all.push(name);
+      });
+    });
+
+    return all;
+  }
+
+  /**
+   * 挑一个名字当显示名，其余的进别名。
+   *
+   * OSM 里港中文这类学校通常是这样标的：
+   *   name    = "科學館東座 Science Centre East Block"   ← 中英拼在一起
+   *   name:zh = "科學館東座"
+   *   name:en = "Science Centre East Block"
+   * 课表上一般写英文，所以默认拿英文当显示名，中文进别名——
+   * 反过来也行，两个名字都会被保留，匹配时都会用到。
+   */
+  function pickNames(tags, preferEnglish) {
+    var all = collectNames(tags);
+    if (!all.length) return null;
+
+    var en = tags["name:en"] || "";
+    var zh = tags["name:zh"] || tags["name:zh-Hant"] || tags["name:zh-Hans"] || "";
+    var primary = (preferEnglish && en) ? en : (zh || all[0]);
+
+    /* "中文 English" 这种拼接名不用再当别名，信息重复 */
+    var joined = tags.name || "";
+    var isJoined = zh && en && (joined === zh + " " + en || joined === zh + en);
+
+    var alias = all.filter(function (name) {
+      if (name === primary) return false;
+      if (isJoined && name === joined) return false;
+      return true;
+    });
+
+    return { name: primary, alias: alias, nameEn: en, nameZh: zh };
+  }
+
   /* ================= 名称与过滤 ================= */
 
   function isTeachingName(name) {
@@ -35,6 +94,12 @@ window.OP = window.OP || {};
       if (hint.length > 2 && text.toLowerCase().indexOf(hint.toLowerCase()) >= 0) return true;
     }
     return false;
+  }
+
+  /* 主名或任一别名像教学楼就算 */
+  function looksLikeTeaching(item) {
+    if (isTeachingName(item.name)) return true;
+    return (item.alias || []).some(function (n) { return isTeachingName(n); });
   }
 
   /* 补上距离、限制半径、把像教学楼的排前面 */
@@ -50,7 +115,7 @@ window.OP = window.OP || {};
 
       item.distance = origin ? OP.Geo.haversine(origin, { lat: item.lat, lng: item.lng }) : null;
       if (radius && item.distance !== null && item.distance > radius) return;
-      item.teaching = isTeachingName(item.name);
+      item.teaching = looksLikeTeaching(item);
       out.push(item);
     });
 
@@ -65,8 +130,12 @@ window.OP = window.OP || {};
     var word = String(keyword || "").trim().toLowerCase();
     if (!word) return results;
     return results.filter(function (item) {
-      return String(item.name).toLowerCase().indexOf(word) >= 0 ||
-        String(item.address || "").toLowerCase().indexOf(word) >= 0;
+      if (String(item.name).toLowerCase().indexOf(word) >= 0) return true;
+      if (String(item.address || "").toLowerCase().indexOf(word) >= 0) return true;
+      /* 中文名和英文名都能用来筛 */
+      return (item.alias || []).some(function (n) {
+        return String(n).toLowerCase().indexOf(word) >= 0;
+      });
     });
   }
 
@@ -131,7 +200,9 @@ window.OP = window.OP || {};
 
     (results || []).forEach(function (item) {
       var hit = (existing || []).some(function (b) {
-        if (b.name === item.name) return true;
+        var names = [b.name].concat(b.alias || []);
+        if (names.indexOf(item.name) >= 0) return true;
+        if ((item.alias || []).some(function (n) { return names.indexOf(n) >= 0; })) return true;
         var d = OP.Geo.haversine({ lat: b.lat, lng: b.lng }, { lat: item.lat, lng: item.lng });
         return d !== null && d < tol;
       });
@@ -151,7 +222,8 @@ window.OP = window.OP || {};
       "out center 150;";
   }
 
-  function parseOverpass(json, origin, radius) {
+  function parseOverpass(json, origin, radius, options) {
+    options = options || {};
     var elements = (json && json.elements) || [];
     var results = elements.map(function (el) {
       var lat = el.lat !== undefined ? el.lat : (el.center && el.center.lat);
@@ -159,15 +231,18 @@ window.OP = window.OP || {};
       if (lat === undefined || lng === undefined) return null;
 
       var tags = el.tags || {};
-      var name = tags["name:zh"] || tags.name || tags["name:en"];
-      if (!name) return null;
+      var names = pickNames(tags, options.preferEnglish !== false);
+      if (!names) return null;
 
       var address = [tags["addr:street"], tags["addr:housenumber"]]
         .filter(function (t) { return t; }).join(" ");
 
       return {
         id: el.type + "/" + el.id,
-        name: name,
+        name: names.name,
+        alias: names.alias,
+        nameEn: names.nameEn,
+        nameZh: names.nameZh,
         lat: lat,
         lng: lng,
         source: "osm",
@@ -252,13 +327,19 @@ window.OP = window.OP || {};
     }
 
     return queryOverpass(buildOverpassQuery(opts.lat, opts.lng, radius)).then(function (json) {
-      var list = filterByName(parseOverpass(json, origin, radius), opts.keyword);
+      var list = filterByName(
+        parseOverpass(json, origin, radius, { preferEnglish: opts.preferEnglish }),
+        opts.keyword
+      );
       return opts.merge === false ? list : cluster(list, opts.mergeMeters || 25);
     });
   }
 
   OP.Places = {
     ENDPOINTS: ENDPOINTS,
+    NAME_TAGS: NAME_TAGS,
+    collectNames: collectNames,
+    pickNames: pickNames,
     buildOverpassQuery: buildOverpassQuery,
     parseOverpass: parseOverpass,
     finalize: finalize,

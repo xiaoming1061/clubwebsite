@@ -359,6 +359,7 @@
 
     $("#plRadius").value = data.settings.placesRadius || 800;
     $("#plMerge").checked = data.settings.placesMerge !== false;
+    $("#plEnglish").checked = data.settings.placesEnglish !== false;
     renderPlaces();
 
     var pos = effectivePosition();
@@ -594,6 +595,9 @@
         '<input type="checkbox" data-place-idx="' + i + '"' + (dup ? "" : " checked") + ">" +
         '<div class="pi-main">' +
           '<div class="pi-name">' + esc(item.name) + badges + "</div>" +
+          (item.alias && item.alias.length
+            ? '<div class="pi-alias">又名：' + esc(item.alias.slice(0, 4).join("、")) + "</div>"
+            : "") +
           '<div class="pi-meta">' + esc(meta) + "</div>" +
           (item.merged > 1 && item.mergedNames && item.mergedNames.length
             ? '<div class="pi-meta">同栋楼内还有：' + esc(item.mergedNames.join("、")) + "</div>"
@@ -624,7 +628,8 @@
       lng: pos.lng,
       radius: radius,
       keyword: $("#plKeyword").value,
-      merge: data.settings.placesMerge !== false
+      merge: data.settings.placesMerge !== false,
+      preferEnglish: data.settings.placesEnglish !== false
     }).then(function (list) {
       state.places = list;
       state.placesStatus = list.length ? "找到 " + list.length + " 个" : "没找到";
@@ -659,7 +664,7 @@
       data.campus.buildings.push({
         id: Store.uid("b"),
         name: item.name,
-        alias: [],
+        alias: (item.alias || []).slice(0, 8),
         lat: Number(Number(item.lat).toFixed(6)),
         lng: Number(Number(item.lng).toFixed(6))
       });
@@ -1069,6 +1074,12 @@
 
     $("#plMerge").addEventListener("change", function () {
       data.settings.placesMerge = this.checked;
+      save();
+      if (state.places.length) searchPlaces();
+    });
+
+    $("#plEnglish").addEventListener("change", function () {
+      data.settings.placesEnglish = this.checked;
       save();
       if (state.places.length) searchPlaces();
     });
