@@ -602,8 +602,35 @@
           (item.merged > 1 && item.mergedNames && item.mergedNames.length
             ? '<div class="pi-meta">同栋楼内还有：' + esc(item.mergedNames.join("、")) + "</div>"
             : "") +
+          (dup
+            ? '<button type="button" class="btn btn-small place-merge" data-place-idx="' + i +
+              '">把这些名字补进已有楼栋</button>'
+            : "") +
         "</div></label>";
     }).join("");
+  }
+
+  /* 之前只导入了中文名的楼栋，可以用这个把英文名补进别名 */
+  function mergePlaceAliases(index) {
+    var item = (state.places || [])[index];
+    if (!item) return;
+
+    var buildings = (data.campus && data.campus.buildings) || [];
+    var target = OP.Places.findExisting(item, buildings, 25);
+    if (!target) {
+      toast("没找到对应的楼栋", "列表可能已经变了，重新搜一次", "warn");
+      return;
+    }
+
+    var added = OP.Places.mergeAliases(item, target);
+    if (!added) {
+      toast("没有需要补的名字", "「" + target.name + "」已经有这些名字了");
+      return;
+    }
+
+    saveAndRender();
+    renderPlaces();
+    toast("已补充 " + added + " 个名字", "「" + target.name + "」以后课表里出现这些名字都能匹配上", "ok");
   }
 
   function searchPlaces() {
@@ -1085,6 +1112,16 @@
     });
 
     $("#btnSearchPlaces").addEventListener("click", searchPlaces);
+
+    $("#placesList").addEventListener("click", function (ev) {
+      var btn = ev.target.closest(".place-merge");
+      if (!btn) return;
+      /* 这个按钮在 label 里面，不拦一下会顺带把勾选框切掉 */
+      ev.preventDefault();
+      ev.stopPropagation();
+      mergePlaceAliases(Number(btn.getAttribute("data-place-idx")));
+    });
+
     $("#btnAddSelectedPlaces").addEventListener("click", addSelectedPlaces);
     $("#btnClearPlaces").addEventListener("click", function () {
       state.places = [];

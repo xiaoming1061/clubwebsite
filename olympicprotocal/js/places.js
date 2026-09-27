@@ -190,27 +190,69 @@ window.OP = window.OP || {};
   }
 
   /**
-   * 已经录过的楼栋不再重复导入（按名字或 25 米内视为同一个）
-   * @returns {{ fresh: Array, duplicated: number }}
+   * 这个名字是不是已经录过了。按"任一名字相同"或"25 米内"判断，
+   * 中文名和英文名都算数。
+   * @returns {object|null} 命中的已有楼栋
+   */
+  function findExisting(item, existing, minMeters) {
+    var tol = minMeters || 25;
+    var found = null;
+
+    (existing || []).forEach(function (b) {
+      if (found) return;
+      var names = [b.name].concat(b.alias || []);
+      if (names.indexOf(item.name) >= 0) { found = b; return; }
+      if ((item.alias || []).some(function (n) { return names.indexOf(n) >= 0; })) { found = b; return; }
+
+      if (typeof b.lat !== "number" || typeof b.lng !== "number") return;
+      var d = OP.Geo.haversine({ lat: b.lat, lng: b.lng }, { lat: item.lat, lng: item.lng });
+      if (d !== null && d < tol) found = b;
+    });
+
+    return found;
+  }
+
+  /**
+   * 已经录过的楼栋不再重复导入
+   * @returns {{ fresh: Array, matched: Array, duplicated: number }}
    */
   function splitDuplicates(results, existing, minMeters) {
-    var tol = minMeters || 25;
     var fresh = [];
+    var matched = [];
     var duplicated = 0;
 
     (results || []).forEach(function (item) {
-      var hit = (existing || []).some(function (b) {
-        var names = [b.name].concat(b.alias || []);
-        if (names.indexOf(item.name) >= 0) return true;
-        if ((item.alias || []).some(function (n) { return names.indexOf(n) >= 0; })) return true;
-        var d = OP.Geo.haversine({ lat: b.lat, lng: b.lng }, { lat: item.lat, lng: item.lng });
-        return d !== null && d < tol;
-      });
-      if (hit) duplicated++;
-      else fresh.push(item);
+      var hit = findExisting(item, existing, minMeters);
+      if (hit) {
+        duplicated++;
+        matched.push(hit);
+      } else {
+        fresh.push(item);
+        matched.push(null);
+      }
     });
 
-    return { fresh: fresh, duplicated: duplicated };
+    return { fresh: fresh, matched: matched, duplicated: duplicated };
+  }
+
+  /**
+   * 把地图上读到的其它名字补进已有楼栋的别名里。
+   * 用来救"之前只导入了中文名"的情况，补完课表里的英文名就能匹配上了。
+   * @returns {number} 补进去几个名字
+   */
+  function mergeAliases(item, building) {
+    if (!item || !building) return 0;
+    var existing = [building.name].concat(building.alias || []);
+    var added = [];
+
+    (item.alias || []).concat(item.name ? [item.name] : []).forEach(function (name) {
+      if (!name || existing.indexOf(name) >= 0) return;
+      if (added.indexOf(name) >= 0) return;
+      added.push(name);
+    });
+
+    if (added.length) building.alias = (building.alias || []).concat(added);
+    return added.length;
   }
 
   /* ================= Overpass ================= */
@@ -346,7 +388,9 @@ window.OP = window.OP || {};
     filterByName: filterByName,
     cluster: cluster,
     pickLead: pickLead,
+    findExisting: findExisting,
     splitDuplicates: splitDuplicates,
+    mergeAliases: mergeAliases,
     isTeachingName: isTeachingName,
     search: search
   };
