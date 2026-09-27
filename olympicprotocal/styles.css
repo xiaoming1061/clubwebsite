@@ -43,10 +43,12 @@ body {
 .app {
   max-width: 760px;
   margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: calc(74px + env(safe-area-inset-bottom));
+  /* 给底部固定的导航栏留出位置。具体高度由脚本实测后写进 --tabbar-h，
+     这里给一个够用的兜底值；不用 flex 布局，避免内容被挤住导致滑不到底。 */
+  /* 44px 的余量是为了应付 iOS Safari 底部那条件工具栏：
+     它会在滑到底部时冒出来盖住页面，只按导航栏高度预留是不够的。 */
+  padding-bottom: 120px;
+  padding-bottom: calc(var(--tabbar-h, 58px) + 44px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ---------- 顶栏 ---------- */
@@ -111,7 +113,7 @@ body {
 
 /* ---------- 视图 ---------- */
 
-.views { flex: 1; padding: 16px 16px 8px; }
+.views { padding: 16px 16px 8px; }
 .view { display: none; }
 .view.is-active { display: block; animation: fade 0.28s ease; }
 
@@ -672,6 +674,35 @@ a.nav-link:active { transform: scale(0.97); }
 .ocr-note.is-ok { color: var(--text-faint); }
 
 .bi-missing { color: var(--warn); }
+
+.ocr-debug {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 10px 12px;
+}
+
+.ocr-debug summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  outline: none;
+}
+
+.ocr-debug summary:hover { color: var(--text); }
+
+.ocr-debug pre {
+  margin: 10px 0 0;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-all;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* ---------- 底部导航 ---------- */
 

@@ -36,6 +36,17 @@
 
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
+  /* 底部导航是固定的，实测它的高度写进 CSS 变量，
+     这样页面底部永远留得够，不会出现"最后一个按钮被挡住又滑不下去" */
+  function syncTabbarHeight() {
+    var bar = document.querySelector(".tabbar");
+    if (!bar) return;
+    var height = Math.round(bar.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty("--tabbar-h", height + "px");
+    }
+  }
+
   /* ================= 位置 ================= */
 
   function effectivePosition() {
@@ -681,10 +692,36 @@
   function clearOcr(keepStatus) {
     state.ocr.courses = [];
     state.ocr.warnings = [];
+    state.ocr.lastResult = null;
     $("#ocrResult").innerHTML = "";
     $("#ocrActions").hidden = true;
+    $("#ocrDebug").hidden = true;
     ocrProgress(null);
     if (!keepStatus) $("#ocrStatus").textContent = "未开始";
+  }
+
+  /* 识别明细，用来判断问题出在哪一步（引擎没吐字 / 找不到表头 / 拼不出格子） */
+  function renderOcrDebug(result) {
+    var box = $("#ocrDebug");
+    if (!result || !result.wordCount) {
+      box.hidden = true;
+      return;
+    }
+
+    var cols = (result.columns || []).map(function (c) {
+      return P.WEEKDAYS_SHORT[c.day];
+    }).join(" ");
+    var axis = result.timeAxis
+      ? (result.timeAxis.points || []).length + " 个时间刻度"
+      : "没找到时间刻度";
+
+    box.hidden = false;
+    $("#ocrDebugSummary").textContent =
+      "文字块 " + result.wordCount + " 个 · 分割模式 " + result.mode +
+      " · 试了 " + result.tries + " 遍 · 列：" + (cols || "没找到") +
+      " · " + axis + " · 拼出课程 " + (result.courses || []).length + " 条";
+    $("#ocrDebugText").textContent =
+      (result.text || "").slice(0, 4000) || "（引擎没有返回文字内容）";
   }
 
   function handleOcrFile(file) {
@@ -706,13 +743,27 @@
       onProgress: ocrProgress
     }).then(function (result) {
       ocrProgress(null);
+      state.ocr.lastResult = result;
       state.ocr.courses = result.courses || [];
       state.ocr.warnings = result.warnings || [];
+      renderOcrDebug(result);
 
       if (!state.ocr.courses.length) {
         $("#ocrStatus").textContent = "没认出来";
-        $("#ocrResult").innerHTML = '<p class="empty">' +
-          esc(state.ocr.warnings[0] || "没有识别到课程，换一张更清晰的截图再试") + "</p>";
+
+        var words = result.wordCount || 0;
+        var reason;
+        if (!words) {
+          reason = "识别引擎没有从这张图里读出一个字。多半是图片太小或太糊——" +
+            "试试把课表区域放大后重新截图，别截图整个手机屏幕。";
+        } else if (!result.columns || !result.columns.length) {
+          reason = "读到了 " + words + " 个文字，但没找到星期那一行表头。" +
+            "确认截图里完整包含 Monday…Friday（或周一…周五）这一行。";
+        } else {
+          reason = "读到了 " + words + " 个文字，也找到了表头，但没能拼出课程。" +
+            "展开下面的识别详情，把里面的内容发给我，我按实际情况调。";
+        }
+        $("#ocrResult").innerHTML = '<p class="empty">' + esc(reason) + "</p>";
         return;
       }
 
@@ -1222,9 +1273,15 @@
 
     bindEvents();
     fillVoiceOptions();
+    syncTabbarHeight();
     render();
 
     window.setInterval(tick, 1000);
+
+    window.addEventListener("resize", syncTabbarHeight);
+    window.addEventListener("orientationchange", function () {
+      window.setTimeout(syncTabbarHeight, 120);
+    });
 
     /* 拿到权限就直接开始定位，不用用户再点一次 */
     if (Geo.supported()) {

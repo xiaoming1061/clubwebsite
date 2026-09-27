@@ -315,6 +315,11 @@
           </div>
           <p class="hint" id="ocrProgressText" hidden></p>
           <div id="ocrResult"></div>
+          <details class="ocr-debug" id="ocrDebug" hidden>
+            <summary>识别详情（出问题时用来排查）</summary>
+            <p class="hint" id="ocrDebugSummary"></p>
+            <pre id="ocrDebugText"></pre>
+          </details>
           <div class="hero-actions" id="ocrActions" hidden>
             <button class="btn btn-primary" id="btnOcrImport">确认导入</button>
             <button class="btn btn-ghost" id="btnOcrCancel">放弃这次识别</button>

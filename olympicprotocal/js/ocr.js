@@ -20,6 +20,11 @@ window.OP = window.OP || {};
     "https://unpkg.com/tesseract.js@5.1.1/dist"
   ];
   var DEFAULT_LANG_PATH = "https://tessdata.projectnaptha.com/4.0.0";
+  /* 语言包的备用站点。国内访问 projectnaptha 有时不稳，多备一个。 */
+  var LANG_PATHS = [
+    DEFAULT_LANG_PATH,
+    "https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0"
+  ];
 
   var WEEKDAY_EN = {
     monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2, wednesday: 3, wed: 3, weds: 3,
@@ -536,14 +541,15 @@ window.OP = window.OP || {};
   /* 放大 + 灰度 + 对比度拉伸，明显提升小字识别率 */
   function preprocess(file, options) {
     options = options || {};
-    var targetWidth = options.targetWidth || 1800;
+    /* 手机截图上的课表字号很小，放大到 2000 像素宽左右识别率最好 */
+    var targetWidth = options.targetWidth || 2000;
 
     return new Promise(function (resolve, reject) {
       var url = URL.createObjectURL(file);
       var img = new Image();
 
       img.onload = function () {
-        var scale = Math.min(3, Math.max(1, targetWidth / img.width));
+        var scale = Math.min(3.5, Math.max(1, targetWidth / img.width));
         var canvas = document.createElement("canvas");
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
@@ -635,13 +641,77 @@ window.OP = window.OP || {};
     return out;
   }
 
+  function pushWord(out, raw, bbox, confidence) {
+    var text = String(raw || "").trim();
+    if (!text) return;
+    var conf = Number(confidence);
+    if (isFinite(conf) && conf < 30) return;
+    if (!bbox || typeof bbox.x0 !== "number" || typeof bbox.y0 !== "number") return;
+    out.push({ text: text, x0: bbox.x0, y0: bbox.y0, x1: bbox.x1, y1: bbox.y1, conf: conf });
+  }
+
+  /**
+   * 从识别结果里取词。
+   *
+   * Tesseract.js v5 改了默认输出：tsv 不再默认生成，只给 blocks。
+   * 所以这里按 TSV → words → lines → blocks 依次兜底，哪个版本都不会空手而归。
+   */
+  function extractWords(data) {
+    if (!data) return [];
+
+    var words = wordsFromTsv(data.tsv);
+    if (words.length) return words;
+
+    var out = [];
+
+    if (Array.isArray(data.words)) {
+      data.words.forEach(function (w) { pushWord(out, w.text, w.bbox, w.confidence); });
+      if (out.length) return out;
+    }
+
+    if (Array.isArray(data.lines)) {
+      data.lines.forEach(function (line) {
+        (line.words || []).forEach(function (w) { pushWord(out, w.text, w.bbox, w.confidence); });
+      });
+      if (out.length) return out;
+    }
+
+    (data.blocks || []).forEach(function (block) {
+      (block.paragraphs || []).forEach(function (para) {
+        (para.lines || []).forEach(function (line) {
+          (line.words || []).forEach(function (w) { pushWord(out, w.text, w.bbox, w.confidence); });
+        });
+      });
+    });
+    return out;
+  }
+
+  /* v5 必须显式声明要哪些输出，否则 tsv 是空的 */
+  var OUTPUT = { text: true, tsv: true, blocks: true };
+
   async function recognizeOnce(worker, canvas, psm) {
     await worker.setParameters({
       tessedit_pageseg_mode: String(psm),
       preserve_interword_spaces: "1"
     });
-    const result = await worker.recognize(canvas);
-    return { words: wordsFromTsv(result.data.tsv), text: result.data.text || "" };
+    const result = await worker.recognize(canvas, {}, OUTPUT);
+    const data = result.data || {};
+    return { words: extractWords(data), text: data.text || "" };
+  }
+
+  /* 建 worker 时要把语言包下下来，站点不通就换下一个 */
+  async function createWorker(Tesseract, lang, langPath, logger) {
+    const paths = langPath ? [langPath].concat(LANG_PATHS) : LANG_PATHS;
+    let lastError = null;
+
+    for (let i = 0; i < paths.length; i++) {
+      try {
+        return await Tesseract.createWorker(lang, 1, { logger: logger, langPath: paths[i] });
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error("下载识别模型失败，检查网络后重试");
   }
 
   /**
@@ -659,33 +729,38 @@ window.OP = window.OP || {};
     report("正在加载识别引擎", 0.08);
     const Tesseract = await loadEngine(options.cdnBase);
 
-    const worker = await Tesseract.createWorker(options.lang || "eng", 1, {
-      logger: function (m) {
-        if (m && m.status === "recognizing text") report("正在识别文字", m.progress);
-      },
-      langPath: options.langPath || DEFAULT_LANG_PATH
+    report("正在下载识别模型", 0.12);
+    const worker = await createWorker(Tesseract, options.lang || "eng", options.langPath, function (m) {
+      if (m && m.status === "loading language traineddata") report("正在下载识别模型", 0.12 + (m.progress || 0) * 0.2);
+      if (m && m.status === "initializing api") report("正在初始化识别引擎", 0.34);
     });
 
     try {
-      /* 先按"一整块文字"识别，表格类截图通常最准 */
-      let attempt = await recognizeOnce(worker, canvas, 6);
-      let parsed = parseWords(attempt.words, options);
+      /* 表格类截图用哪种页面分割模式最好，不同引擎版本和图片都不一样，
+         所以几种都跑一遍，取还原出课程最多的那次 */
+      const MODES = [6, 4, 11];
+      let best = null;
+      let tries = 0;
 
-      /* 效果不好就换成稀疏文字模式再试一次 */
-      if (parsed.courses.length < 2 || !parsed.timeAxis) {
-        report("换一种识别方式重试", 0.1);
-        const second = await recognizeOnce(worker, canvas, 11);
-        const parsedSecond = parseWords(second.words, options);
-        if (parsedSecond.courses.length > parsed.courses.length) {
-          attempt = second;
-          parsed = parsedSecond;
-        }
+      for (let i = 0; i < MODES.length; i++) {
+        report("正在识别文字（第 " + (i + 1) + " 遍）", 0.1);
+        const attempt = await recognizeOnce(worker, canvas, MODES[i]);
+        const parsed = parseWords(attempt.words, options);
+        parsed.words = attempt.words;
+        parsed.text = attempt.text;
+        parsed.mode = MODES[i];
+        tries++;
+
+        if (!best || parsed.courses.length > best.courses.length) best = parsed;
+
+        /* 已经认全了就不用再试 */
+        if (best.courses.length >= 10 && best.timeAxis) break;
       }
 
-      parsed.words = attempt.words;
-      parsed.text = attempt.text;
-      parsed.canvas = canvas;
-      return parsed;
+      best.tries = tries;
+      best.canvas = canvas;
+      best.wordCount = (best.words || []).length;
+      return best;
     } finally {
       await worker.terminate();
     }
@@ -694,6 +769,7 @@ window.OP = window.OP || {};
   OP.Ocr = {
     SCRIPT_CDNS: SCRIPT_CDNS,
     DEFAULT_LANG_PATH: DEFAULT_LANG_PATH,
+    LANG_PATHS: LANG_PATHS,
     weekdayOf: weekdayOf,
     parseWeekdayHeader: parseWeekdayHeader,
     buildColumns: buildColumns,
@@ -705,6 +781,7 @@ window.OP = window.OP || {};
     parseWords: parseWords,
     matchBuilding: matchBuilding,
     wordsFromTsv: wordsFromTsv,
+    extractWords: extractWords,
     preprocess: preprocess,
     loadEngine: loadEngine,
     run: run
