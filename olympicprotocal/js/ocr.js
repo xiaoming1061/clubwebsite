@@ -484,15 +484,38 @@ window.OP = window.OP || {};
       }
     }
 
-    /* --- 地点：不是代码行、不是课节、不是类型、不是时间的那一行 --- */
-    var venueCandidates = lines.filter(function (line, idx) {
+    /* --- 地点：时间那一行之后的内容 ---
+       OCR 会把地点折成两行（"Lee Shau Kee Building" / "LT2"）。原来靠"长得像
+       课节号就排除"的规则会把单独成行的 LT2 当成课节号丢掉，教室号就没了。
+       课表的顺序固定是「代号 → 课节 → 类型 → 时间 → 地点」，
+       所以只取时间行之后的内容，比按形状猜稳得多。 */
+    var timeLineIndex = -1;
+    for (var tl = 0; tl < lines.length; tl++) {
+      if (/[0-9OoIl]{1,2}\s*[:.·]\s*[0-9OoIl]{2}\s*[-–—~～至]/.test(cleanTimeToken(lines[tl]))) {
+        timeLineIndex = tl;
+        break;
+      }
+    }
+
+    var venuePool = timeLineIndex >= 0 ? lines.slice(timeLineIndex + 1) : lines;
+
+    var venueCandidates = venuePool.filter(function (line, idx) {
       var t3 = line.trim();
       if (!t3) return false;
-      if (idx === codeLineIndex) return false;
       if (isTypeWord(t3)) return false;
-      if (/^[-–—\s]*[A-Z]{1,5}[0-9]{0,3}[-–—\s]*$/.test(t3) && t3.replace(/[-–—\s]/g, "").length <= 5) return false;
       if (/[0-9OoIl]{1,2}\s*[:.·]\s*[0-9OoIl]{2}/.test(cleanTimeToken(t3))) return false;
       if (/^waiting\b/i.test(t3)) return false;
+
+      /* 只有找不到时间行时，才需要靠形状排掉课节号和代号行 */
+      if (timeLineIndex < 0) {
+        if (idx === codeLineIndex) return false;
+        if (/^[-–—\s]*[A-Z]{1,5}[0-9]{0,3}[-–—\s]*$/.test(t3) &&
+            t3.replace(/[-–—\s]/g, "").length <= 5) return false;
+      }
+
+      /* 时间行之后的内容里，纯数字也是合法的教室号（104、305、504），
+         所以这里要放宽到数字；只在没找到时间行时才要求含字母 */
+      if (timeLineIndex >= 0) return /[A-Za-z0-9\u4e00-\u9fa5]/.test(t3);
       return /[A-Za-z\u4e00-\u9fa5]/.test(t3);
     });
 
@@ -780,11 +803,7 @@ window.OP = window.OP || {};
    *
    * @returns {object|null} { id, name, score, exact }，分数低于阈值就当匹配不上
    */
-  function matchBuilding(name, buildings, threshold) {
-    var query = nameForms(name);
-    if (!query.compact) return null;
-
-    var min = threshold === undefined ? 0.62 : threshold;
+  function bestMatch(query, buildings, min) {
     var best = null;
 
     (buildings || []).forEach(function (b) {
@@ -797,6 +816,40 @@ window.OP = window.OP || {};
     });
 
     return (best && best.score >= min) ? best : null;
+  }
+
+  /* 去掉结尾的教室号 / 门牌号："Science Centre L3" → "Science Centre" */
+  function stripRoomSuffix(name) {
+    var text = String(name || "").trim();
+    var parts = text.split(/\s+/);
+
+    if (parts.length >= 2 && /^[A-Z]{0,3}[0-9]{1,4}[A-Z]?$/i.test(parts[parts.length - 1])) {
+      return parts.slice(0, -1).join(" ");
+    }
+    return text;
+  }
+
+  /**
+   * 把识别出来的楼名对应到已录入的楼栋。
+   *
+   * 先拿完整名字匹配；匹配不上时再把结尾的教室号去掉试一次。
+   * 顺序不能反过来——否则 "Building 10" 这种本身带数字的楼名会被误削成 "Building"。
+   * 正常流程里 parseVenue 已经把教室号拆出去了，这里是双保险，
+   * 万一有教室号残留在楼名里也能对上。
+   */
+  function matchBuilding(name, buildings, threshold) {
+    var min = threshold === undefined ? 0.62 : threshold;
+    var query = nameForms(name);
+    if (!query.compact) return null;
+
+    var direct = bestMatch(query, buildings, min);
+    if (direct) return direct;
+
+    var stripped = stripRoomSuffix(name);
+    if (stripped !== String(name || "").trim()) {
+      return bestMatch(nameForms(stripped), buildings, min);
+    }
+    return null;
   }
 
   /* ================= 7. 浏览器驱动层 ================= */
@@ -1166,6 +1219,7 @@ window.OP = window.OP || {};
     nameForms: nameForms,
     nameScore: nameScore,
     editSimilarity: editSimilarity,
+    stripRoomSuffix: stripRoomSuffix,
     matchBuilding: matchBuilding,
     wordsFromTsv: wordsFromTsv,
     extractWords: extractWords,
