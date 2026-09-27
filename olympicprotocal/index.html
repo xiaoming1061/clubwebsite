@@ -310,6 +310,11 @@
             <h3>从课表截图导入</h3>
             <span class="muted" id="ocrStatus">未开始</span>
           </div>
+          <!-- 这两个按钮放在卡片顶部：以前在底部，结果一多就被底部导航栏挡住 -->
+          <div class="hero-actions ocr-actions-top" id="ocrActions" hidden>
+            <button class="btn btn-primary" id="btnOcrImport">确认导入</button>
+            <button class="btn btn-ghost" id="btnOcrCancel">放弃这次识别</button>
+          </div>
           <p class="hint">
             截好课表页面后，在下面按 Ctrl+V 直接粘贴，或者把图片拖进来。
             识别完全在你自己的浏览器里完成，图片不会上传到任何地方。
@@ -353,10 +358,6 @@
             <p class="hint" id="ocrDebugSummary"></p>
             <pre id="ocrDebugText"></pre>
           </details>
-          <div class="hero-actions" id="ocrActions" hidden>
-            <button class="btn btn-primary" id="btnOcrImport">确认导入</button>
-            <button class="btn btn-ghost" id="btnOcrCancel">放弃这次识别</button>
-          </div>
         </article>
 
         <article class="card form-card" id="courseFormCard" hidden>
