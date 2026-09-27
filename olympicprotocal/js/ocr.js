@@ -42,9 +42,10 @@ window.OP = window.OP || {};
     "星期日": 7, "星期天": 7, "周日": 7, "周天": 7, "礼拜日": 7, "礼拜天": 7
   };
 
+  /* 表里存的是显示用的规范写法，比较时统一忽略大小写和空格 */
   var TYPE_WORDS = [
-    "lecture", "tutorial", "interactive tutorial", "laboratory", "lab", "seminar",
-    "assembly", "workshop", "class", "practical", "studio", "field study",
+    "Lecture", "Tutorial", "Interactive Tutorial", "Laboratory", "Lab", "Seminar",
+    "Assembly", "Workshop", "Class", "Practical", "Studio", "Field Study",
     "讲座", "导修", "实验", "实验课", "大会", "研讨", "实践", "课程", "课"
   ];
 
@@ -74,10 +75,6 @@ window.OP = window.OP || {};
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   }
 
-  function normKey(text) {
-    return String(text || "").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, "");
-  }
-
   /* 把 OCR 常见的形近字符规整一下：时间里的 O/o 当 0，l/I 当 1 */
   function cleanTimeToken(token) {
     return String(token).replace(/[Oo]/g, "0").replace(/[lI]/g, "1");
@@ -85,21 +82,64 @@ window.OP = window.OP || {};
 
   function lower(text) { return String(text || "").toLowerCase(); }
 
+  /**
+   * 比较短语时先把空格和标点全去掉。
+   *
+   * 识别引擎开着"保留词间空格"，很容易把 "Interactive Tutorial" 读成
+   * "Interactive  Tutorial"（双空格）甚至带上标点。严格相等会漏掉，
+   * 结果课程类型被当成地点——踩过这个坑。
+   */
+  function phraseKey(text) {
+    return String(text || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "");
+  }
+
   function isTypeWord(text) {
-    var t = lower(text).trim();
-    if (!t) return false;
+    var key = phraseKey(text);
+    if (!key) return false;
     for (var i = 0; i < TYPE_WORDS.length; i++) {
-      if (t === TYPE_WORDS[i]) return true;
+      if (phraseKey(TYPE_WORDS[i]) === key) return true;
     }
     return false;
   }
 
-  function hasTypeWord(text) {
-    var t = lower(text);
+  /* 命中的话返回表里的规范写法，让显示大小写统一 */
+  function canonicalType(text) {
+    var key = phraseKey(text);
+    if (!key) return "";
     for (var i = 0; i < TYPE_WORDS.length; i++) {
-      if (TYPE_WORDS[i].length > 2 && t.indexOf(TYPE_WORDS[i]) >= 0) return true;
+      if (phraseKey(TYPE_WORDS[i]) === key) return TYPE_WORDS[i];
     }
-    return false;
+    return "";
+  }
+
+  /**
+   * 把混进地点里的课程类型短语摘掉。
+   *
+   * 除了空格问题，OCR 还可能把 "Interactive Tutorial" 拆成两行，
+   * 那样两行都不是完整的类型词，光靠 isTypeWord 拦不住。
+   * 所以拼成整段地点之后再扫一遍。
+   */
+  function stripTypeWords(text) {
+    var result = String(text || "");
+
+    /* 长的先处理：不然 "Tutorial" 会先把 "Interactive Tutorial" 拆散 */
+    var byLength = TYPE_WORDS.slice().sort(function (a, b) {
+      return phraseKey(b).length - phraseKey(a).length;
+    });
+
+    byLength.forEach(function (word) {
+      if (phraseKey(word).length < 4) return;
+      /* 词与词之间允许插任意非字母字符，匹配 OCR 读出来的多余空格 */
+      var pattern = word.split(/\s+/).map(function (part) {
+        return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }).join("[^A-Za-z\\u4e00-\\u9fa5]*");
+
+      result = result.replace(new RegExp(pattern, "gi"), " ");
+    });
+
+    return result.replace(/\s+/g, " ").trim();
   }
 
   /* ================= 1. 表头：找出星期几在哪一列 ================= */
@@ -315,6 +355,32 @@ window.OP = window.OP || {};
   }
 
   /* 把 "BMEG 2410 - -" / "T02" 这类拼成课程全名 */
+  /**
+   * OCR 有时会把 "Interactive Tutorial" 拆成两行分别输出。
+   * 这里把"相邻两行拼起来正好是一个完整类型词"的情况合并回去，
+   * 否则这两行谁都拦不住，会一起被当成地点。
+   *
+   * 只有拼起来**恰好等于**已知类型词才合并，所以
+   * "Lee Shau Kee" + "Building LT3" 这种正常折行不受影响。
+   */
+  function mergeTypeLines(lines) {
+    var out = [];
+
+    for (var i = 0; i < lines.length; i++) {
+      if (i + 1 < lines.length) {
+        var joined = String(lines[i]).trim() + " " + String(lines[i + 1]).trim();
+        if (canonicalType(joined)) {
+          out.push(joined);
+          i++;
+          continue;
+        }
+      }
+      out.push(lines[i]);
+    }
+
+    return out;
+  }
+
   function composeName(code, section, type) {
     var parts = [];
     if (code) parts.push(section ? code + "-" + section : code);
@@ -323,6 +389,7 @@ window.OP = window.OP || {};
   }
 
   function parseBlockLines(lines) {
+    lines = mergeTypeLines(lines || []);
     var flat = lines.join(" ");
     var out = {
       code: "", section: "", type: "", start: "", end: "",
@@ -373,12 +440,18 @@ window.OP = window.OP || {};
 
     /* --- 类型 --- */
     for (var t = 0; t < lines.length; t++) {
-      if (isTypeWord(lines[t])) { out.type = lines[t].trim(); break; }
+      var canon = canonicalType(lines[t]);
+      if (canon) { out.type = canon; break; }
     }
+
+    /* 类型被 OCR 拆成两行时上面找不到，退回在整段文字里找。
+       按长度从长到短试，"Interactive Tutorial" 要优先于 "Tutorial"。 */
     if (!out.type) {
-      for (var t2 = 0; t2 < TYPE_WORDS.length; t2++) {
-        var word = TYPE_WORDS[t2];
-        if (word.length > 3 && lower(flat).indexOf(word) >= 0) { out.type = word; break; }
+      var flatLower = lower(flat);
+      var byLength = TYPE_WORDS.slice().sort(function (a, b) { return b.length - a.length; });
+      for (var t2 = 0; t2 < byLength.length; t2++) {
+        var word = byLength[t2];
+        if (word.length > 3 && flatLower.indexOf(lower(word)) >= 0) { out.type = word; break; }
       }
     }
 
@@ -395,8 +468,9 @@ window.OP = window.OP || {};
     });
 
     if (venueCandidates.length) {
-      /* 地点常常折成两行（"Lee Shau Kee" / "Building LT3"），要拼起来再解析 */
-      var venue = parseVenue(venueCandidates.join(" "));
+      /* 地点常常折成两行（"Lee Shau Kee" / "Building LT3"），要拼起来再解析；
+         拼完再摘一次课程类型词，防止它被拆成两行漏进来 */
+      var venue = parseVenue(stripTypeWords(venueCandidates.join(" ")));
       out.buildingName = venue.building;
       out.room = venue.room;
       out.tba = venue.tba;
@@ -496,35 +570,119 @@ window.OP = window.OP || {};
 
   /* ================= 6. 楼栋匹配 ================= */
 
-  /** 把识别出来的楼名对应到已录入的楼栋 */
-  function matchBuilding(name, buildings) {
-    var key = normKey(name);
-    if (!key) return null;
+  /* 常见缩写先展开再比对，这样 "Bldg" 和 "Building" 不会被当成两个词 */
+  var ABBREVIATIONS = {
+    bldg: "building", bldgs: "building", bld: "building",
+    intl: "international", acad: "academic", univ: "university",
+    ctr: "centre", center: "centre", labs: "laboratory", lab: "laboratory",
+    dept: "department", sci: "science", tech: "technology",
+    eng: "engineering", stud: "student", admin: "administration"
+  };
 
-    var list = buildings || [];
-    var i;
+  /**
+   * 把一个名字拆成可比较的几种形式。
+   * 中英文分开处理：英文按词（并展开缩写），中文连着看。
+   */
+  function nameForms(text) {
+    var raw = String(text || "").toLowerCase().replace(/[\u2019']/g, "");
 
-    for (i = 0; i < list.length; i++) {
-      var names = [list[i].name].concat(list[i].alias || []);
-      for (var j = 0; j < names.length; j++) {
-        if (normKey(names[j]) === key) return { id: list[i].id, exact: true };
+    var latin = (raw.match(/[a-z0-9]+/g) || []).map(function (token) {
+      return ABBREVIATIONS[token] || token;
+    });
+    var cjk = (raw.match(/[\u4e00-\u9fa5]+/g) || []).join("");
+
+    return { latin: latin, cjk: cjk, compact: latin.join("") + cjk };
+  }
+
+  /* 编辑距离换算成 0–1 的相似度，用来容忍拼写差异 */
+  function editSimilarity(a, b) {
+    if (a === b) return 1;
+    var m = a.length, n = b.length;
+    if (!m || !n) return 0;
+    if (Math.abs(m - n) / Math.max(m, n) > 0.5) return 0;
+
+    var prev = new Array(n + 1);
+    var curr = new Array(n + 1);
+    for (var j = 0; j <= n; j++) prev[j] = j;
+
+    for (var i = 1; i <= m; i++) {
+      curr[0] = i;
+      for (var k = 1; k <= n; k++) {
+        var cost = a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1;
+        curr[k] = Math.min(prev[k] + 1, curr[k - 1] + 1, prev[k - 1] + cost);
+      }
+      var swap = prev; prev = curr; curr = swap;
+    }
+    return 1 - prev[n] / Math.max(m, n);
+  }
+
+  /**
+   * 给两个名字的像不像打分（0–1）。
+   * 从最可靠的判断开始：完全相同 → 一方包含另一方 → 英文词重合 → 拼写近似。
+   */
+  function nameScore(a, b) {
+    if (!a.compact || !b.compact) return 0;
+    if (a.compact === b.compact) return 1;
+
+    var short = a.compact.length <= b.compact.length ? a.compact : b.compact;
+    var long = short === a.compact ? b.compact : a.compact;
+    if (short.length >= 4 && long.indexOf(short) >= 0) {
+      return 0.7 + 0.25 * (short.length / long.length);
+    }
+
+    if (a.cjk.length >= 2 && b.cjk.length >= 2) {
+      if (a.cjk.indexOf(b.cjk) >= 0 || b.cjk.indexOf(a.cjk) >= 0) {
+        var s = a.cjk.length <= b.cjk.length ? a.cjk : b.cjk;
+        var l = s === a.cjk ? b.cjk : a.cjk;
+        return 0.6 + 0.3 * (s.length / l.length);
       }
     }
 
+    var setA = {}, setB = {};
+    a.latin.forEach(function (t) { setA[t] = true; });
+    b.latin.forEach(function (t) { setB[t] = true; });
+    var keysA = Object.keys(setA), keysB = Object.keys(setB);
+
+    if (keysA.length && keysB.length) {
+      var shared = keysA.filter(function (t) { return setB[t]; }).length;
+      if (shared) {
+        var jaccard = shared / (keysA.length + keysB.length - shared);
+        return 0.35 + 0.5 * jaccard;
+      }
+    }
+
+    var sim = editSimilarity(a.compact, b.compact);
+    return sim >= 0.8 ? sim * 0.75 : 0;
+  }
+
+  /**
+   * 把识别出来的楼名对应到已录入的楼栋，用模糊匹配。
+   *
+   * 课表上的写法很少和地图上一字不差：
+   *   "Yasumoto Int'l Acad Park" → "Yasumoto International Academic Park"
+   *   "Lady Shaw Bldg"           → "Lady Shaw Building"
+   *   "Science Centre"           → "Science Centre East Block"（部分匹配）
+   *   "碧秋樓"                    → "碧秋樓 Pi Ch'iu Building"（中文部分匹配）
+   *
+   * @returns {object|null} { id, name, score, exact }，分数低于阈值就当匹配不上
+   */
+  function matchBuilding(name, buildings, threshold) {
+    var query = nameForms(name);
+    if (!query.compact) return null;
+
+    var min = threshold === undefined ? 0.62 : threshold;
     var best = null;
-    for (i = 0; i < list.length; i++) {
-      var cand = [list[i].name].concat(list[i].alias || []);
-      for (var k = 0; k < cand.length; k++) {
-        var ck = normKey(cand[k]);
-        if (!ck || Math.min(ck.length, key.length) < 4) continue;
-        if (ck.indexOf(key) >= 0 || key.indexOf(ck) >= 0) {
-          if (!best || ck.length > normKey(best.name).length) {
-            best = { id: list[i].id, exact: false, name: list[i].name };
-          }
+
+    (buildings || []).forEach(function (b) {
+      [b.name].concat(b.alias || []).forEach(function (candidate) {
+        var score = nameScore(query, nameForms(candidate));
+        if (!best || score > best.score) {
+          best = { id: b.id, name: b.name, score: score, exact: score >= 1 };
         }
-      }
-    }
-    return best;
+      });
+    });
+
+    return (best && best.score >= min) ? best : null;
   }
 
   /* ================= 7. 浏览器驱动层 ================= */
@@ -863,9 +1021,17 @@ window.OP = window.OP || {};
     splitBlocks: splitBlocks,
     groupLines: groupLines,
     parseVenue: parseVenue,
+    stripTypeWords: stripTypeWords,
+    mergeTypeLines: mergeTypeLines,
+    canonicalType: canonicalType,
+    phraseKey: phraseKey,
+    isTypeWord: isTypeWord,
     parseBlockLines: parseBlockLines,
     parseWords: parseWords,
     scoreResult: scoreResult,
+    nameForms: nameForms,
+    nameScore: nameScore,
+    editSimilarity: editSimilarity,
     matchBuilding: matchBuilding,
     wordsFromTsv: wordsFromTsv,
     extractWords: extractWords,

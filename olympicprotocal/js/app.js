@@ -882,9 +882,12 @@
       if (c.needsTime) notes.push("时间没读准，请核对");
       if (c.buildingName && !match) {
         notes.push("「" + c.buildingName + "」不在楼栋列表里，导入时会新建，之后要补坐标");
+      } else if (match && !match.exact) {
+        notes.push("自动匹配到「" + match.name + "」（把握 " + Math.round(match.score * 100) +
+          "%），请确认是不是这栋，不对就在下拉里换");
       }
 
-      var bad = c.tba || c.needsTime || (c.buildingName && !match);
+      var bad = c.tba || c.needsTime || (c.buildingName && !match) || (match && !match.exact);
 
       html += '<div class="ocr-row' + (bad ? " is-bad" : "") + '" data-idx="' + i + '"' +
         ' data-building-name="' + esc(c.buildingName || "") + '">' +
