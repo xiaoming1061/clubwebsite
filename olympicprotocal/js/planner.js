@@ -252,6 +252,72 @@ window.OP = window.OP || {};
     return course.room ? where + " " + course.room : where;
   }
 
+  /* ---------- 播报专用的念法 ---------- */
+
+  /* 把一个名字拆成中文部分和英文部分（"李兆基樓 Lee Shau Kee Building" 两种都有） */
+  function splitName(text) {
+    var raw = String(text || "");
+    return {
+      zh: (raw.match(/[\u4e00-\u9fa5]+/g) || []).join(""),
+      en: (raw.match(/[A-Za-z0-9][A-Za-z0-9\s.'&()-]*/g) || []).join(" ").replace(/\s+/g, " ").trim()
+    };
+  }
+
+  /* 楼栋的中文名和英文名，从显示名和别名里凑出来 */
+  function buildingNames(building) {
+    var found = { zh: "", en: "" };
+    if (!building) return found;
+
+    [building.name].concat(building.alias || []).forEach(function (name) {
+      var parts = splitName(name);
+      if (!found.zh && parts.zh) found.zh = parts.zh;
+      if (!found.en && parts.en) found.en = parts.en;
+    });
+
+    return found;
+  }
+
+  /* 念英文时去掉结尾的通用词，但要留够两个词 */
+  var GENERIC_SUFFIX = [
+    "building", "bldg", "hall", "centre", "center", "tower", "block",
+    "complex", "house", "college", "school", "institute",
+    "theatre", "theater", "laboratory", "lab"
+  ];
+
+  function shortEnglishName(name) {
+    var text = String(name || "").trim();
+    if (!text) return "";
+
+    var words = text.split(/\s+/);
+    /* 至少三个词才削——否则 "Science Centre" 会被削成没意义的 "Science" */
+    if (words.length < 3) return text;
+
+    var last = words[words.length - 1].toLowerCase().replace(/[^a-z]/g, "");
+    return GENERIC_SUFFIX.indexOf(last) >= 0 ? words.slice(0, -1).join(" ") : text;
+  }
+
+  /**
+   * 播报时楼栋怎么念：中文名 + 英文简称。
+   *
+   * 中文全名让人一听就懂，英文简称对得上现场指示牌和时间表上的写法，
+   * 例如「李兆基樓 Lee Shau Kee」。只有一种语言时就用那一种。
+   */
+  function spokenName(building) {
+    if (!building) return "未知地点";
+
+    var names = buildingNames(building);
+    var en = shortEnglishName(names.en);
+
+    if (names.zh && en) return names.zh + " " + en;
+    return names.zh || en || building.name || "未知地点";
+  }
+
+  function spokenPlace(course, building) {
+    var where = spokenName(building);
+    /* 播报里用逗号断开，念出来有个自然停顿 */
+    return course.room ? where + "，" + course.room : where;
+  }
+
   function nextLine(leg) {
     var c = leg.course;
     return [
@@ -260,7 +326,7 @@ window.OP = window.OP || {};
       "到",
       cnTime(c.end),
       "，在",
-      placeText(c, leg.building)
+      spokenPlace(c, leg.building)
     ].join("");
   }
 
@@ -284,7 +350,7 @@ window.OP = window.OP || {};
     list.forEach(function (c, i) {
       var b = buildingById(data, c.buildingId);
       var line = "第 " + (i + 1) + " 节，" + c.name + "，" + cnTime(c.start) +
-        "，在" + placeText(c, b);
+        "，在" + spokenPlace(c, b);
       if (c.teacher) line += "，" + c.teacher;
       parts.push(line + "。");
     });
@@ -319,11 +385,11 @@ window.OP = window.OP || {};
 
     if (found.status === "ongoing") {
       var endLeft = Math.round(minutesBetween(date, at(date, c.end)));
-      return c.name + "正在" + placeText(c, b) + "进行，还有大约 " + Math.max(0, endLeft) + " 分钟下课。";
+      return c.name + "正在" + spokenPlace(c, b) + "进行，还有大约 " + Math.max(0, endLeft) + " 分钟下课。";
     }
 
     var text = "下一节课是" + c.name + "，" + cnTime(c.start) + "开始，还有大约 " +
-      Math.max(0, left) + " 分钟，在" + placeText(c, b) + "。";
+      Math.max(0, left) + " 分钟，在" + spokenPlace(c, b) + "。";
 
     var metrics = walkMetrics(position, b, data.settings || {});
     if (metrics) {
@@ -346,7 +412,7 @@ window.OP = window.OP || {};
     var c = leg.course;
     var left = Math.round(minutesBetween(date, leg.start));
     var text = "该出发了。" + c.name + "还有 " + Math.max(0, left) + " 分钟开始，在" +
-      placeText(c, leg.building) + "。";
+      spokenPlace(c, leg.building) + "。";
     if (leg.metrics) {
       text += "距离大约 " + OP.Geo.formatDistance(leg.metrics.distance) + "，步行约 " +
         OP.Geo.formatDuration(leg.metrics.minutes) + "。";
@@ -385,6 +451,11 @@ window.OP = window.OP || {};
     buildLegs: buildLegs,
     routeLegs: routeLegs,
     placeText: placeText,
+    splitName: splitName,
+    buildingNames: buildingNames,
+    shortEnglishName: shortEnglishName,
+    spokenName: spokenName,
+    spokenPlace: spokenPlace,
     nextLine: nextLine,
     briefingText: briefingText,
     nextText: nextText,
