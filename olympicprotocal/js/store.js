@@ -16,6 +16,31 @@ window.OP = window.OP || {};
     return clone(OP.DEFAULT_DATA);
   }
 
+  /**
+   * 楼栋按名字排序。
+   *
+   * 用浏览器自带的多语言排序：英文按字母，中文按拼音，数字按大小
+   * （"Building 2" 排在 "Building 10" 前面，而不是按字符逐位比）。
+   * sensitivity: "base" 让大小写不参与比较。
+   */
+  function compareBuildings(a, b) {
+    return String((a && a.name) || "").localeCompare(String((b && b.name) || ""), "zh-Hans", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  function sortBuildings(list) {
+    return (list || []).slice().sort(compareBuildings);
+  }
+
+  function normalize(data) {
+    if (data && data.campus) {
+      data.campus.buildings = sortBuildings(data.campus.buildings);
+    }
+    return data;
+  }
+
   /* 把存档和默认值做一次浅层合并，避免旧存档缺字段导致界面报错 */
   function merge(saved) {
     var base = defaults();
@@ -37,11 +62,11 @@ window.OP = window.OP || {};
   function load() {
     try {
       var raw = window.localStorage.getItem(KEY);
-      if (!raw) return defaults();
-      return merge(JSON.parse(raw));
+      if (!raw) return normalize(defaults());
+      return normalize(merge(JSON.parse(raw)));
     } catch (err) {
       console.warn("[OP] 读取本地数据失败，已回退到示例数据", err);
-      return defaults();
+      return normalize(defaults());
     }
   }
 
@@ -61,7 +86,7 @@ window.OP = window.OP || {};
     } catch (err) {
       /* 忽略：隐私模式下可能不可写 */
     }
-    return defaults();
+    return normalize(defaults());
   }
 
   /* 已经播报过的提醒，按「日期 + 课程」记账，避免重复播报 */
@@ -192,6 +217,8 @@ window.OP = window.OP || {};
     save: save,
     reset: reset,
     defaults: defaults,
+    sortBuildings: sortBuildings,
+    compareBuildings: compareBuildings,
     merge: merge,
     loadFired: loadFired,
     saveFired: saveFired,

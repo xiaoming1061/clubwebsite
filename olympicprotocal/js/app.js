@@ -454,7 +454,11 @@
     else if (state.view === "settings") renderSettings();
   }
 
-  function save() { Store.save(data); }
+  function save() {
+    /* 楼栋统一按名字排序，这样列表、下拉框、导出的顺序都一致 */
+    if (data.campus) data.campus.buildings = Store.sortBuildings(data.campus.buildings);
+    Store.save(data);
+  }
 
   function saveAndRender() {
     save();
