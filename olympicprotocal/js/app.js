@@ -108,10 +108,24 @@
   /* ================= 位置 ================= */
 
   function effectivePosition() {
-    if (data.settings.simulate && typeof data.settings.simulate.lat === "number") {
-      return { lat: data.settings.simulate.lat, lng: data.settings.simulate.lng, simulated: true };
+    var sim = data.settings.simulate;
+    if (sim && typeof sim.lat === "number") {
+      return { lat: sim.lat, lng: sim.lng, elevation: sim.elevation, simulated: true };
     }
     return state.position;
+  }
+
+  /* 给一个坐标补上海拔。查不到就留着不管，按平地算，
+     不影响其它功能——海拔只是让时间更准，不是必需项。 */
+  function fillElevation(target, onDone) {
+    if (!target || typeof target.lat !== "number") return;
+    if (typeof target.elevation === "number") return;
+
+    OP.Elevation.at(target.lat, target.lng).then(function (value) {
+      if (typeof value !== "number") return;
+      target.elevation = value;
+      if (onDone) onDone();
+    }).catch(function () { /* 查不到就算了 */ });
   }
 
   function positionHint() {
@@ -251,16 +265,25 @@
         $("#nextDistance").textContent = "--";
         $("#nextWalk").textContent = "--";
         $("#nextLeave").textContent = "已在上课";
+        $("#nextClimbWrap").hidden = true;
       } else if (leg && leg.metrics) {
         var buffer = Number(data.settings.bufferMinutes) || 0;
         $("#nextDistance").textContent = Geo.formatDistance(leg.metrics.distance);
         $("#nextWalk").textContent = Geo.formatDuration(leg.metrics.minutes);
         $("#nextLeave").textContent = P.fmtHM(P.hm(c.start) - leg.metrics.minutes - buffer);
+
+        /* 有明显爬升时多显示一格，没有就藏起来 */
+        var rise = leg.metrics.hasElevation ? Math.round(leg.metrics.rise) : 0;
+        $("#nextClimbWrap").hidden = rise < 3;
+        /* 不要加箭头：小字号下 ↑ 会被看成数字 1，118 米变成 1118 米 */
+        if (rise >= 3) $("#nextClimb").textContent = rise + " 米";
+
         if (leg.slackMin !== null && leg.slackMin <= 10) hero.classList.add("is-imminent");
       } else {
         $("#nextDistance").textContent = "打开定位";
         $("#nextWalk").textContent = "--";
         $("#nextLeave").textContent = "打开定位";
+        $("#nextClimbWrap").hidden = true;
       }
     }
 
@@ -342,6 +365,9 @@
       var metrics = leg.metrics
         ? '<div class="leg-meta">' +
             "<span>距离 <b>" + esc(Geo.formatDistance(leg.metrics.distance)) + "</b></span>" +
+            (leg.metrics.hasElevation && leg.metrics.rise >= 3
+              ? "<span>爬升 <b>" + Math.round(leg.metrics.rise) + " 米</b></span>"
+              : "") +
             "<span>步行 <b>" + esc(Geo.formatDuration(leg.metrics.minutes)) + "</b></span>" +
             "<span>建议出发 <b>" + esc(P.fmtHM(P.hm(c.start) - leg.metrics.minutes - buffer)) + "</b></span>" +
           "</div>"
@@ -450,6 +476,7 @@
     $("#sSpeed").value = s.walkingSpeed;
     $("#sDetour").value = s.detourFactor;
     $("#sTermStart").value = s.termStart || "";
+    $("#sClimb").value = s.climbFactor;
     $("#campusName").value = (data.campus && data.campus.name) || "";
 
     $("#plRadius").value = data.settings.placesRadius || 800;
@@ -496,9 +523,14 @@
     var missingCount = all.filter(function (b) {
       return typeof b.lat !== "number" || typeof b.lng !== "number";
     }).length;
+    var noElevation = all.filter(function (b) {
+      return typeof b.lat === "number" && typeof b.lng === "number" &&
+        typeof b.elevation !== "number";
+    }).length;
 
     var count = "共 " + all.length + " 栋";
     if (missingCount) count += "，其中 " + missingCount + " 栋还没坐标";
+    if (noElevation) count += "，" + noElevation + " 栋还没海拔（点「获取海拔」补）";
     if (query || missingOnly) count += " · 当前显示 " + shown.length + " 栋";
     $("#buildingCount").textContent = count;
 
@@ -508,10 +540,14 @@
         ? Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5)
         : '<span class="bi-missing">还没坐标</span>';
       var alias = (b.alias && b.alias.length) ? b.alias.join("、") : "";
+      var elevText = typeof b.elevation === "number"
+        ? "海拔 " + Math.round(b.elevation) + " 米"
+        : (hasCoords ? '<span class="bi-missing">海拔未知</span>' : "");
 
       return '<div class="building-item">' +
         '<div><div class="bi-name">' + esc(b.name) + "</div>" +
         '<div class="bi-meta">' + coordText +
+        (elevText ? " · " + elevText : "") +
         (alias ? " · " + esc(alias) : "") + "</div></div>" +
         '<div class="ci-actions">' +
           '<button class="btn btn-small" data-edit-building="' + esc(b.id) + '">编辑</button>' +
@@ -558,10 +594,15 @@
     render();
 
     Geo.watch(function (pos) {
+      /* 每次定位都换一个新对象，把已经查到的海拔带过去，省得重复请求 */
+      if (state.position && typeof state.position.elevation === "number") {
+        pos.elevation = state.position.elevation;
+      }
       state.position = pos;
       state.locating = true;
       state.geoError = "";
       render();
+      fillElevation(state.position, render);
     }, function (err) {
       state.locating = false;
       state.geoError = Geo.readableError(err);
@@ -1221,6 +1262,7 @@
       }
       data.settings.simulate = { lat: pos.lat, lng: pos.lng };
       saveAndRender();
+      fillElevation(data.settings.simulate, saveAndRender);
       toast("已设为模拟位置", pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5), "ok");
     });
 
@@ -1275,6 +1317,11 @@
       saveAndRender();
     });
 
+    $("#sClimb").addEventListener("change", function () {
+      data.settings.climbFactor = Number(this.value);
+      saveAndRender();
+    });
+
     $("#btnTestAlert").addEventListener("click", function () {
       var info = nextInfo();
       if (!info.leg) {
@@ -1300,6 +1347,45 @@
     });
 
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });
+
+    /* --- 获取楼栋海拔 --- */
+    $("#btnFetchElevation").addEventListener("click", function () {
+      var button = this;
+      var list = (data.campus && data.campus.buildings) || [];
+      var todo = list.filter(function (b) {
+        return typeof b.lat === "number" && typeof b.lng === "number" &&
+          typeof b.elevation !== "number";
+      });
+
+      if (!todo.length) {
+        toast("海拔都齐了", list.length + " 栋楼都已有海拔", "ok");
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "查询中…";
+
+      OP.Elevation.lookup(todo.map(function (b) { return { lat: b.lat, lng: b.lng }; }),
+        function (done, total) {
+          button.textContent = "查询中 " + done + "/" + total;
+        }
+      ).then(function (values) {
+        var filled = 0;
+        todo.forEach(function (b, i) {
+          if (typeof values[i] === "number") {
+            b.elevation = values[i];
+            filled++;
+          }
+        });
+        saveAndRender();
+        toast("海拔已更新", filled + " 栋（待查 " + todo.length + " 栋）", "ok");
+      }).catch(function (err) {
+        toast("查询海拔失败", err.message, "err");
+      }).then(function () {
+        button.disabled = false;
+        button.textContent = "获取海拔";
+      });
+    });
 
     /* --- 确认弹窗 --- */
     $("#confirmOk").addEventListener("click", function () {
@@ -1613,6 +1699,7 @@
       Geo.once().then(function (pos) {
         state.position = pos;
         render();
+        fillElevation(state.position, render);
       }).catch(function (err) {
         state.geoError = Geo.readableError(err);
         render();

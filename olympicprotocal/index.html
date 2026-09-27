@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocal · 校园通行指挥台</title>
-  <link rel="stylesheet" href="styles.css?v=muk7juac" />
+  <link rel="stylesheet" href="styles.css?v=muk7vttj" />
 </head>
 <body>
   <div class="app">
@@ -42,6 +42,10 @@
             <div class="stat">
               <span class="stat-label">步行</span>
               <span class="stat-value" id="nextWalk">--</span>
+            </div>
+            <div class="stat" id="nextClimbWrap" hidden>
+              <span class="stat-label">爬升</span>
+              <span class="stat-value" id="nextClimb">--</span>
             </div>
             <div class="stat">
               <span class="stat-label">建议出发</span>
@@ -131,10 +135,18 @@
             <span>学期开始日期（用于计算教学周）</span>
             <input type="date" id="sTermStart" />
           </label>
+          <label class="field">
+            <span>爬升折算：1 米爬升 ≈ 几米平路</span>
+            <input type="number" id="sClimb" min="0" max="20" step="0.5" />
+          </label>
           <div class="hero-actions">
             <button class="btn" id="btnTestAlert">测试出发提醒</button>
           </div>
-          <p class="hint">路程系数把直线距离折算为实际步行距离，校园路网一般在 1.2 – 1.4 之间。</p>
+          <p class="hint">
+            路程系数把直线距离折算为实际步行距离，校园路网一般在 1.2 – 1.4 之间。
+            爬升折算默认 8（接近登山常用的 Naismith 经验值）：爬山校园里高差很大，
+            不折算的话步行时间会严重低估。设成 0 就完全不考虑高差。
+          </p>
         </article>
 
         <article class="card">
@@ -177,6 +189,7 @@
             <h3>校区楼栋</h3>
             <div class="card-head-actions">
               <button class="btn btn-small" id="btnAddBuilding">新增楼栋</button>
+              <button class="btn btn-small" id="btnFetchElevation">获取海拔</button>
               <button class="btn btn-small btn-danger" id="btnClearBuildings">清空全部</button>
             </div>
           </div>
@@ -401,14 +414,15 @@
     </div>
   </div>
 
-  <script src="data/defaults.js?v=muk7juac"></script>
-  <script src="js/store.js?v=muk7juac"></script>
-  <script src="js/geo.js?v=muk7juac"></script>
-  <script src="js/speech.js?v=muk7juac"></script>
-  <script src="js/planner.js?v=muk7juac"></script>
-  <script src="js/map.js?v=muk7juac"></script>
-  <script src="js/places.js?v=muk7juac"></script>
-  <script src="js/ocr.js?v=muk7juac"></script>
-  <script src="js/app.js?v=muk7juac"></script>
+  <script src="data/defaults.js?v=muk7vttj"></script>
+  <script src="js/store.js?v=muk7vttj"></script>
+  <script src="js/geo.js?v=muk7vttj"></script>
+  <script src="js/elevation.js?v=muk7vttj"></script>
+  <script src="js/speech.js?v=muk7vttj"></script>
+  <script src="js/planner.js?v=muk7vttj"></script>
+  <script src="js/map.js?v=muk7vttj"></script>
+  <script src="js/places.js?v=muk7vttj"></script>
+  <script src="js/ocr.js?v=muk7vttj"></script>
+  <script src="js/app.js?v=muk7vttj"></script>
 </body>
 </html>

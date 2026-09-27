@@ -43,6 +43,7 @@ window.OP.DEFAULT_DATA = {
     bufferMinutes: 5,       // 到楼之后再留出的缓冲
     walkingSpeed: 75,       // 米/分钟
     detourFactor: 1.3,      // 直线距离 → 实际步行距离的折算系数
+    climbFactor: 8,         // 1 米爬升折算成几米平路（Naismith 经验值）
     voiceEnabled: true,
     voiceRate: 1.0,
     voiceVolume: 1.0,

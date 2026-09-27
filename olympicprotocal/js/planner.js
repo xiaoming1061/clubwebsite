@@ -177,12 +177,30 @@ window.OP = window.OP || {};
     var detour = Number(settings.detourFactor) || 1.3;
     var speed = Number(settings.walkingSpeed) || 75;
     var distance = straight * detour;
+
+    /* 高差要算进去。爬山校园里从山脚到山顶比平地慢好几倍，
+       1 米爬升按 8 米平路折算（接近登山常用的 Naismith 经验值）。 */
+    var climbFactor = Number(settings.climbFactor);
+    /* 0 是有效值，表示"不考虑高差"；只有缺字段或负数才回退到默认 */
+    if (!isFinite(climbFactor) || climbFactor < 0) climbFactor = 8;
+
+    var rise = 0;
+    if (typeof from.elevation === "number" && typeof building.elevation === "number") {
+      rise = Math.max(0, building.elevation - from.elevation);
+    }
+    var effective = distance + rise * climbFactor;
+
     return {
       straight: straight,
       distance: distance,
-      minutes: distance / speed,
+      minutes: effective / speed,
       speed: speed,
-      detour: detour
+      detour: detour,
+      rise: rise,
+      climbFactor: climbFactor,
+      effectiveDistance: effective,
+      /* 有没有海拔数据要区分开：没有时"爬升 0"是未知，不是真的平路 */
+      hasElevation: typeof from.elevation === "number" && typeof building.elevation === "number"
     };
   }
 
@@ -402,6 +420,9 @@ window.OP = window.OP || {};
       } else {
         text += "建议 " + cnTime(fmtHM(departMin)) + " 出发。";
       }
+      if (metrics.hasElevation && metrics.rise >= 3) {
+        text += "中间要爬升 " + Math.round(metrics.rise) + " 米。";
+      }
     } else {
       text += "打开定位后我可以帮你算步行时间。";
     }
@@ -416,6 +437,9 @@ window.OP = window.OP || {};
     if (leg.metrics) {
       text += "距离大约 " + OP.Geo.formatDistance(leg.metrics.distance) + "，步行约 " +
         OP.Geo.formatDuration(leg.metrics.minutes) + "。";
+      if (leg.metrics.hasElevation && leg.metrics.rise >= 3) {
+        text += "要爬升 " + Math.round(leg.metrics.rise) + " 米。";
+      }
     }
     return text;
   }
