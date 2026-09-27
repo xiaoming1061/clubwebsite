@@ -20,6 +20,7 @@
     hintShown: false,
     places: [],
     placesStatus: "未搜索",
+    placesRaw: null,
     ocr: { courses: [], warnings: [], busy: false }
   };
 
@@ -645,19 +646,17 @@
     data.settings.placesRadius = radius;
     save();
 
-    state.placesStatus = "搜索中…";
+    state.placesRaw = null;
     state.places = [];
     renderPlaces();
     $("#btnSearchPlaces").disabled = true;
+    startPlacesTicker();
 
-    OP.Places.search({
-      lat: pos.lat,
-      lng: pos.lng,
-      radius: radius,
-      keyword: $("#plKeyword").value,
-      merge: data.settings.placesMerge !== false,
-      preferEnglish: data.settings.placesEnglish !== false
-    }).then(function (list) {
+    var options = placeOptions(pos, radius);
+    options.onRaw = function (raw) { state.placesRaw = raw; };
+
+    OP.Places.search(options).then(function (list) {
+      stopPlacesTicker();
       state.places = list;
       state.placesStatus = list.length ? "找到 " + list.length + " 个" : "没找到";
       renderPlaces();
@@ -665,6 +664,8 @@
         toast("没有找到建筑", "换个来源、把半径调大，或清空名称过滤再试", "warn");
       }
     }).catch(function (err) {
+      stopPlacesTicker();
+      state.placesRaw = null;
       state.places = [];
       state.placesStatus = "搜索失败";
       renderPlaces();
@@ -672,6 +673,51 @@
     }).then(function () {
       $("#btnSearchPlaces").disabled = false;
     });
+  }
+
+  /* 搜索参数集中在这里，重新排序和重新联网都走同一份 */
+  function placeOptions(pos, radius) {
+    return {
+      lat: pos.lat,
+      lng: pos.lng,
+      radius: radius,
+      keyword: $("#plKeyword").value,
+      merge: data.settings.placesMerge !== false,
+      preferEnglish: data.settings.placesEnglish !== false
+    };
+  }
+
+  /**
+   * 只改本地展示，不重新联网。
+   * 「合并同一栋楼」「优先用英文名」「名称过滤」都走这里——瞬间生效。
+   */
+  function reshapePlaces() {
+    var pos = effectivePosition();
+    if (!state.placesRaw || !pos) return;
+
+    var radius = Number($("#plRadius").value) || 800;
+    state.places = OP.Places.shape(state.placesRaw, placeOptions(pos, radius));
+    state.placesStatus = state.places.length ? "找到 " + state.places.length + " 个" : "没找到";
+    renderPlaces();
+  }
+
+  /* 搜索时显示已用秒数，免得看起来像卡死了 */
+  var placesTicker = null;
+
+  function startPlacesTicker() {
+    stopPlacesTicker();
+    var started = Date.now();
+    $("#plStatus").textContent = "搜索中… 0 秒";
+    placesTicker = window.setInterval(function () {
+      $("#plStatus").textContent = "搜索中… " + Math.floor((Date.now() - started) / 1000) + " 秒";
+    }, 1000);
+  }
+
+  function stopPlacesTicker() {
+    if (placesTicker) {
+      window.clearInterval(placesTicker);
+      placesTicker = null;
+    }
   }
 
   function addSelectedPlaces() {
@@ -1099,16 +1145,23 @@
       save();
     });
 
+    /* 名称过滤也是纯本地筛选，边打边筛 */
+    var keywordTimer = null;
+    $("#plKeyword").addEventListener("input", function () {
+      window.clearTimeout(keywordTimer);
+      keywordTimer = window.setTimeout(reshapePlaces, 250);
+    });
+
     $("#plMerge").addEventListener("change", function () {
       data.settings.placesMerge = this.checked;
       save();
-      if (state.places.length) searchPlaces();
+      reshapePlaces();
     });
 
     $("#plEnglish").addEventListener("change", function () {
       data.settings.placesEnglish = this.checked;
       save();
-      if (state.places.length) searchPlaces();
+      reshapePlaces();
     });
 
     $("#btnSearchPlaces").addEventListener("click", searchPlaces);
