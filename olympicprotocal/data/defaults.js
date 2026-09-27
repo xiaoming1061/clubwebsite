@@ -52,6 +52,7 @@ window.OP.DEFAULT_DATA = {
     simulate: null,         // { lat, lng } 手动指定的位置，便于在电脑上测试
     placesRadius: 800,
     placesMerge: true,      // 合并坐标几乎重合的点位
-    placesEnglish: true     // 地图取楼栋时优先用英文名，中文名存成别名
+    placesEnglish: true,    // 地图取楼栋时优先用英文名，中文名存成别名
+    mapMode: "schematic"    // schematic 简图 / osm 街道图 / cuhk 港中文地图
   }
 };

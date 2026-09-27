@@ -340,12 +340,49 @@
       s.isNext = s.building.id === nextBuildingId;
     });
 
-    OP.MapView.render($("#mapSvg"), {
-      buildings: buildings,
-      position: info.position,
-      stops: stops,
-      detourFactor: data.settings.detourFactor
+    /* 三种底图：简图（离线 SVG）/ OSM 街道图 / 港中文校园地图 */
+    var mode = data.settings.mapMode || "schematic";
+    var svg = $("#mapSvg");
+    var realBox = $("#mapReal");
+
+    $$(".map-mode").forEach(function (btn) {
+      btn.classList.toggle("is-active", btn.dataset.mapmode === mode);
     });
+
+    if (mode === "schematic") {
+      /* 注意：SVG 元素没有 hidden 这个 DOM 属性，
+         写 svg.hidden = true 只是挂了个没用的变量，属性根本不会设上。
+         所以这里直接控制 display。 */
+      svg.style.display = "";
+      realBox.style.display = "none";
+      OP.RealMap.dispose();
+
+      OP.MapView.render(svg, {
+        buildings: buildings,
+        position: info.position,
+        stops: stops,
+        detourFactor: data.settings.detourFactor
+      });
+      $("#mapHint").textContent = "只标注今天要去的楼栋";
+    } else {
+      svg.style.display = "none";
+      realBox.style.display = "";
+      $("#mapHint").textContent = mode === "cuhk"
+        ? "底图 © 香港中文大学 · 只标注今天要去的楼栋"
+        : "底图 © OpenStreetMap 贡献者 · 只标注今天要去的楼栋";
+
+      OP.RealMap.render(realBox, {
+        source: mode,
+        position: info.position,
+        stops: stops
+      }).catch(function (err) {
+        toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
+        $("#mapHint").textContent = "底图加载失败，切回「简图」仍可正常使用";
+      });
+    }
+
+    /* 简图才需要图例；真实地图上的标记自带标签 */
+    $("#mapLegend").hidden = mode !== "schematic";
 
     var box = $("#routeList");
 
@@ -1227,6 +1264,14 @@
         $$(".tab").forEach(function (b) { b.classList.toggle("is-active", b === btn); });
         $$(".view").forEach(function (v) { v.classList.toggle("is-active", v.dataset.view === state.view); });
         render();
+      });
+    });
+
+    /* --- 地图底图切换 --- */
+    $$(".map-mode").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        data.settings.mapMode = btn.dataset.mapmode;
+        saveAndRender();
       });
     });
 

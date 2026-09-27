@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocal · 校园通行指挥台</title>
-  <link rel="stylesheet" href="styles.css?v=muk867yc" />
+  <link rel="stylesheet" href="styles.css?v=muk8leb1" />
 </head>
 <body>
   <div class="app">
@@ -248,13 +248,19 @@
       <section class="view" data-view="route">
         <article class="card">
           <div class="card-head">
-            <h3>校园简图</h3>
-            <span class="muted" id="mapHint">只标注今天要去的楼栋</span>
+            <h3>校园地图</h3>
+            <div class="map-modes" id="mapModes">
+              <button type="button" class="map-mode" data-mapmode="schematic">简图</button>
+              <button type="button" class="map-mode" data-mapmode="osm">街道图</button>
+              <button type="button" class="map-mode" data-mapmode="cuhk">港中文</button>
+            </div>
           </div>
+          <p class="hint" id="mapHint">只标注今天要去的楼栋</p>
           <div class="map-wrap">
             <svg id="mapSvg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet" role="img" aria-label="校园简图"></svg>
+            <div id="mapReal" style="display: none"></div>
           </div>
-          <div class="legend">
+          <div class="legend" id="mapLegend">
             <span class="legend-item"><i class="dot dot-me"></i>我的位置</span>
             <span class="legend-item"><i class="dot dot-next"></i>下一节课</span>
             <span class="legend-item"><i class="dot dot-today"></i>今天还要去</span>
@@ -414,15 +420,16 @@
     </div>
   </div>
 
-  <script src="data/defaults.js?v=muk867yc"></script>
-  <script src="js/store.js?v=muk867yc"></script>
-  <script src="js/geo.js?v=muk867yc"></script>
-  <script src="js/elevation.js?v=muk867yc"></script>
-  <script src="js/speech.js?v=muk867yc"></script>
-  <script src="js/planner.js?v=muk867yc"></script>
-  <script src="js/map.js?v=muk867yc"></script>
-  <script src="js/places.js?v=muk867yc"></script>
-  <script src="js/ocr.js?v=muk867yc"></script>
-  <script src="js/app.js?v=muk867yc"></script>
+  <script src="data/defaults.js?v=muk8leb1"></script>
+  <script src="js/store.js?v=muk8leb1"></script>
+  <script src="js/geo.js?v=muk8leb1"></script>
+  <script src="js/elevation.js?v=muk8leb1"></script>
+  <script src="js/speech.js?v=muk8leb1"></script>
+  <script src="js/planner.js?v=muk8leb1"></script>
+  <script src="js/map.js?v=muk8leb1"></script>
+  <script src="js/realmaps.js?v=muk8leb1"></script>
+  <script src="js/places.js?v=muk8leb1"></script>
+  <script src="js/ocr.js?v=muk8leb1"></script>
+  <script src="js/app.js?v=muk8leb1"></script>
 </body>
 </html>

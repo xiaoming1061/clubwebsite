@@ -333,7 +333,78 @@ body {
   overflow: hidden;
 }
 
-.map-wrap svg { display: block; width: 100%; height: auto; }
+/* 只针对简图那个 SVG。写成 .map-wrap svg 会连 Leaflet 版权栏里
+   那面内置的国旗 SVG 一起拉伸成巨大的色块——踩过。 */
+#mapSvg { display: block; width: 100%; height: auto; }
+
+/* 真实地图：Leaflet 需要容器有明确高度 */
+
+#mapReal { height: 420px; border-radius: 8px; background: #0a1120; }
+
+.map-modes { display: flex; gap: 4px; }
+
+.map-mode {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.map-mode:hover { color: var(--text); border-color: #33456b; }
+.map-mode.is-active {
+  color: var(--accent);
+  border-color: rgba(56, 225, 255, 0.45);
+  background: rgba(56, 225, 255, 0.1);
+}
+
+/* 地图上的编号圆点 */
+.rm-icon { background: none; border: 0; }
+
+.rm-pin {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #16324a;
+  border: 2.5px solid var(--accent);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.rm-pin.is-next { background: var(--accent); color: #04121c; border-color: #bff4ff; }
+
+/* 常驻标签（楼名 + 时间） */
+.leaflet-tooltip.rm-tip {
+  background: rgba(10, 17, 32, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 5px 9px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.leaflet-tooltip.rm-tip::before { display: none; }
+.leaflet-tooltip.rm-tip.is-next { border-color: rgba(56, 225, 255, 0.55); color: var(--accent); }
+.leaflet-tooltip.rm-tip.is-me { border-color: rgba(56, 225, 255, 0.4); }
+
+.leaflet-container { background: #0a1120; font-family: inherit; }
+.leaflet-control-attribution {
+  background: rgba(10, 17, 32, 0.8) !important;
+  color: var(--text-faint) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: var(--text-dim) !important; }
 
 .svg-grid line { stroke: rgba(34, 48, 77, 0.55); stroke-width: 1; }
 
