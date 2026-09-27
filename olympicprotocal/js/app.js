@@ -19,9 +19,7 @@
     lastCheck: 0,
     hintShown: false,
     places: [],
-    placesStatus: "未搜索",
-    placesProviderShown: null,
-    proxyReady: false
+    placesStatus: "未搜索"
   };
 
   function $(sel) { return document.querySelector(sel); }
@@ -344,10 +342,8 @@
     $("#sTermStart").value = s.termStart || "";
     $("#campusName").value = (data.campus && data.campus.name) || "";
 
-    $("#plProvider").value = data.settings.placesProvider || "osm";
     $("#plRadius").value = data.settings.placesRadius || 800;
     $("#plMerge").checked = data.settings.placesMerge !== false;
-    syncPlacesProvider(false);
     renderPlaces();
 
     var pos = effectivePosition();
@@ -547,45 +543,6 @@
 
   /* ================= 从地图读取附近楼栋 ================= */
 
-  function placesProviderDef(id) {
-    var list = OP.Places.PROVIDERS;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].id === id) return list[i];
-    }
-    return list[0];
-  }
-
-  function sourceLabel(id) {
-    if (id === "osm") return "OpenStreetMap";
-    if (id === "amap") return "高德";
-    if (id === "google") return "Google";
-    return id;
-  }
-
-  function initPlacesUi() {
-    $("#plProvider").innerHTML = OP.Places.PROVIDERS.map(function (p) {
-      return '<option value="' + esc(p.id) + '">' + esc(p.label) + "</option>";
-    }).join("");
-  }
-
-  /* 切换来源时，把 Key 输入框和说明文字跟着换掉 */
-  function syncPlacesProvider(force) {
-    var def = placesProviderDef($("#plProvider").value);
-    $("#plKeyField").hidden = !def.needKey;
-
-    /* 只有在切换来源时才回填 Key，否则会把用户正在输入的内容冲掉 */
-    if (force || state.placesProviderShown !== def.id) {
-      $("#plKey").value = (data.settings.placesKeys || {})[def.id] || "";
-      state.placesProviderShown = def.id;
-    }
-
-    var note = def.note;
-    if (def.needKey && !state.proxyReady) {
-      note += " 当前没有检测到本地代理，请用 node tools/serve.js 启动页面后再试。";
-    }
-    $("#plNote").textContent = note;
-  }
-
   function renderPlaces() {
     var box = $("#placesList");
     var list = state.places || [];
@@ -608,7 +565,7 @@
 
       var meta = [
         item.distance !== null ? Geo.formatDistance(item.distance) : "",
-        sourceLabel(item.source),
+        "OpenStreetMap",
         item.kind || "",
         item.address || ""
       ].filter(function (t) { return t; }).join(" · ");
@@ -626,7 +583,6 @@
   }
 
   function searchPlaces() {
-    var provider = $("#plProvider").value;
     var pos = effectivePosition();
 
     if (!pos) {
@@ -635,12 +591,7 @@
     }
 
     var radius = Number($("#plRadius").value) || 800;
-    var key = $("#plKey").value.trim();
-
-    data.settings.placesProvider = provider;
     data.settings.placesRadius = radius;
-    data.settings.placesKeys = data.settings.placesKeys || {};
-    data.settings.placesKeys[provider] = key;
     save();
 
     state.placesStatus = "搜索中…";
@@ -648,11 +599,10 @@
     renderPlaces();
     $("#btnSearchPlaces").disabled = true;
 
-    OP.Places.search(provider, {
+    OP.Places.search({
       lat: pos.lat,
       lng: pos.lng,
       radius: radius,
-      key: key,
       keyword: $("#plKeyword").value,
       merge: data.settings.placesMerge !== false
     }).then(function (list) {
@@ -866,12 +816,6 @@
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });
 
     /* --- 从地图读取楼栋 --- */
-    $("#plProvider").addEventListener("change", function () {
-      data.settings.placesProvider = this.value;
-      save();
-      syncPlacesProvider(true);
-    });
-
     $("#plRadius").addEventListener("change", function () {
       data.settings.placesRadius = Number(this.value) || 800;
       save();
@@ -1027,18 +971,11 @@
     OP.Speech.init();
     OP.Speech.onChange(fillVoiceOptions);
 
-    initPlacesUi();
     bindEvents();
     fillVoiceOptions();
     render();
 
     window.setInterval(tick, 1000);
-
-    /* 检测有没有本地代理（决定高德 / Google 能不能用） */
-    OP.Places.detectProxy().then(function (ok) {
-      state.proxyReady = ok;
-      if (state.view === "settings") syncPlacesProvider(false);
-    });
 
     /* 拿到权限就直接开始定位，不用用户再点一次 */
     if (Geo.supported()) {

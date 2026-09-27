@@ -49,9 +49,7 @@ window.OP.DEFAULT_DATA = {
     voiceURI: "",
     termStart: "2026-09-01",
     simulate: null,         // { lat, lng } 手动指定的位置，便于在电脑上测试
-    placesProvider: "osm",  // 读取附近楼栋用哪个地图服务
     placesRadius: 800,
-    placesMerge: true,      // 合并同一栋楼内的点位（高德返回的是楼内 POI）
-    placesKeys: { amap: "", google: "" }
+    placesMerge: true       // 合并坐标几乎重合的点位
   }
 };

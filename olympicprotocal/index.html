@@ -142,19 +142,9 @@
             <h3>从地图读取附近楼栋</h3>
             <span class="muted" id="plStatus">未搜索</span>
           </div>
-          <div class="field-row">
-            <label class="field">
-              <span>数据来源</span>
-              <select id="plProvider"></select>
-            </label>
-            <label class="field">
-              <span>搜索半径（米）</span>
-              <input type="number" id="plRadius" min="100" max="3000" step="50" value="800" />
-            </label>
-          </div>
-          <label class="field" id="plKeyField" hidden>
-            <span>API Key</span>
-            <input type="text" id="plKey" placeholder="粘贴你的 Key" autocomplete="off" />
+          <label class="field">
+            <span>搜索半径（米）</span>
+            <input type="number" id="plRadius" min="100" max="3000" step="50" value="800" />
           </label>
           <label class="field">
             <span>名称过滤（可留空）</span>
@@ -169,7 +159,8 @@
             <button class="btn" id="btnAddSelectedPlaces">把勾选的加入楼栋</button>
             <button class="btn btn-ghost" id="btnClearPlaces">清空结果</button>
           </div>
-          <p class="hint" id="plNote"></p>
+          <p class="hint" id="plNote">数据来自 OpenStreetMap，免费且不需要密钥。校园建筑覆盖因学校而异，
+            查不到楼栋时可以站在楼门口用「用我的当前位置填入」手工录入。</p>
           <div class="places-list" id="placesList"></div>
         </article>
 

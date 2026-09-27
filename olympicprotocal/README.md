@@ -7,5 +7,4 @@
 改完运行 `node tools/deploy.js --push` 同步过来。
 
 页面完全跑在浏览器端，没有任何后端依赖；数据存在访问者自己的浏览器里。
-OpenStreetMap 取点可直接用；高德 / Google 需要跨域代理，静态托管上没有，
-所以线上只能用 OpenStreetMap 那个来源。
+读取附近楼栋用的是 OpenStreetMap，免费、免密钥，静态托管上也能正常使用。
