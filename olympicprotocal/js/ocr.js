@@ -479,6 +479,21 @@ window.OP = window.OP || {};
     return { courses: courses, columns: columns, timeAxis: timeAxis, warnings: warnings };
   }
 
+  /**
+   * 给一次识别的结果打分，用来在多种尝试里挑最好的那个。
+   *
+   * 不能只看课程条数：某种像素处理可能把同一段文字重复识别成好几条
+   * 残缺记录，条数反而更多。所以完整（有地点、有时间）的课权重最高。
+   */
+  function scoreResult(parsed) {
+    if (!parsed) return -1;
+    var complete = 0;
+    (parsed.courses || []).forEach(function (c) {
+      if (c.buildingName && c.start && c.end && !c.needsTime) complete++;
+    });
+    return complete * 10 + (parsed.courses || []).length * 2 + (parsed.timeAxis ? 3 : 0);
+  }
+
   /* ================= 6. 楼栋匹配 ================= */
 
   /** 把识别出来的楼名对应到已录入的楼栋 */
@@ -538,7 +553,12 @@ window.OP = window.OP || {};
     return attempt(0);
   }
 
-  /* 放大 + 灰度 + 对比度拉伸，明显提升小字识别率 */
+  /**
+   * 解码图片并放大。
+   *
+   * 这里只做放大，不做任何颜色处理——因为不同的课表页面配色差别很大，
+   * 用哪种像素处理最好要试过才知道，见 applyVariant()。
+   */
   function preprocess(file, options) {
     options = options || {};
     /* 手机截图上的课表字号很小，放大到 2000 像素宽左右识别率最好 */
@@ -559,15 +579,6 @@ window.OP = window.OP || {};
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
-
-        try {
-          var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          stretchContrast(image.data);
-          ctx.putImageData(image, 0, 0);
-        } catch (err) {
-          /* 跨域图片可能取不到像素，那就直接用原图 */
-        }
-
         resolve(canvas);
       };
 
@@ -578,6 +589,67 @@ window.OP = window.OP || {};
 
       img.src = url;
     });
+  }
+
+  /* 像素处理方案。顺序就是尝试顺序：最可能对的那个放前面。 */
+  var VARIANTS = [
+    { id: "chroma", label: "抹掉彩色底" },
+    { id: "gray", label: "只转灰度" },
+    { id: "contrast", label: "增强对比" }
+  ];
+
+  /**
+   * 按指定方案处理像素。
+   *
+   * 课表格子常常是浅绿、浅蓝这类彩色底。直接转灰度再去二值化，
+   * 背景会和深色文字一起被判成"黑"，字就没了——实拍截图里踩过这个坑。
+   * 所以默认先把浅色彩色底整片抹成白色，只留文字。
+   */
+  function applyVariant(base, variant) {
+    var canvas = document.createElement("canvas");
+    canvas.width = base.width;
+    canvas.height = base.height;
+
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(base, 0, 0);
+
+    try {
+      var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      if (variant === "chroma") flattenColorBackgrounds(image.data);
+      else if (variant === "contrast") stretchContrast(image.data);
+      else toGrayscale(image.data);
+      ctx.putImageData(image, 0, 0);
+    } catch (err) {
+      /* 取不到像素就用原图，至少还能识别纯白底的部分 */
+    }
+
+    return canvas;
+  }
+
+  /* 浅色的彩色底 → 白；深色文字（不论有没有颜色）保留 */
+  function flattenColorBackgrounds(data) {
+    var n = data.length / 4;
+    for (var p = 0; p < n; p++) {
+      var o = p * 4;
+      var r = data[o], g = data[o + 1], b = data[o + 2];
+      var max = Math.max(r, g, b);
+      var min = Math.min(r, g, b);
+      var lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      var value = (max - min > 25 && lum > 110) ? 255 : lum;
+      data[o] = data[o + 1] = data[o + 2] = value;
+      data[o + 3] = 255;
+    }
+  }
+
+  function toGrayscale(data) {
+    var n = data.length / 4;
+    for (var p = 0; p < n; p++) {
+      var o = p * 4;
+      var v = 0.299 * data[o] + 0.587 * data[o + 1] + 0.114 * data[o + 2];
+      data[o] = data[o + 1] = data[o + 2] = v;
+      data[o + 3] = 255;
+    }
   }
 
   function stretchContrast(data) {
@@ -736,25 +808,34 @@ window.OP = window.OP || {};
     });
 
     try {
-      /* 表格类截图用哪种页面分割模式最好，不同引擎版本和图片都不一样，
-         所以几种都跑一遍，取还原出课程最多的那次 */
+      /* 用哪种像素处理、哪种页面分割模式最好，因图和引擎版本而异，
+         所以两种维度组合着试，取还原出课程最多的一次 */
       const MODES = [6, 4, 11];
       let best = null;
       let tries = 0;
+      let done = false;
 
-      for (let i = 0; i < MODES.length; i++) {
-        report("正在识别文字（第 " + (i + 1) + " 遍）", 0.1);
-        const attempt = await recognizeOnce(worker, canvas, MODES[i]);
-        const parsed = parseWords(attempt.words, options);
-        parsed.words = attempt.words;
-        parsed.text = attempt.text;
-        parsed.mode = MODES[i];
-        tries++;
+      for (let v = 0; v < VARIANTS.length && !done; v++) {
+        const variant = VARIANTS[v];
+        const prepared = applyVariant(canvas, variant.id);
 
-        if (!best || parsed.courses.length > best.courses.length) best = parsed;
+        for (let i = 0; i < MODES.length; i++) {
+          tries++;
+          report("正在识别（" + variant.label + " · 第 " + tries + " 遍）",
+            Math.min(0.9, 0.1 + tries * 0.1));
 
-        /* 已经认全了就不用再试 */
-        if (best.courses.length >= 10 && best.timeAxis) break;
+          const attempt = await recognizeOnce(worker, prepared, MODES[i]);
+          const parsed = parseWords(attempt.words, options);
+          parsed.words = attempt.words;
+          parsed.text = attempt.text;
+          parsed.mode = MODES[i];
+          parsed.variant = variant.label;
+
+          if (!best || scoreResult(parsed) > scoreResult(best)) best = parsed;
+
+          /* 够完整了就不再折腾 */
+          if (best.courses.length >= 8 && best.timeAxis) { done = true; break; }
+        }
       }
 
       best.tries = tries;
@@ -770,6 +851,11 @@ window.OP = window.OP || {};
     SCRIPT_CDNS: SCRIPT_CDNS,
     DEFAULT_LANG_PATH: DEFAULT_LANG_PATH,
     LANG_PATHS: LANG_PATHS,
+    VARIANTS: VARIANTS,
+    applyVariant: applyVariant,
+    flattenColorBackgrounds: flattenColorBackgrounds,
+    toGrayscale: toGrayscale,
+    stretchContrast: stretchContrast,
     weekdayOf: weekdayOf,
     parseWeekdayHeader: parseWeekdayHeader,
     buildColumns: buildColumns,
@@ -779,6 +865,7 @@ window.OP = window.OP || {};
     parseVenue: parseVenue,
     parseBlockLines: parseBlockLines,
     parseWords: parseWords,
+    scoreResult: scoreResult,
     matchBuilding: matchBuilding,
     wordsFromTsv: wordsFromTsv,
     extractWords: extractWords,

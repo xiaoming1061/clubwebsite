@@ -718,6 +718,7 @@
     box.hidden = false;
     $("#ocrDebugSummary").textContent =
       "文字块 " + result.wordCount + " 个 · 分割模式 " + result.mode +
+      (result.variant ? " · 像素处理 " + result.variant : "") +
       " · 试了 " + result.tries + " 遍 · 列：" + (cols || "没找到") +
       " · " + axis + " · 拼出课程 " + (result.courses || []).length + " 条";
     $("#ocrDebugText").textContent =
