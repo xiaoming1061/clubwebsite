@@ -388,6 +388,9 @@
     }
 
     var list = (data.campus && data.campus.buildings) || [];
+    /* 一栋都没有的时候没必要显示清空按钮 */
+    $("#btnClearBuildings").hidden = !list.length;
+
     $("#buildingList").innerHTML = list.length ? list.map(function (b) {
       var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
       var coordText = hasCoords
@@ -1155,6 +1158,33 @@
     });
 
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });
+
+    $("#btnClearBuildings").addEventListener("click", function () {
+      var list = (data.campus && data.campus.buildings) || [];
+      if (!list.length) {
+        toast("楼栋列表本来就是空的", "");
+        return;
+      }
+
+      /* 清空会连坐标一起删掉，先算清楚有多少课程会受影响 */
+      var affected = (data.courses || []).filter(function (c) {
+        return list.some(function (b) { return b.id === c.buildingId; });
+      }).length;
+
+      var message = "会删掉全部 " + list.length + " 栋楼，包括已经录好的坐标。\n\n" +
+        "课表不会被动，但之后就重新对应地点了。";
+      if (affected) {
+        message += "\n\n注意：有 " + affected + " 条课程安排在这些楼里，删掉后会显示成「未知地点」。";
+      }
+      message += "\n\n确定清空吗？";
+
+      if (!window.confirm(message)) return;
+
+      data.campus.buildings = [];
+      $("#buildingForm").hidden = true;
+      saveAndRender();
+      toast("已清空全部楼栋", "可以重新搜一次导入，这次会带上英文名", "ok");
+    });
 
     /* --- 从地图读取楼栋 --- */
     $("#plRadius").addEventListener("change", function () {
