@@ -249,7 +249,11 @@ window.OP = window.OP || {};
       });
 
       prevEnd = new Date(Math.max(end.getTime(), departAt.getTime()));
-      fromPoint = building ? { lat: building.lat, lng: building.lng } : fromPoint;
+      /* 通往下一段的起点是这栋楼，海拔要一起带上——
+         之前只复制了经纬度，导致第二段之后爬升全部按"未知"处理 */
+      fromPoint = building
+        ? { lat: building.lat, lng: building.lng, elevation: building.elevation }
+        : fromPoint;
       fromName = building ? building.name : fromName;
     });
 
