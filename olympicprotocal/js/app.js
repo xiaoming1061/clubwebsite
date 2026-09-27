@@ -19,7 +19,8 @@
     lastCheck: 0,
     hintShown: false,
     places: [],
-    placesStatus: "未搜索"
+    placesStatus: "未搜索",
+    ocr: { courses: [], warnings: [], busy: false }
   };
 
   function $(sel) { return document.querySelector(sel); }
@@ -278,6 +279,9 @@
     var box = $("#courseList");
     var courses = (data.courses || []).slice();
 
+    /* 已经有课的时候才显示「导入前清空」那个选项 */
+    $("#ocrReplaceWrap").hidden = !courses.length;
+
     if (!courses.length) {
       box.innerHTML = '<p class="empty">还没有课程，点右上角「新增课程」开始</p>';
       return;
@@ -372,9 +376,14 @@
 
     var list = (data.campus && data.campus.buildings) || [];
     $("#buildingList").innerHTML = list.length ? list.map(function (b) {
+      var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
+      var coordText = hasCoords
+        ? Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5)
+        : '<span class="bi-missing">还没坐标</span>';
+
       return '<div class="building-item">' +
         '<div><div class="bi-name">' + esc(b.name) + "</div>" +
-        '<div class="bi-meta">' + Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5) +
+        '<div class="bi-meta">' + coordText +
         ((b.alias && b.alias.length) ? " · " + esc(b.alias.join("、")) : "") + "</div></div>" +
         '<div class="ci-actions">' +
           '<button class="btn btn-small" data-edit-building="' + esc(b.id) + '">编辑</button>' +
@@ -651,6 +660,191 @@
     toast("已加入 " + added + " 栋楼", "可以在下面的「校区楼栋」里改名和加别名", "ok");
   }
 
+  /* ================= 从截图导入课表 ================= */
+
+  function ocrProgress(text, ratio) {
+    var box = $("#ocrProgress");
+    var bar = $("#ocrProgressBar");
+    var label = $("#ocrProgressText");
+
+    if (text === null) {
+      box.hidden = true;
+      label.hidden = true;
+      return;
+    }
+    box.hidden = false;
+    label.hidden = false;
+    bar.style.width = Math.max(2, Math.round((ratio || 0) * 100)) + "%";
+    label.textContent = text + (ratio ? "  " + Math.round(ratio * 100) + "%" : "");
+  }
+
+  function clearOcr(keepStatus) {
+    state.ocr.courses = [];
+    state.ocr.warnings = [];
+    $("#ocrResult").innerHTML = "";
+    $("#ocrActions").hidden = true;
+    ocrProgress(null);
+    if (!keepStatus) $("#ocrStatus").textContent = "未开始";
+  }
+
+  function handleOcrFile(file) {
+    if (state.ocr.busy) return;
+    if (!file || !/^image\//.test(file.type || "")) {
+      toast("这不是图片", "截图之后再拖进来，或者直接按 Ctrl+V 粘贴", "warn");
+      return;
+    }
+
+    state.ocr.busy = true;
+    state.ocr.courses = [];
+    $("#ocrResult").innerHTML = "";
+    $("#ocrActions").hidden = true;
+    $("#ocrStatus").textContent = "识别中…";
+    ocrProgress("正在准备", 0.02);
+
+    OP.Ocr.run(file, {
+      lang: $("#ocrChinese").checked ? "eng+chi_sim" : "eng",
+      onProgress: ocrProgress
+    }).then(function (result) {
+      ocrProgress(null);
+      state.ocr.courses = result.courses || [];
+      state.ocr.warnings = result.warnings || [];
+
+      if (!state.ocr.courses.length) {
+        $("#ocrStatus").textContent = "没认出来";
+        $("#ocrResult").innerHTML = '<p class="empty">' +
+          esc(state.ocr.warnings[0] || "没有识别到课程，换一张更清晰的截图再试") + "</p>";
+        return;
+      }
+
+      $("#ocrStatus").textContent = "识别出 " + state.ocr.courses.length + " 条";
+      renderOcrResult();
+    }).catch(function (err) {
+      ocrProgress(null);
+      $("#ocrStatus").textContent = "失败";
+      toast("识别失败", err.message, "err");
+    }).then(function () {
+      state.ocr.busy = false;
+    });
+  }
+
+  function renderOcrResult() {
+    var list = state.ocr.courses;
+    var buildings = (data.campus && data.campus.buildings) || [];
+
+    var html = '<p class="hint">这是识别出来的草稿，导入前核对一遍。下面的内容都可以直接改。</p>';
+    html += '<div class="ocr-list">';
+
+    list.forEach(function (c, i) {
+      var match = OP.Ocr.matchBuilding(c.buildingName, buildings);
+      var options = '<option value="">（未指定）</option>' +
+        buildings.map(function (b) {
+          return '<option value="' + esc(b.id) + '"' + (match && match.id === b.id ? " selected" : "") + ">" +
+            esc(b.name) + "</option>";
+        }).join("");
+
+      if (c.buildingName && !match) {
+        options += '<option value="__new__" selected>＋ 新建楼栋：' + esc(c.buildingName) + "</option>";
+      }
+
+      var notes = [];
+      if (c.waiting) notes.push("原课表标记为候补（Waiting）");
+      if (c.tba) notes.push("地点是待定（TBA），导入后需要自己补");
+      if (c.needsTime) notes.push("时间没读准，请核对");
+      if (c.buildingName && !match) {
+        notes.push("「" + c.buildingName + "」不在楼栋列表里，导入时会新建，之后要补坐标");
+      }
+
+      var bad = c.tba || c.needsTime || (c.buildingName && !match);
+
+      html += '<div class="ocr-row' + (bad ? " is-bad" : "") + '" data-idx="' + i + '"' +
+        ' data-building-name="' + esc(c.buildingName || "") + '">' +
+        '<div class="ocr-row-head">' +
+          '<select class="ocr-day">' + [1, 2, 3, 4, 5, 6, 7].map(function (d) {
+            return '<option value="' + d + '"' + (d === c.weekday ? " selected" : "") + ">" +
+              esc(P.WEEKDAYS_SHORT[d]) + "</option>";
+          }).join("") + "</select>" +
+          '<input class="ocr-start" type="time" value="' + esc(c.start || "") + '">' +
+          '<span class="ocr-dash">–</span>' +
+          '<input class="ocr-end" type="time" value="' + esc(c.end || "") + '">' +
+          '<button type="button" class="btn btn-small btn-danger ocr-remove">移除</button>' +
+        "</div>" +
+        '<input class="ocr-name" type="text" value="' + esc(c.name || "") + '" placeholder="课程名称">' +
+        '<div class="field-row">' +
+          '<select class="ocr-building">' + options + "</select>" +
+          '<input class="ocr-room" type="text" value="' + esc(c.room || "") + '" placeholder="房间">' +
+        "</div>" +
+        (notes.length ? '<div class="ocr-note">' + esc(notes.join("；")) + "</div>" : "") +
+      "</div>";
+    });
+
+    html += "</div>";
+    $("#ocrResult").innerHTML = html;
+    $("#ocrActions").hidden = false;
+    $("#ocrReplaceWrap").hidden = !(data.courses && data.courses.length);
+  }
+
+  function importOcrCourses() {
+    var rows = $$(".ocr-row");
+    if (!rows.length) return;
+
+    var weekFrom = Number($("#ocrWeekFrom").value) || 1;
+    var weekTo = Number($("#ocrWeekTo").value) || 30;
+    var clearFirst = $("#ocrReplace").checked;
+
+    if (clearFirst && !window.confirm("会用识别结果覆盖现在的全部课程，确定吗？")) return;
+
+    var added = 0;
+    var skipped = 0;
+    var createdBuildings = [];
+
+    if (clearFirst) data.courses = [];
+
+    rows.forEach(function (row) {
+      var name = row.querySelector(".ocr-name").value.trim();
+      var start = row.querySelector(".ocr-start").value;
+      var end = row.querySelector(".ocr-end").value;
+
+      if (!name || !start || !end) { skipped++; return; }
+
+      var buildingId = row.querySelector(".ocr-building").value;
+
+      if (buildingId === "__new__") {
+        var newName = row.getAttribute("data-building-name") || "新楼栋";
+        var created = { id: Store.uid("b"), name: newName, alias: [], lat: null, lng: null };
+        data.campus.buildings.push(created);
+        buildingId = created.id;
+        createdBuildings.push(newName);
+      }
+
+      data.courses.push({
+        id: Store.uid("c"),
+        name: name,
+        teacher: "",
+        buildingId: buildingId || "",
+        room: row.querySelector(".ocr-room").value.trim(),
+        weekdays: [Number(row.querySelector(".ocr-day").value)],
+        start: start,
+        end: end,
+        weeks: [weekFrom, weekTo]
+      });
+      added++;
+    });
+
+    saveAndRender();
+    clearOcr(true);
+    $("#ocrStatus").textContent = "已导入 " + added + " 条";
+
+    var detail = [];
+    if (skipped) detail.push("跳过 " + skipped + " 条（信息不全）");
+    if (createdBuildings.length) detail.push("新建了 " + createdBuildings.length + " 栋楼");
+    toast("已导入 " + added + " 条课程", detail.join("；"), "ok");
+
+    if (createdBuildings.length) {
+      toast("这些楼栋还没有坐标",
+        createdBuildings.join("、") + "。去「设置 → 校区楼栋」补一下，路线才能算。", "warn");
+    }
+  }
+
   function openBuildingForm(building) {
     $("#buildingForm").hidden = false;
     $("#bfId").value = building ? building.id : "";
@@ -874,6 +1068,61 @@
     $("#btnAddCourse").addEventListener("click", function () { openCourseForm(null); });
     $("#cfCancel").addEventListener("click", closeCourseForm);
     $("#courseForm").addEventListener("submit", submitCourse);
+
+    /* --- 从截图导入 --- */
+    $("#ocrDrop").addEventListener("click", function () { $("#ocrFile").click(); });
+
+    $("#ocrFile").addEventListener("change", function () {
+      if (this.files && this.files[0]) handleOcrFile(this.files[0]);
+      this.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach(function (type) {
+      $("#ocrDrop").addEventListener(type, function (ev) {
+        ev.preventDefault();
+        this.classList.add("is-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(function (type) {
+      $("#ocrDrop").addEventListener(type, function (ev) {
+        ev.preventDefault();
+        this.classList.remove("is-over");
+      });
+    });
+
+    $("#ocrDrop").addEventListener("drop", function (ev) {
+      var file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (file) handleOcrFile(file);
+    });
+
+    /* 在课表页直接按 Ctrl+V 粘贴截图 */
+    document.addEventListener("paste", function (ev) {
+      if (state.view !== "course") return;
+      var items = ev.clipboardData && ev.clipboardData.items;
+      if (!items) return;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf("image") === 0) {
+          var file = items[i].getAsFile();
+          if (file) {
+            ev.preventDefault();
+            handleOcrFile(file);
+          }
+          return;
+        }
+      }
+    });
+
+    $("#ocrResult").addEventListener("click", function (ev) {
+      var btn = ev.target.closest(".ocr-remove");
+      if (btn) {
+        var row = btn.closest(".ocr-row");
+        if (row) row.remove();
+      }
+    });
+
+    $("#btnOcrImport").addEventListener("click", importOcrCourses);
+    $("#btnOcrCancel").addEventListener("click", function () { clearOcr(false); });
 
     $("#courseList").addEventListener("click", function (ev) {
       var edit = ev.target.closest("[data-edit-course]");

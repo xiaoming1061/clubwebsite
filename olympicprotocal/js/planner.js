@@ -136,6 +136,8 @@ window.OP = window.OP || {};
     if (!position || !buildings || !buildings.length) return null;
     var best = null;
     buildings.forEach(function (b) {
+      /* 还没录坐标的楼栋（比如从课表截图导入后新建的）直接跳过 */
+      if (typeof b.lat !== "number" || typeof b.lng !== "number") return;
       var d = OP.Geo.haversine(position, { lat: b.lat, lng: b.lng });
       if (d !== null && (!best || d < best.distance)) best = { building: b, distance: d };
     });
@@ -146,6 +148,7 @@ window.OP = window.OP || {};
 
   function walkMetrics(from, building, settings) {
     if (!from || !building) return null;
+    if (typeof building.lat !== "number" || typeof building.lng !== "number") return null;
     var straight = OP.Geo.haversine(from, { lat: building.lat, lng: building.lng });
     if (straight === null) return null;
     var detour = Number(settings.detourFactor) || 1.3;

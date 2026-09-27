@@ -591,6 +591,88 @@ a.nav-link:active { transform: scale(0.97); }
 
 .btn:disabled { opacity: 0.55; cursor: default; }
 
+/* ---------- 课表截图导入 ---------- */
+
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 26px 16px;
+  margin: 4px 0 14px;
+  border: 1.5px dashed #33456b;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.drop-zone:hover, .drop-zone.is-over {
+  border-color: var(--accent);
+  background: rgba(56, 225, 255, 0.07);
+}
+
+.drop-zone strong { font-size: 14px; }
+.drop-zone span { font-size: 11.5px; color: var(--text-faint); line-height: 1.6; }
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin: 12px 0 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.25s ease;
+}
+
+.ocr-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.ocr-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.022);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ocr-row.is-bad { border-color: rgba(255, 176, 32, 0.45); }
+
+.ocr-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ocr-dash { color: var(--text-faint); }
+
+.ocr-row input[type="text"],
+.ocr-row input[type="time"],
+.ocr-row select {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  outline: none;
+  min-width: 0;
+}
+
+.ocr-row input:focus, .ocr-row select:focus { border-color: var(--accent); }
+.ocr-row-head select { flex: none; }
+.ocr-row-head .btn { margin-left: auto; }
+
+.ocr-note { font-size: 11.5px; color: var(--warn); line-height: 1.6; }
+.ocr-note.is-ok { color: var(--text-faint); }
+
+.bi-missing { color: var(--warn); }
+
 /* ---------- 底部导航 ---------- */
 
 .tabbar {

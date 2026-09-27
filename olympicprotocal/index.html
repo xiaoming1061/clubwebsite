@@ -233,6 +233,7 @@
   <script src="js/planner.js"></script>
   <script src="js/map.js"></script>
   <script src="js/places.js"></script>
+  <script src="js/ocr.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
@@ -274,6 +275,50 @@
             </div>
           </div>
           <div class="course-list" id="courseList"></div>
+        </article>
+
+        <article class="card" id="ocrCard">
+          <div class="card-head">
+            <h3>从课表截图导入</h3>
+            <span class="muted" id="ocrStatus">未开始</span>
+          </div>
+          <p class="hint">
+            截好课表页面后，在下面按 Ctrl+V 直接粘贴，或者把图片拖进来。
+            识别完全在你自己的浏览器里完成，图片不会上传到任何地方。
+            第一次使用要下载约 10 MB 的识别模型，之后会缓存，不再重复下载。
+          </p>
+          <div class="drop-zone" id="ocrDrop">
+            <strong>粘贴 / 拖入 / 点击选择图片</strong>
+            <span>截整张课表，包含星期那一行和左侧时间刻度，越清晰越准</span>
+            <input type="file" id="ocrFile" accept="image/*" hidden />
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>适用周次 从</span>
+              <input type="number" id="ocrWeekFrom" min="1" max="30" value="1" />
+            </label>
+            <label class="field">
+              <span>到</span>
+              <input type="number" id="ocrWeekTo" min="1" max="30" value="30" />
+            </label>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="ocrChinese" />
+            <span>课表里有中文（识别会慢一些）</span>
+          </label>
+          <label class="switch" id="ocrReplaceWrap" hidden>
+            <input type="checkbox" id="ocrReplace" />
+            <span>导入前清空现有课表</span>
+          </label>
+          <div class="progress" id="ocrProgress" hidden>
+            <div class="progress-bar" id="ocrProgressBar"></div>
+          </div>
+          <p class="hint" id="ocrProgressText" hidden></p>
+          <div id="ocrResult"></div>
+          <div class="hero-actions" id="ocrActions" hidden>
+            <button class="btn btn-primary" id="btnOcrImport">确认导入</button>
+            <button class="btn btn-ghost" id="btnOcrCancel">放弃这次识别</button>
+          </div>
         </article>
 
         <article class="card form-card" id="courseFormCard" hidden>
