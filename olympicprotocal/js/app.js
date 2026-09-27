@@ -37,15 +37,72 @@
 
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
-  /* 底部导航是固定的，实测它的高度写进 CSS 变量，
-     这样页面底部永远留得够，不会出现"最后一个按钮被挡住又滑不下去" */
-  function syncTabbarHeight() {
+  /* ---------- 页尾留白 ----------
+   * 底部导航是固定定位的，会盖住页尾内容。
+   * 先按它实际占掉的高度预留，渲染完再核对一次"滑到底时最后一个卡片
+   * 会不会被盖住"，会就继续加大。只按高度估算是不够的——
+   * 不同浏览器算出来的视口高度不一样，总会差一截。
+   */
+
+  var MAX_BOTTOM_SPACE = 480;
+
+  /* 读当前生效的留白值。不能只看内联样式——初始时它是空的，
+     会被当成 0，反而把 CSS 里那个偏大的兜底值覆盖成更小的。 */
+  function currentBottomSpace() {
+    var root = document.documentElement;
+    var inline = parseFloat(root.style.getPropertyValue("--bottom-space"));
+    if (!isNaN(inline)) return inline;
+    return parseFloat(window.getComputedStyle(root).getPropertyValue("--bottom-space")) || 0;
+  }
+
+  function setBottomSpace(px) {
+    var current = currentBottomSpace();
+    var next = Math.min(MAX_BOTTOM_SPACE, px);
+    if (next > current) {
+      document.documentElement.style.setProperty("--bottom-space", Math.round(next) + "px");
+    }
+  }
+
+  function measureBottomSpace() {
     var bar = document.querySelector(".tabbar");
     if (!bar) return;
-    var height = Math.round(bar.getBoundingClientRect().height);
-    if (height > 0) {
-      document.documentElement.style.setProperty("--tabbar-h", height + "px");
+
+    var barTop = bar.getBoundingClientRect().top;
+    var occupied = Math.max(0, window.innerHeight - barTop);
+    if (occupied > 0) setBottomSpace(occupied + 28);
+  }
+
+  /* 把"滑到最底部时最后一个卡片的位置"算出来，和导航栏顶端比一比。
+     不用真的滚动页面就能算，所以不会闪。 */
+  function ensureBottomClearance() {
+    var bar = document.querySelector(".tabbar");
+    var active = document.querySelector(".view.is-active");
+    if (!bar || !active) return;
+
+    var cards = active.querySelectorAll(".card");
+    var last = null;
+    for (var i = cards.length - 1; i >= 0; i--) {
+      if (cards[i].offsetParent !== null) { last = cards[i]; break; }
     }
+    if (!last) return;
+
+    var root = document.documentElement;
+    var docBottom = last.getBoundingClientRect().bottom + window.scrollY;
+    var maxScroll = Math.max(0, root.scrollHeight - window.innerHeight);
+    var bottomAtEnd = docBottom - maxScroll;
+    var barTop = bar.getBoundingClientRect().top;
+
+    var shortfall = Math.ceil(bottomAtEnd + 16 - barTop);
+    if (shortfall > 0) {
+      setBottomSpace(currentBottomSpace() + shortfall);
+    }
+  }
+
+  var clearanceTimer = null;
+
+  function scheduleClearanceCheck() {
+    window.clearTimeout(clearanceTimer);
+    clearanceTimer = window.setTimeout(ensureBottomClearance, 120);
   }
 
   /* ================= 位置 ================= */
@@ -442,6 +499,8 @@
         "</div></div>";
     }).join("") : '<p class="empty">' +
       (query || missingOnly ? "没有匹配的楼栋" : "还没有楼栋，先添加一个") + "</p>";
+
+    scheduleClearanceCheck();
   }
 
   /* ================= 总渲染 ================= */
@@ -452,6 +511,8 @@
     else if (state.view === "route") renderRoute();
     else if (state.view === "course") renderCourse();
     else if (state.view === "settings") renderSettings();
+    /* 内容变了，页尾留白要重新核对 */
+    scheduleClearanceCheck();
   }
 
   function save() {
@@ -976,6 +1037,8 @@
     $("#ocrResult").innerHTML = html;
     $("#ocrActions").hidden = false;
     $("#ocrReplaceWrap").hidden = !(data.courses && data.courses.length);
+    /* 结果一出来卡片会变高很多，重新核对页尾留白 */
+    scheduleClearanceCheck();
   }
 
   function importOcrCourses(skipConfirm) {
@@ -1501,14 +1564,20 @@
 
     bindEvents();
     fillVoiceOptions();
-    syncTabbarHeight();
+    measureBottomSpace();
     render();
 
     window.setInterval(tick, 1000);
 
-    window.addEventListener("resize", syncTabbarHeight);
+    window.addEventListener("resize", function () {
+      measureBottomSpace();
+      scheduleClearanceCheck();
+    });
     window.addEventListener("orientationchange", function () {
-      window.setTimeout(syncTabbarHeight, 120);
+      window.setTimeout(function () {
+        measureBottomSpace();
+        scheduleClearanceCheck();
+      }, 160);
     });
 
     /* 拿到权限就直接开始定位，不用用户再点一次 */
