@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#080c18" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Olympic Protocal · 校园通行指挥台</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">OP</span>
+        <div class="brand-text">
+          <strong>Olympic Protocal</strong>
+          <span id="todayLabel">--</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="clock" class="clock">--:--:--</span>
+        <span id="geoStatus" class="pill pill-idle">定位未启用</span>
+      </div>
+    </header>
+
+    <main class="views">
+      <section class="view is-active" data-view="today">
+        <article class="card hero" id="nextCard">
+          <div class="hero-head">
+            <span class="tag" id="nextTag">下一节课</span>
+            <span class="countdown" id="nextCountdown">--:--</span>
+          </div>
+          <h2 class="hero-title" id="nextName">正在加载…</h2>
+          <p class="hero-sub" id="nextMeta">--</p>
+          <div class="hero-stats">
+            <div class="stat">
+              <span class="stat-label">距离</span>
+              <span class="stat-value" id="nextDistance">--</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">步行</span>
+              <span class="stat-value" id="nextWalk">--</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">建议出发</span>
+              <span class="stat-value" id="nextLeave">--</span>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="btnSpeakNext">播报下一节</button>
+            <button class="btn" id="btnBrief">今日课表播报</button>
+            <button class="btn btn-ghost" id="btnStartNow">现在出发</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>今日课程</h3>
+            <span class="muted" id="todaySummary">--</span>
+          </div>
+          <ol class="timeline" id="todayList"></ol>
+        </article>
+      </section>
+
+      <section class="view" data-view="settings">
+        <article class="card">
+          <div class="card-head"><h3>定位</h3><span class="muted" id="locState">未开始</span></div>
+          <div class="hero-stats hero-stats-tight">
+            <div class="stat"><span class="stat-label">当前坐标</span><span class="stat-value" id="locCoords">--</span></div>
+            <div class="stat"><span class="stat-label">精度</span><span class="stat-value" id="locAccuracy">--</span></div>
+            <div class="stat"><span class="stat-label">最近楼栋</span><span class="stat-value" id="locNearest">--</span></div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="btnLocate">开始实时定位</button>
+            <button class="btn" id="btnStopLocate">停止</button>
+            <button class="btn btn-ghost" id="btnSimHere">用当前位置当模拟点</button>
+            <button class="btn btn-ghost" id="btnClearSim">清除模拟</button>
+          </div>
+          <p class="hint" id="locHint"></p>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><h3>语音播报</h3></div>
+          <label class="switch">
+            <input type="checkbox" id="vEnabled" checked />
+            <span>启用语音</span>
+          </label>
+          <label class="field">
+            <span>音色</span>
+            <select id="vVoiceSelect"></select>
+          </label>
+          <label class="field">
+            <span>语速 <b id="vRateVal">1.0</b></span>
+            <input type="range" id="vRate" min="0.5" max="1.8" step="0.05" value="1" />
+          </label>
+          <label class="field">
+            <span>音量 <b id="vVolumeVal">1.0</b></span>
+            <input type="range" id="vVolume" min="0" max="1" step="0.05" value="1" />
+          </label>
+          <div class="hero-actions">
+            <button class="btn" id="btnTestVoice">试听</button>
+            <button class="btn btn-ghost" id="btnStopVoice">停止播报</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><h3>提醒与步行参数</h3></div>
+          <div class="field-row">
+            <label class="field">
+              <span>课前提醒（分钟）</span>
+              <input type="number" id="sLead" min="0" max="60" step="1" />
+            </label>
+            <label class="field">
+              <span>到楼缓冲（分钟）</span>
+              <input type="number" id="sBuffer" min="0" max="30" step="1" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>步行速度（米/分钟）</span>
+              <input type="number" id="sSpeed" min="30" max="140" step="1" />
+            </label>
+            <label class="field">
+              <span>路程系数</span>
+              <input type="number" id="sDetour" min="1" max="2" step="0.05" />
+            </label>
+          </div>
+          <label class="field">
+            <span>学期开始日期（用于计算教学周）</span>
+            <input type="date" id="sTermStart" />
+          </label>
+          <div class="hero-actions">
+            <button class="btn" id="btnTestAlert">测试出发提醒</button>
+          </div>
+          <p class="hint">路程系数把直线距离折算为实际步行距离，校园路网一般在 1.2 – 1.4 之间。</p>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>从地图读取附近楼栋</h3>
+            <span class="muted" id="plStatus">未搜索</span>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>数据来源</span>
+              <select id="plProvider"></select>
+            </label>
+            <label class="field">
+              <span>搜索半径（米）</span>
+              <input type="number" id="plRadius" min="100" max="3000" step="50" value="800" />
+            </label>
+          </div>
+          <label class="field" id="plKeyField" hidden>
+            <span>API Key</span>
+            <input type="text" id="plKey" placeholder="粘贴你的 Key" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>名称过滤（可留空）</span>
+            <input type="text" id="plKeyword" placeholder="例如：教学楼" />
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="plMerge" checked />
+            <span>合并同一栋楼内的地点</span>
+          </label>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="btnSearchPlaces">搜索附近建筑</button>
+            <button class="btn" id="btnAddSelectedPlaces">把勾选的加入楼栋</button>
+            <button class="btn btn-ghost" id="btnClearPlaces">清空结果</button>
+          </div>
+          <p class="hint" id="plNote"></p>
+          <div class="places-list" id="placesList"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>校区楼栋</h3>
+            <div class="card-head-actions">
+              <button class="btn btn-small" id="btnAddBuilding">新增楼栋</button>
+            </div>
+          </div>
+          <label class="field">
+            <span>校区名称</span>
+            <input type="text" id="campusName" />
+          </label>
+          <div class="building-list" id="buildingList"></div>
+
+          <form id="buildingForm" class="form" hidden>
+            <input type="hidden" id="bfId" />
+            <label class="field">
+              <span>楼栋名称</span>
+              <input type="text" id="bfName" placeholder="例如：第三教学楼" required />
+            </label>
+            <label class="field">
+              <span>别名（逗号分隔）</span>
+              <input type="text" id="bfAlias" placeholder="三教, C楼" />
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span>纬度</span>
+                <input type="number" id="bfLat" step="0.000001" required />
+              </label>
+              <label class="field">
+                <span>经度</span>
+                <input type="number" id="bfLng" step="0.000001" required />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn" id="bfUseHere">用我的当前位置填入</button>
+              <button type="submit" class="btn btn-primary">保存</button>
+              <button type="button" class="btn btn-ghost" id="bfCancel">取消</button>
+            </div>
+          </form>
+          <p class="hint">站到楼门口点「用我的当前位置填入」，坐标就准了。</p>
+        </article>
+
+        <article class="card">
+          <div class="card-head"><h3>数据</h3></div>
+          <div class="hero-actions">
+            <button class="btn btn-ghost" id="btnResetData">恢复示例数据</button>
+          </div>
+          <p class="hint">所有数据只保存在本机浏览器，不会上传。换设备请用「导出 / 导入」搬运。</p>
+        </article>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab is-active" data-tab="today"><span class="tab-ico">01</span><span>今日</span></button>
+      <button class="tab" data-tab="route"><span class="tab-ico">02</span><span>路线</span></button>
+      <button class="tab" data-tab="course"><span class="tab-ico">03</span><span>课表</span></button>
+      <button class="tab" data-tab="settings"><span class="tab-ico">04</span><span>设置</span></button>
+    </nav>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="data/defaults.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/places.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
+
+      <section class="view" data-view="route">
+        <article class="card">
+          <div class="card-head">
+            <h3>校园简图</h3>
+            <span class="muted" id="mapHint">示意图 · 比例已校准，非街道地图</span>
+          </div>
+          <div class="map-wrap">
+            <svg id="mapSvg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet" role="img" aria-label="校园简图"></svg>
+          </div>
+          <div class="legend">
+            <span class="legend-item"><i class="dot dot-me"></i>我的位置</span>
+            <span class="legend-item"><i class="dot dot-next"></i>下一节课</span>
+            <span class="legend-item"><i class="dot dot-b"></i>其他楼栋</span>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>路线规划</h3>
+            <span class="muted" id="routeSummary">--</span>
+          </div>
+          <div class="route-list" id="routeList"></div>
+        </article>
+      </section>
+
+      <section class="view" data-view="course">
+        <article class="card">
+          <div class="card-head">
+            <h3>全部课程</h3>
+            <div class="card-head-actions">
+              <button class="btn btn-small" id="btnAddCourse">新增课程</button>
+              <button class="btn btn-small btn-ghost" id="btnExport">导出</button>
+              <button class="btn btn-small btn-ghost" id="btnImport">导入</button>
+              <input type="file" id="importFile" accept="application/json,.json" hidden />
+            </div>
+          </div>
+          <div class="course-list" id="courseList"></div>
+        </article>
+
+        <article class="card form-card" id="courseFormCard" hidden>
+          <div class="card-head"><h3 id="courseFormTitle">新增课程</h3></div>
+          <form id="courseForm" class="form">
+            <input type="hidden" id="cfId" />
+            <label class="field">
+              <span>课程名称</span>
+              <input type="text" id="cfName" placeholder="例如：高等数学" required />
+            </label>
+            <label class="field">
+              <span>上课楼栋</span>
+              <select id="cfBuilding"></select>
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span>教室</span>
+                <input type="text" id="cfRoom" placeholder="A301" />
+              </label>
+              <label class="field">
+                <span>教师</span>
+                <input type="text" id="cfTeacher" placeholder="张老师" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                <span>开始时间</span>
+                <input type="time" id="cfStart" value="08:00" required />
+              </label>
+              <label class="field">
+                <span>结束时间</span>
+                <input type="time" id="cfEnd" value="09:40" required />
+              </label>
+            </div>
+            <fieldset class="field">
+              <legend>上课星期</legend>
+              <div class="weekday-picker" id="cfWeekdays"></div>
+            </fieldset>
+            <div class="field-row">
+              <label class="field">
+                <span>起始教学周</span>
+                <input type="number" id="cfWeeksFrom" min="1" max="30" value="1" />
+              </label>
+              <label class="field">
+                <span>结束教学周</span>
+                <input type="number" id="cfWeeksTo" min="1" max="30" value="16" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">保存</button>
+              <button type="button" class="btn btn-ghost" id="cfCancel">取消</button>
+            </div>
+          </form>
+        </article>
+      </section>
