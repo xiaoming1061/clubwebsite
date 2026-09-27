@@ -144,8 +144,12 @@
           </div>
           <label class="field">
             <span>搜索半径（米）</span>
-            <input type="number" id="plRadius" min="100" max="3000" step="50" value="800" />
+            <input type="number" id="plRadius" min="100" max="5000" step="50" value="800" />
           </label>
+          <p class="hint">
+            半径越大越慢：800 米以内最多等 15 秒，3 公里约 40 秒，上限 60 秒。
+            等待时间会跟着半径自动放宽，不用手动调。
+          </p>
           <label class="field">
             <span>名称过滤（可留空）</span>
             <input type="text" id="plKeyword" placeholder="例如：教学楼" />

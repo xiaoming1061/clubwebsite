@@ -19,8 +19,29 @@ window.OP = window.OP || {};
     "https://overpass.kumi.systems/api/interpreter"
   ];
 
-  var HEDGE_DELAY = 3500;      // 主节点 3.5 秒没动静就开始问备用
-  var OVERALL_TIMEOUT = 15000; // 总共最多等 15 秒，比原来的 40 秒短得多
+  /* 半径越大，服务端要扫的建筑越多，等待时间也要跟着放宽。
+     800 米以内按 15 秒算，每多 1 公里加 12 秒，最多等 60 秒。 */
+  var BASE_TIMEOUT = 15000;
+  var BASE_RADIUS = 800;
+  var PER_KM_EXTRA = 12000;
+  var MAX_TIMEOUT = 60000;
+
+  function timeoutFor(radius) {
+    var r = Number(radius) || BASE_RADIUS;
+    if (r <= BASE_RADIUS) return BASE_TIMEOUT;
+    return Math.min(MAX_TIMEOUT, Math.round(BASE_TIMEOUT + ((r - BASE_RADIUS) / 1000) * PER_KM_EXTRA));
+  }
+
+  /* 备用节点什么时候才开始问：太早会白占带宽，太晚又失去对冲的意义 */
+  function hedgeDelayFor(timeout) {
+    return Math.min(8000, Math.max(3500, Math.round(timeout / 4)));
+  }
+
+  /* 结果条数上限也跟着半径放大，否则大范围搜出来的楼会被截断 */
+  function resultLimitFor(radius) {
+    var r = Number(radius) || BASE_RADIUS;
+    return Math.min(400, Math.round(150 * (r / BASE_RADIUS)));
+  }
 
   /* 名字里带这些词的，大概率是要找的教学楼 */
   var TEACHING_HINTS = [
@@ -291,11 +312,12 @@ window.OP = window.OP || {};
 
   /* ================= Overpass ================= */
 
-  function buildOverpassQuery(lat, lng, radius) {
+  function buildOverpassQuery(lat, lng, radius, serverTimeout) {
     var r = Math.round(radius || 800);
-    return "[out:json][timeout:25];" +
+    var limit = Math.max(25, Math.round(serverTimeout || 25));
+    return "[out:json][timeout:" + limit + "];" +
       'nwr["building"]["name"](around:' + r + "," + lat.toFixed(6) + "," + lng.toFixed(6) + ");" +
-      "out center 150;";
+      "out center " + resultLimitFor(r) + ";";
   }
 
   function parseOverpass(json, origin, radius, options) {
@@ -346,12 +368,15 @@ window.OP = window.OP || {};
     });
   }
 
-  function queryOverpass(query) {
+  function queryOverpass(query, timeoutMs) {
     var options = {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: "data=" + encodeURIComponent(query)
     };
+
+    var overallTimeout = Number(timeoutMs) || BASE_TIMEOUT;
+    var hedgeDelay = hedgeDelayFor(overallTimeout);
 
     return new Promise(function (resolve, reject) {
       var settled = false;
@@ -362,9 +387,9 @@ window.OP = window.OP || {};
       var failed = 0;
 
       var overall = window.setTimeout(function () {
-        finish(new Error("地图服务响应太慢，超过 " + OVERALL_TIMEOUT / 1000 +
+        finish(new Error("地图服务响应太慢，超过 " + Math.round(overallTimeout / 1000) +
           " 秒还没返回。稍后再试，或者把搜索半径调小一点。"));
-      }, OVERALL_TIMEOUT);
+      }, overallTimeout);
 
       function cleanup() {
         window.clearTimeout(overall);
@@ -404,7 +429,7 @@ window.OP = window.OP || {};
 
       ENDPOINTS.forEach(function (url, i) {
         if (i === 0) start(url);
-        else timers.push(window.setTimeout(function () { start(url); }, i * HEDGE_DELAY));
+        else timers.push(window.setTimeout(function () { start(url); }, i * hedgeDelay));
       });
     });
   }
@@ -434,7 +459,12 @@ window.OP = window.OP || {};
       return Promise.resolve(hit.json);
     }
 
-    return queryOverpass(buildOverpassQuery(opts.lat, opts.lng, radius)).then(function (json) {
+    var timeout = Number(opts.timeoutMs) || timeoutFor(radius);
+    /* 服务端自己的超时给得比客户端宽，让客户端来决定什么时候放弃 */
+    var query = buildOverpassQuery(opts.lat, opts.lng, radius,
+      Math.min(60, Math.round(timeout / 1000) + 10));
+
+    return queryOverpass(query, timeout).then(function (json) {
       cache[key] = { at: Date.now(), json: json };
       return json;
     });
@@ -481,6 +511,9 @@ window.OP = window.OP || {};
 
   OP.Places = {
     ENDPOINTS: ENDPOINTS,
+    timeoutFor: timeoutFor,
+    hedgeDelayFor: hedgeDelayFor,
+    resultLimitFor: resultLimitFor,
     NAME_TAGS: NAME_TAGS,
     collectNames: collectNames,
     pickNames: pickNames,

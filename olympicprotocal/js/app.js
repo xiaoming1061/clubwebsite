@@ -670,7 +670,7 @@
     state.places = [];
     renderPlaces();
     $("#btnSearchPlaces").disabled = true;
-    startPlacesTicker();
+    startPlacesTicker(radius);
 
     var options = placeOptions(pos, radius);
     options.onRaw = function (raw) { state.placesRaw = raw; };
@@ -724,12 +724,14 @@
   /* 搜索时显示已用秒数，免得看起来像卡死了 */
   var placesTicker = null;
 
-  function startPlacesTicker() {
+  function startPlacesTicker(radius) {
     stopPlacesTicker();
     var started = Date.now();
+    var limit = Math.round(OP.Places.timeoutFor(radius) / 1000);
     $("#plStatus").textContent = "搜索中… 0 秒";
     placesTicker = window.setInterval(function () {
-      $("#plStatus").textContent = "搜索中… " + Math.floor((Date.now() - started) / 1000) + " 秒";
+      $("#plStatus").textContent = "搜索中… " + Math.floor((Date.now() - started) / 1000) +
+        " 秒（最多等 " + limit + " 秒）";
     }, 1000);
   }
 
