@@ -614,6 +614,74 @@ window.OP = window.OP || {};
     return complete * 10 + (parsed.courses || []).length * 2 + (parsed.timeAxis ? 3 : 0);
   }
 
+  /* 单条课程的质量分，多遍结果撞车时留高的那个 */
+  function courseQuality(c) {
+    var score = 0;
+    if (c.code) score += 4;
+    if (c.type) score += 2;
+    if (c.buildingName) score += 2;
+    if (c.room) score += 1;
+    if (!c.needsTime) score += 2;
+    return score;
+  }
+
+  /**
+   * 合并多遍识别的结果。
+   *
+   * 换一种页面分割模式，读漏的格子往往不一样：这一遍丢了周二那节，
+   * 换一遍可能就读出来了。取并集能把这些补回来。
+   * 同一条记录按「星期 + 起止时间」或「星期 + 代号 + 课节 + 类型」判定，
+   * 撞车时留信息更全的那条。
+   */
+  function mergeCourses(parsedList) {
+    var merged = [];
+
+    function keysOf(c) {
+      return [
+        c.weekday + "|" + c.start + "|" + c.end,
+        c.weekday + "|" + c.code + "|" + c.section + "|" + c.type
+      ];
+    }
+
+    (parsedList || []).forEach(function (parsed) {
+      (parsed.courses || []).forEach(function (course) {
+        var keys = keysOf(course);
+        var existing = null;
+
+        for (var i = 0; i < merged.length && !existing; i++) {
+          var other = keysOf(merged[i]).filter(function (k) { return keys.indexOf(k) >= 0; });
+          if (other.length) existing = i;
+        }
+
+        if (existing === null) {
+          merged.push(course);
+        } else if (courseQuality(course) > courseQuality(merged[existing])) {
+          merged[existing] = course;
+        }
+      });
+    });
+
+    return merged.sort(function (a, b) {
+      return a.weekday - b.weekday || hm(a.start) - hm(b.start);
+    });
+  }
+
+  function mergeRejected(parsedList) {
+    var seen = {};
+    var out = [];
+
+    (parsedList || []).forEach(function (parsed) {
+      (parsed.rejected || []).forEach(function (item) {
+        var key = item.reason + "|" + item.text;
+        if (seen[key] || out.length >= 12) return;
+        seen[key] = true;
+        out.push(item);
+      });
+    });
+
+    return out;
+  }
+
   /* ================= 6. 楼栋匹配 ================= */
 
   /* 常见缩写先展开再比对，这样 "Bldg" 和 "Building" 不会被当成两个词 */
@@ -1012,21 +1080,23 @@ window.OP = window.OP || {};
     });
 
     try {
-      /* 用哪种像素处理、哪种页面分割模式最好，因图和引擎版本而异，
-         所以两种维度组合着试，取还原出课程最多的一次 */
+      /* 用哪种像素处理、哪种页面分割模式最好，因图和引擎版本而异。
+         同一个像素方案把三种分割模式都跑一遍再取并集——换一遍读漏的格子
+         往往不一样，取并集能把丢掉的课补回来。这个方案能出结果就不再试别的。 */
       const MODES = [6, 4, 11];
       let best = null;
       let tries = 0;
-      let done = false;
+      let result = null;
 
-      for (let v = 0; v < VARIANTS.length && !done; v++) {
+      for (let v = 0; v < VARIANTS.length && !result; v++) {
         const variant = VARIANTS[v];
         const prepared = applyVariant(canvas, variant.id);
+        const parsedList = [];
 
         for (let i = 0; i < MODES.length; i++) {
           tries++;
-          report("正在识别（" + variant.label + " · 第 " + tries + " 遍）",
-            Math.min(0.9, 0.1 + tries * 0.1));
+          report("正在识别（" + variant.label + " · 第 " + (i + 1) + "/" + MODES.length + " 遍）",
+            Math.min(0.9, 0.1 + tries * 0.09));
 
           const attempt = await recognizeOnce(worker, prepared, MODES[i]);
           const parsed = parseWords(attempt.words, options);
@@ -1034,18 +1104,30 @@ window.OP = window.OP || {};
           parsed.text = attempt.text;
           parsed.mode = MODES[i];
           parsed.variant = variant.label;
+          parsedList.push(parsed);
 
           if (!best || scoreResult(parsed) > scoreResult(best)) best = parsed;
+        }
 
-          /* 够完整了就不再折腾 */
-          if (best.courses.length >= 8 && best.timeAxis) { done = true; break; }
+        const merged = mergeCourses(parsedList);
+        if (merged.length) {
+          /* 报告信息取识别得最好那一遍的，课程用并集 */
+          const lead = parsedList.reduce(function (a, b) {
+            return scoreResult(b) > scoreResult(a) ? b : a;
+          });
+          result = Object.assign({}, lead, {
+            courses: merged,
+            rejected: mergeRejected(parsedList)
+          });
         }
       }
 
-      best.tries = tries;
-      best.canvas = canvas;
-      best.wordCount = (best.words || []).length;
-      return best;
+      if (!result) result = Object.assign({}, best, { tries: tries });
+
+      result.tries = tries;
+      result.canvas = canvas;
+      result.wordCount = (result.words || []).length;
+      return result;
     } finally {
       await worker.terminate();
     }
@@ -1078,6 +1160,9 @@ window.OP = window.OP || {};
     parseBlockLines: parseBlockLines,
     parseWords: parseWords,
     scoreResult: scoreResult,
+    courseQuality: courseQuality,
+    mergeCourses: mergeCourses,
+    mergeRejected: mergeRejected,
     nameForms: nameForms,
     nameScore: nameScore,
     editSimilarity: editSimilarity,
