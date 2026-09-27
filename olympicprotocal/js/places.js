@@ -20,11 +20,14 @@ window.OP = window.OP || {};
   ];
 
   /* 半径越大，服务端要扫的建筑越多，等待时间也要跟着放宽。
-     800 米以内按 15 秒算，每多 1 公里加 12 秒，最多等 60 秒。 */
-  var BASE_TIMEOUT = 15000;
+     800 米以内按 30 秒算，每多 1 公里加 20 秒，最多等 180 秒。
+     公共节点忙起来几十秒没响应是常事，等不够就只能白跑一趟。 */
+  var BASE_TIMEOUT = 30000;
   var BASE_RADIUS = 800;
-  var PER_KM_EXTRA = 12000;
-  var MAX_TIMEOUT = 60000;
+  var PER_KM_EXTRA = 20000;
+  var MAX_TIMEOUT = 180000;
+  /* 服务端自己的超时上限，要和客户端配套放宽 */
+  var MAX_SERVER_TIMEOUT = 180;
 
   function timeoutFor(radius) {
     var r = Number(radius) || BASE_RADIUS;
@@ -460,9 +463,9 @@ window.OP = window.OP || {};
     }
 
     var timeout = Number(opts.timeoutMs) || timeoutFor(radius);
-    /* 服务端自己的超时给得比客户端宽，让客户端来决定什么时候放弃 */
+    /* 服务端自己的超时给得比客户端宽一点，让客户端来决定什么时候放弃 */
     var query = buildOverpassQuery(opts.lat, opts.lng, radius,
-      Math.min(60, Math.round(timeout / 1000) + 10));
+      Math.min(MAX_SERVER_TIMEOUT, Math.round(timeout / 1000) + 10));
 
     return queryOverpass(query, timeout).then(function (json) {
       cache[key] = { at: Date.now(), json: json };

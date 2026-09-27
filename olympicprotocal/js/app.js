@@ -730,8 +730,11 @@
     var limit = Math.round(OP.Places.timeoutFor(radius) / 1000);
     $("#plStatus").textContent = "搜索中… 0 秒";
     placesTicker = window.setInterval(function () {
-      $("#plStatus").textContent = "搜索中… " + Math.floor((Date.now() - started) / 1000) +
-        " 秒（最多等 " + limit + " 秒）";
+      var sec = Math.floor((Date.now() - started) / 1000);
+      var text = "搜索中… " + sec + " 秒（最多等 " + limit + " 秒）";
+      /* 等久了给句话，免得看起来像卡死 */
+      if (sec >= 30) text += " · 地图服务繁忙，请再等等";
+      $("#plStatus").textContent = text;
     }, 1000);
   }
 
