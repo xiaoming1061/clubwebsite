@@ -1,10 +1,11 @@
 /* 校园简图：用 SVG 画今天的行程
  *
- * 重点是三类信息，其余楼栋只当背景：
+ * 只画三类信息，其余楼栋一律不画：
  *   我的位置       —— 会脉冲的圆点
  *   下一节课        —— 高亮 + 「下一节」旗标
  *   今天要去的楼栋   —— 按先后编号，标出上课时间
- * 其它楼栋画成很小的暗点，不给名字，免得抢戏。
+ * 没在今天的行程里的楼栋完全不画——导入一次可能带回上百栋，
+ * 全画上去反而是干扰。
  *
  * 这是按真实经纬度等比投影出来的示意图，不是街道地图，
  * 需要转弯导航时用「路线」页里的地图跳转按钮。
@@ -71,7 +72,7 @@ window.OP = window.OP || {};
   /**
    * @param {SVGElement} svg
    * @param {object} opts
-   *   buildings  [{ id, name, lat, lng }]  全部楼栋，只用来当背景
+ *   buildings  [{ id, name, lat, lng }]  全部楼栋，只用来判断"有没有楼栋"
    *   position   { lat, lng } | null       我的位置
    *   stops      [{ building, order, time, isNext }]  今天要去的楼栋，按顺序
    *   detourFactor                          直线距离折算成步行距离的系数
@@ -85,9 +86,6 @@ window.OP = window.OP || {};
       return s && hasCoords(s.building);
     });
 
-    var focused = {};
-    stops.forEach(function (s) { focused[s.building.id] = true; });
-
     if (!all.length) {
       svg.innerHTML = '<text x="500" y="350" class="bld-label">还没有楼栋坐标，去「设置」里添加</text>';
       return;
@@ -97,17 +95,14 @@ window.OP = window.OP || {};
        这样画面会自然放大到有用的那块，而不是被上百栋楼撑开 */
     var frame = stops.map(function (s) { return s.building; });
     if (opts.position) frame.push(opts.position);
-    if (frame.length < 2) frame = frame.concat(all);
+
+    if (!frame.length) {
+      svg.innerHTML = '<text x="500" y="350" class="bld-label">今天没有要去的地方</text>';
+      return;
+    }
 
     var project = makeProjector(frame);
     var parts = [grid()];
-
-    /* ---- 背景楼栋：很小的暗点，不给名字 ---- */
-    all.forEach(function (b) {
-      if (focused[b.id]) return;
-      var p = project(b);
-      parts.push('<circle class="bld-ghost" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="6"/>');
-    });
 
     /* ---- 行程点：我的位置 → 第一节 → 第二节 … ---- */
     var nodes = [];
@@ -138,23 +133,24 @@ window.OP = window.OP || {};
     stops.forEach(function (s) {
       var b = s.building;
       var p = project(b);
-      var r = s.isNext ? 24 : 19;
+      /* 圆圈缩小了：标签本身已经够说明问题，圈太大反而压住路线 */
+      var r = s.isNext ? 17 : 14;
 
       parts.push("<g>" +
         '<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
           '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '"/>' +
         '<text class="bld-order' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 7).toFixed(1) + '">' +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 6).toFixed(1) + '">' +
           esc(s.order || "") + "</text>" +
         '<text class="bld-label' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 26).toFixed(1) + '">' +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 22).toFixed(1) + '">' +
           esc(b.name) + "</text>" +
         (s.time
-          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 48).toFixed(1) + '">' +
+          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 42).toFixed(1) + '">' +
             esc(s.time) + "</text>"
           : "") +
         (s.isNext
-          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 12).toFixed(1) + '">下一节</text>'
+          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 10).toFixed(1) + '">下一节</text>'
           : "") +
         "</g>");
     });
