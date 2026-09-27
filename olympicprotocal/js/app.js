@@ -1423,9 +1423,12 @@
       var file = this.files && this.files[0];
       if (!file) return;
       Store.readFile(file).then(function (next) {
-        data = next;
+        var outcome = Store.applyImport(data, next);
         saveAndRender();
-        toast("导入成功", "", "ok");
+        var detail = [];
+        if (outcome.addedBuildings) detail.push("新增 " + outcome.addedBuildings + " 栋楼");
+        if (outcome.replacedCourses) detail.push("课表已替换");
+        toast("导入成功", detail.join("；") || "内容已合并", "ok");
       }).catch(function () {
         toast("导入失败", "文件不是有效的 JSON", "err");
       });

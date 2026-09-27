@@ -104,7 +104,7 @@ window.OP = window.OP || {};
       var reader = new FileReader();
       reader.onload = function () {
         try {
-          resolve(merge(JSON.parse(String(reader.result))));
+          resolve(JSON.parse(String(reader.result)));
         } catch (err) {
           reject(err);
         }
@@ -112,6 +112,79 @@ window.OP = window.OP || {};
       reader.onerror = function () { reject(reader.error || new Error("读取失败")); };
       reader.readAsText(file);
     });
+  }
+
+  /* 导入时按名字去重后追加楼栋，返回实际加了几栋 */
+  function appendBuildings(current, incoming) {
+    var list = (current.campus && current.campus.buildings) || [];
+    var known = {};
+
+    list.forEach(function (b) {
+      known[b.name] = true;
+      (b.alias || []).forEach(function (a) { known[a] = true; });
+    });
+
+    var added = 0;
+    (incoming || []).forEach(function (b) {
+      if (!b || !b.name) return;
+      var clash = known[b.name] || (b.alias || []).some(function (a) { return known[a]; });
+      if (clash) return;
+
+      list.push(b);
+      known[b.name] = true;
+      (b.alias || []).forEach(function (a) { known[a] = true; });
+      added++;
+    });
+
+    current.campus.buildings = list;
+    return added;
+  }
+
+  /**
+   * 把导入的内容并到**当前数据**上，而不是并到示例数据上。
+   *
+   * 这里踩过一个坑：原来是把导入内容和默认数据合并，
+   * 所以导入一个"只有楼栋、没有课表"的文件时，课表会被示例课程顶掉。
+   *
+   * 另外，只带楼栋的文件按**追加**处理（按名字去重），
+   * 因为那种文件的意思显然是"再加几栋楼"，不是"把楼栋全换掉"。
+   *
+   * @returns {{ addedBuildings: number, replacedCourses: boolean }}
+   */
+  function applyImport(current, saved) {
+    var result = { addedBuildings: 0, replacedCourses: false };
+    if (!saved || typeof saved !== "object") return result;
+
+    var hasCourses = Array.isArray(saved.courses);
+    var incomingBuildings = (saved.campus && Array.isArray(saved.campus.buildings))
+      ? saved.campus.buildings : null;
+
+    if (saved.campus && saved.campus.name) {
+      current.campus.name = saved.campus.name;
+    }
+
+    if (incomingBuildings) {
+      if (hasCourses) {
+        /* 带课表的文件是完整备份，楼栋整体替换 */
+        current.campus.buildings = incomingBuildings;
+      } else {
+        /* 只带楼栋的文件，按追加处理 */
+        result.addedBuildings = appendBuildings(current, incomingBuildings);
+      }
+    }
+
+    if (hasCourses) {
+      current.courses = saved.courses;
+      result.replacedCourses = true;
+    }
+
+    if (saved.settings) {
+      Object.keys(current.settings).forEach(function (k) {
+        if (saved.settings[k] !== undefined) current.settings[k] = saved.settings[k];
+      });
+    }
+
+    return result;
   }
 
   OP.Store = {
@@ -124,6 +197,8 @@ window.OP = window.OP || {};
     saveFired: saveFired,
     uid: uid,
     exportFile: exportFile,
-    readFile: readFile
+    readFile: readFile,
+    applyImport: applyImport,
+    appendBuildings: appendBuildings
   };
 })(window.OP);
