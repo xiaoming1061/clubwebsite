@@ -1580,6 +1580,14 @@
       }, 160);
     });
 
+    /* 支持用地址栏直达某个页签，例如 index.html#route，
+       截图和排查时不用手动点。 */
+    var wanted = (window.location.hash || "").replace(/^#/, "");
+    if (wanted) {
+      var tab = document.querySelector('.tab[data-tab="' + wanted + '"]');
+      if (tab) tab.click();
+    }
+
     /* 拿到权限就直接开始定位，不用用户再点一次 */
     if (Geo.supported()) {
       Geo.once().then(function (pos) {

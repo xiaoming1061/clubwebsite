@@ -232,40 +232,6 @@
           <p class="hint">所有数据只保存在本机浏览器，不会上传。换设备请用「导出 / 导入」搬运。</p>
         </article>
       </section>
-    </main>
-
-    <nav class="tabbar">
-      <button class="tab is-active" data-tab="today"><span class="tab-ico">01</span><span>今日</span></button>
-      <button class="tab" data-tab="route"><span class="tab-ico">02</span><span>路线</span></button>
-      <button class="tab" data-tab="course"><span class="tab-ico">03</span><span>课表</span></button>
-      <button class="tab" data-tab="settings"><span class="tab-ico">04</span><span>设置</span></button>
-    </nav>
-  </div>
-
-  <div class="toasts" id="toasts" aria-live="polite"></div>
-
-  <div class="modal" id="confirmBox" hidden>
-    <div class="modal-card" role="dialog" aria-modal="true">
-      <p class="modal-text" id="confirmText"></p>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" id="confirmCancel">取消</button>
-        <button type="button" class="btn btn-primary" id="confirmOk">确定</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="data/defaults.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/geo.js"></script>
-  <script src="js/speech.js"></script>
-  <script src="js/planner.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/places.js"></script>
-  <script src="js/ocr.js"></script>
-  <script src="js/app.js"></script>
-</body>
-</html>
-
       <section class="view" data-view="route">
         <article class="card">
           <div class="card-head">
@@ -413,3 +379,36 @@
           </form>
         </article>
       </section>
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab is-active" data-tab="today"><span class="tab-ico">01</span><span>今日</span></button>
+      <button class="tab" data-tab="route"><span class="tab-ico">02</span><span>路线</span></button>
+      <button class="tab" data-tab="course"><span class="tab-ico">03</span><span>课表</span></button>
+      <button class="tab" data-tab="settings"><span class="tab-ico">04</span><span>设置</span></button>
+    </nav>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="modal" id="confirmBox" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <p class="modal-text" id="confirmText"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data/defaults.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/places.js"></script>
+  <script src="js/ocr.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
