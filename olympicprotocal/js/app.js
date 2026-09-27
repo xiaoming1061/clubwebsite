@@ -407,22 +407,41 @@
     var list = (data.campus && data.campus.buildings) || [];
     /* 一栋都没有的时候没必要显示清空按钮 */
     $("#btnClearBuildings").hidden = !list.length;
+    renderBuildingList(list);
+  }
 
-    $("#buildingList").innerHTML = list.length ? list.map(function (b) {
+  /* 楼栋列表：支持关键词搜索和「只看缺坐标的」 */
+  function renderBuildingList(all) {
+    var query = ($("#buildingSearch").value || "").trim();
+    var missingOnly = $("#buildingMissingOnly").checked;
+    var shown = P.filterBuildings(all, query, missingOnly);
+
+    var missingCount = all.filter(function (b) {
+      return typeof b.lat !== "number" || typeof b.lng !== "number";
+    }).length;
+
+    var count = "共 " + all.length + " 栋";
+    if (missingCount) count += "，其中 " + missingCount + " 栋还没坐标";
+    if (query || missingOnly) count += " · 当前显示 " + shown.length + " 栋";
+    $("#buildingCount").textContent = count;
+
+    $("#buildingList").innerHTML = shown.length ? shown.map(function (b) {
       var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
       var coordText = hasCoords
         ? Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5)
         : '<span class="bi-missing">还没坐标</span>';
+      var alias = (b.alias && b.alias.length) ? b.alias.join("、") : "";
 
       return '<div class="building-item">' +
         '<div><div class="bi-name">' + esc(b.name) + "</div>" +
         '<div class="bi-meta">' + coordText +
-        ((b.alias && b.alias.length) ? " · " + esc(b.alias.join("、")) : "") + "</div></div>" +
+        (alias ? " · " + esc(alias) : "") + "</div></div>" +
         '<div class="ci-actions">' +
           '<button class="btn btn-small" data-edit-building="' + esc(b.id) + '">编辑</button>' +
           '<button class="btn btn-small btn-danger" data-del-building="' + esc(b.id) + '">删除</button>' +
         "</div></div>";
-    }).join("") : '<p class="empty">还没有楼栋，先添加一个</p>';
+    }).join("") : '<p class="empty">' +
+      (query || missingOnly ? "没有匹配的楼栋" : "还没有楼栋，先添加一个") + "</p>";
   }
 
   /* ================= 总渲染 ================= */
@@ -1182,6 +1201,15 @@
     $("#campusName").addEventListener("change", function () {
       data.campus.name = this.value.trim() || data.campus.name;
       save();
+    });
+
+    /* 楼栋搜索：纯本地筛选，边打边出，不联网 */
+    $("#buildingSearch").addEventListener("input", function () {
+      renderBuildingList((data.campus && data.campus.buildings) || []);
+    });
+
+    $("#buildingMissingOnly").addEventListener("change", function () {
+      renderBuildingList((data.campus && data.campus.buildings) || []);
     });
 
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });

@@ -184,6 +184,15 @@
             <span>校区名称</span>
             <input type="text" id="campusName" />
           </label>
+          <label class="field">
+            <span>搜索楼栋</span>
+            <input type="search" id="buildingSearch" placeholder="名字或别名，中英文都行" />
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="buildingMissingOnly" />
+            <span>只看还没坐标的</span>
+          </label>
+          <p class="hint" id="buildingCount"></p>
           <div class="building-list" id="buildingList"></div>
 
           <form id="buildingForm" class="form" hidden>

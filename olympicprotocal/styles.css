@@ -478,6 +478,7 @@ a.nav-link:active { transform: scale(0.97); }
 }
 
 .field input[type="text"],
+.field input[type="search"],
 .field input[type="number"],
 .field input[type="time"],
 .field input[type="date"],
