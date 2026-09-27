@@ -81,6 +81,23 @@
     }, 6500);
   }
 
+  /* ================= 页面内确认弹窗 =================
+   * 不用 window.confirm()：内置浏览器和 App 里的 WebView 常把它静默屏蔽，
+   * 结果就是点按钮"完全没反应"——不报错，只是永远返回 false。 */
+
+  var pendingConfirm = null;
+
+  function askConfirm(message, onOk) {
+    pendingConfirm = onOk || null;
+    $("#confirmText").textContent = message;
+    $("#confirmBox").hidden = false;
+  }
+
+  function closeConfirm() {
+    $("#confirmBox").hidden = true;
+    pendingConfirm = null;
+  }
+
   /* ================= 播报 ================= */
 
   function say(text, label) {
@@ -933,7 +950,7 @@
     $("#ocrReplaceWrap").hidden = !(data.courses && data.courses.length);
   }
 
-  function importOcrCourses() {
+  function importOcrCourses(skipConfirm) {
     var rows = $$(".ocr-row");
     if (!rows.length) return;
 
@@ -941,7 +958,12 @@
     var weekTo = Number($("#ocrWeekTo").value) || 30;
     var clearFirst = $("#ocrReplace").checked;
 
-    if (clearFirst && !window.confirm("会用识别结果覆盖现在的全部课程，确定吗？")) return;
+    if (clearFirst && !skipConfirm) {
+      askConfirm("会用识别结果覆盖现在的全部课程，确定吗？", function () {
+        importOcrCourses(true);
+      });
+      return;
+    }
 
     var added = 0;
     var skipped = 0;
@@ -1159,6 +1181,20 @@
 
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });
 
+    /* --- 确认弹窗 --- */
+    $("#confirmOk").addEventListener("click", function () {
+      var action = pendingConfirm;
+      closeConfirm();
+      if (action) action();
+    });
+
+    $("#confirmCancel").addEventListener("click", closeConfirm);
+
+    $("#confirmBox").addEventListener("click", function (ev) {
+      /* 点弹窗外的遮罩也算取消 */
+      if (ev.target === this) closeConfirm();
+    });
+
     $("#btnClearBuildings").addEventListener("click", function () {
       var list = (data.campus && data.campus.buildings) || [];
       if (!list.length) {
@@ -1178,12 +1214,12 @@
       }
       message += "\n\n确定清空吗？";
 
-      if (!window.confirm(message)) return;
-
-      data.campus.buildings = [];
-      $("#buildingForm").hidden = true;
-      saveAndRender();
-      toast("已清空全部楼栋", "可以重新搜一次导入，这次会带上英文名", "ok");
+      askConfirm(message, function () {
+        data.campus.buildings = [];
+        $("#buildingForm").hidden = true;
+        saveAndRender();
+        toast("已清空全部楼栋", "可以重新搜一次导入，这次会带上英文名", "ok");
+      });
     });
 
     /* --- 从地图读取楼栋 --- */
@@ -1258,9 +1294,10 @@
         var msg = used
           ? "还有课程安排在这栋楼，删除后这些课程会失去地点。确定删除吗？"
           : "确定删除这栋楼吗？";
-        if (!window.confirm(msg)) return;
-        data.campus.buildings = data.campus.buildings.filter(function (x) { return x.id !== did; });
-        saveAndRender();
+        askConfirm(msg, function () {
+          data.campus.buildings = data.campus.buildings.filter(function (x) { return x.id !== did; });
+          saveAndRender();
+        });
       }
     });
 
@@ -1336,9 +1373,10 @@
         var id = del.getAttribute("data-del-course");
         var course = P.courseById(data, id);
         if (!course) return;
-        if (!window.confirm("确定删除「" + course.name + "」吗？")) return;
-        data.courses = data.courses.filter(function (x) { return x.id !== id; });
-        saveAndRender();
+        askConfirm("确定删除「" + course.name + "」吗？", function () {
+          data.courses = data.courses.filter(function (x) { return x.id !== id; });
+          saveAndRender();
+        });
       }
     });
 
@@ -1362,10 +1400,11 @@
     });
 
     $("#btnResetData").addEventListener("click", function () {
-      if (!window.confirm("会用示例数据覆盖现在的课表和楼栋，确定吗？")) return;
-      data = Store.reset();
-      saveAndRender();
-      toast("已恢复示例数据", "", "ok");
+      askConfirm("会用示例数据覆盖现在的课表和楼栋，确定吗？", function () {
+        data = Store.reset();
+        saveAndRender();
+        toast("已恢复示例数据", "", "ok");
+      });
     });
 
     /* --- 切回前台立刻刷新 --- */

@@ -231,6 +231,16 @@
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
+  <div class="modal" id="confirmBox" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <p class="modal-text" id="confirmText"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">取消</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
   <script src="data/defaults.js"></script>
   <script src="js/store.js"></script>
   <script src="js/geo.js"></script>

@@ -789,6 +789,46 @@ a.nav-link:active { transform: scale(0.97); }
 .toast.is-ok { border-left-color: var(--ok); }
 .toast strong { display: block; margin-bottom: 3px; font-size: 13.5px; }
 
+/* ---------- 页面内确认弹窗 ----------
+   不用 window.confirm()：内置浏览器 / WebView 常把它静默屏蔽掉，
+   点了按钮会像"没反应"一样。 */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 8, 16, 0.74);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal[hidden] { display: none; }
+
+.modal-card {
+  width: min(92vw, 420px);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--card), var(--bg-soft));
+  box-shadow: var(--shadow);
+}
+
+.modal-text {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
