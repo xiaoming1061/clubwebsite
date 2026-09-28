@@ -568,10 +568,16 @@
     var count = "共 " + all.length + " 栋";
     if (missingCount) count += "，其中 " + missingCount + " 栋还没坐标";
     if (noElevation) count += "，" + noElevation + " 栋还没海拔（点「获取海拔」补）";
+    if (missingOnly) count += " · 「只看还没坐标的」已开启";
     if (query || missingOnly) count += " · 当前显示 " + shown.length + " 栋";
     $("#buildingCount").textContent = count;
 
-    $("#buildingList").innerHTML = shown.length ? shown.map(function (b) {
+    if (!shown.length) {
+      $("#buildingList").innerHTML = '<p class="empty">' + esc(emptyMessage(all, query, missingOnly)) + "</p>";
+      return;
+    }
+
+    $("#buildingList").innerHTML = shown.map(function (b) {
       var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
       var coordText = hasCoords
         ? Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5)
@@ -590,10 +596,31 @@
           '<button class="btn btn-small" data-edit-building="' + esc(b.id) + '">编辑</button>' +
           '<button class="btn btn-small btn-danger" data-del-building="' + esc(b.id) + '">删除</button>' +
         "</div></div>";
-    }).join("") : '<p class="empty">' +
-      (query || missingOnly ? "没有匹配的楼栋" : "还没有楼栋，先添加一个") + "</p>";
+    }).join("");
 
     scheduleClearanceCheck();
+  }
+
+  /**
+   * 筛不出东西时说清楚是哪一步把结果滤掉的。
+   *
+   * 踩过的坑：搜 "lady shaw" 明明有这栋楼却什么都不显示，
+   * 因为上面那个「只看还没坐标的」还勾着——而原来的提示只说"没有匹配的楼栋"，
+   * 完全没提这个可能性，非常难自查。
+   */
+  function emptyMessage(all, query, missingOnly) {
+    if (!query && !missingOnly) return "还没有楼栋，先添加一个";
+
+    if (missingOnly) {
+      var matched = query ? P.filterBuildings(all, query, false).length : 0;
+      if (matched) {
+        return "有 " + matched + " 栋符合" + (query ? "「" + query + "」" : "") +
+          "，但被「只看还没坐标的」筛掉了 —— 取消勾选就能看到";
+      }
+      if (!query) return "所有楼栋都已经有坐标了";
+    }
+
+    return "没有匹配「" + query + "」的楼栋";
   }
 
   /* ================= 总渲染 ================= */
