@@ -429,6 +429,10 @@
         metrics + warn +
         '<div class="leg-actions">' +
           links.map(function (l) {
+            if (l.copy) {
+              return '<button type="button" class="nav-link" data-copy="' + esc(l.copy) + '">' +
+                esc(l.label) + "</button>";
+            }
             return '<a class="nav-link" href="' + esc(l.url) + '" target="_blank" rel="noopener">' +
               esc(l.label) + "</a>";
           }).join("") +
@@ -624,6 +628,36 @@
   }
 
   /* ================= 总渲染 ================= */
+
+  /* 复制文本：优先用剪贴板 API，老浏览器退回临时输入框 */
+  function copyText(text, label) {
+    function finish(ok) {
+      toast(ok ? "坐标已复制" : "复制失败",
+        ok ? text + "（粘到任何地图 App 的搜索框都行）" : "手动选中这串数字吧：" + text,
+        ok ? "ok" : "err");
+    }
+
+    function fallback() {
+      var input = document.createElement("textarea");
+      input.value = text;
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
+      input.select();
+
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+      document.body.removeChild(input);
+      finish(ok);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { finish(true); }, fallback);
+      return;
+    }
+    fallback();
+    void label;
+  }
 
   function render() {
     renderTop();
@@ -1434,6 +1468,14 @@
         data.settings.mapMode = btn.dataset.mapmode;
         saveAndRender();
       });
+    });
+
+    /* --- 行程卡片里的「复制坐标」 --- */
+    $("#routeList").addEventListener("click", function (ev) {
+      var btn = ev.target.closest("[data-copy]");
+      if (!btn) return;
+      ev.preventDefault();
+      copyText(btn.getAttribute("data-copy"), btn.textContent);
     });
 
     /* --- 今日 --- */

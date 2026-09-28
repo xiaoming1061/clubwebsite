@@ -135,8 +135,11 @@ window.OP = window.OP || {};
         url: "https://maps.apple.com/?daddr=" + lat.toFixed(6) + "," + lng.toFixed(6) + "&dirflg=w"
       },
       {
-        label: "其他地图",
-        url: "geo:" + lat.toFixed(6) + "," + lng.toFixed(6) + "?q=" + lat.toFixed(6) + "," + lng.toFixed(6) + "(" + label + ")"
+        label: "复制坐标",
+        /* 原来这里是 geo: 协议（想"让系统自己挑地图 App"），
+           但那是安卓的标准，iOS 根本不认，iPhone 上点了没反应。
+           改成复制坐标：任何地图 App 的搜索框都能粘，两端都能用。 */
+        copy: lat.toFixed(6) + ", " + lng.toFixed(6)
       }
     ];
   }
