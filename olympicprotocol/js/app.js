@@ -363,13 +363,9 @@
         stops: stops,
         detourFactor: data.settings.detourFactor
       });
-      $("#mapHint").textContent = "只标注今天要去的楼栋";
     } else {
       svg.style.display = "none";
       realBox.style.display = "";
-      $("#mapHint").textContent = mode === "cuhk"
-        ? "底图 © 香港中文大学 · 只标注今天要去的楼栋"
-        : "底图 © OpenStreetMap 贡献者 · 只标注今天要去的楼栋";
 
       OP.RealMap.render(realBox, {
         source: mode,
@@ -377,7 +373,6 @@
         stops: stops
       }).catch(function (err) {
         toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
-        $("#mapHint").textContent = "底图加载失败，切回「简图」仍可正常使用";
       });
     }
 
@@ -408,7 +403,7 @@
             "<span>步行 <b>" + esc(Geo.formatDuration(leg.metrics.minutes)) + "</b></span>" +
             "<span>建议出发 <b>" + esc(P.fmtHM(P.hm(c.start) - leg.metrics.minutes - buffer)) + "</b></span>" +
           "</div>"
-        : '<div class="leg-meta">打开定位后可以算出步行时间和建议出发时间</div>';
+        : "";
 
       var warn = "";
       if (leg.missed) {
@@ -440,9 +435,6 @@
       "</div>";
     }).join("");
 
-    if (!info.position) {
-      html = '<p class="hint">还没有位置信息，下面按「从上一节课的楼栋出发」估算。打开定位会更准。</p>' + html;
-    }
     box.innerHTML = html;
   }
 
@@ -530,24 +522,13 @@
 
     $("#locState").textContent = data.settings.simulate
       ? "模拟位置"
-      : (state.locating ? "定位中" : (state.position ? "已定位" : "未开始"));
+      : (state.locating
+        ? "定位中"
+        : (state.position ? "已定位" : (state.geoError ? "定位不可用" : "未开始")));
     $("#locCoords").textContent = pos ? pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5) : "--";
     $("#locAccuracy").textContent = (state.position && !data.settings.simulate)
       ? "±" + Math.round(state.position.accuracy) + " 米" : "--";
     $("#locNearest").textContent = nearest ? nearest.building.name : "--";
-
-    var hint = $("#locHint");
-    if (!Geo.supported()) {
-      hint.textContent = "这个浏览器不支持定位。";
-    } else if (state.geoError) {
-      hint.textContent = state.geoError;
-    } else if (data.settings.simulate) {
-      hint.textContent = "当前用的是模拟位置，所有距离都按它计算。";
-    } else if (state.position) {
-      hint.textContent = "定位正常，正在实时更新。";
-    } else {
-      hint.textContent = "手机浏览器或 App 里需要先允许「位置信息」权限。电脑上没有 GPS 时，可以手填坐标或用模拟位置。";
-    }
 
     var list = (data.campus && data.campus.buildings) || [];
     /* 一栋都没有的时候没必要显示清空按钮 */
@@ -1272,8 +1253,7 @@
     var list = state.ocr.courses;
     var buildings = (data.campus && data.campus.buildings) || [];
 
-    var html = '<p class="hint">这是识别出来的草稿，导入前核对一遍。下面的内容都可以直接改。</p>';
-    html += '<div class="ocr-list">';
+    var html = '<div class="ocr-list">';
 
     list.forEach(function (c, i) {
       var match = OP.Ocr.matchBuilding(c.buildingName, buildings);
@@ -1544,7 +1524,7 @@
     });
 
     $("#btnTestVoice").addEventListener("click", function () {
-      say("这是 Olympic Protocal 的语音测试。今天有课，记得按时出发。", "试听");
+      say("这是 Olympic Protocol 的语音测试。今天有课，记得按时出发。", "试听");
     });
 
     $("#btnStopVoice").addEventListener("click", function () {

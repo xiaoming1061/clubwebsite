@@ -1,4 +1,4 @@
-/* Olympic Protocal — 校园通行指挥台 */
+/* Olympic Protocol — 校园通行指挥台 */
 
 :root {
   --bg: #070b14;
@@ -8,7 +8,7 @@
   --line: #22304d;
   --text: #e8eefc;
   --text-dim: #93a4c4;
-  --text-faint: #64748b;
+  --text-faint: #8296b6;
   --accent: #38e1ff;
   --accent-2: #7c5cff;
   --ok: #35d07f;
@@ -23,6 +23,13 @@
 }
 
 * { box-sizing: border-box; }
+
+/* hidden 属性必须真的能藏住元素。
+   浏览器默认样式里 [hidden] 就是 display: none，但作者样式里
+   .form { display: flex } 这类规则优先级更高，会把 hidden 顶掉——
+   结果"点了「新增楼栋」才出现的表单"一直挂在页面上。
+   补这一条，让 hidden 在任何元素上都算数。 */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -670,8 +677,19 @@ body {
 .bi-name { font-size: 13.5px; font-weight: 620; }
 .bi-meta { font-size: 11.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 
-.hint { font-size: 11.5px; color: var(--text-faint); line-height: 1.7; margin: 10px 0 0; }
 .empty { color: var(--text-faint); font-size: 12.5px; padding: 18px 4px; text-align: center; }
+
+/* 数量、进度这类状态文字：比正文弱，但不再是「淡灰小字」 */
+.count-line,
+.progress-text,
+.debug-summary {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+.debug-summary { margin: 10px 0 0; }
 
 /* ---------- 地图读取的建筑列表 ---------- */
 
@@ -752,7 +770,7 @@ body {
 }
 
 .drop-zone strong { font-size: 14px; }
-.drop-zone span { font-size: 11.5px; color: var(--text-faint); line-height: 1.6; }
+.drop-zone span { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
 
 .progress {
   height: 6px;

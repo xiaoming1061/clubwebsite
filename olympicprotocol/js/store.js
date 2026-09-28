@@ -5,8 +5,31 @@ window.OP = window.OP || {};
 (function (OP) {
   "use strict";
 
-  var KEY = "olympic-protocal.data.v1";
-  var FIRED_KEY = "olympic-protocal.fired.v1";
+  var KEY = "olympic-protocol.data.v1";
+  var FIRED_KEY = "olympic-protocol.fired.v1";
+
+  /* 早先版本用的是拼错的 "protocal"。老访客的 localStorage 里存的是旧键，
+     直接换键会把课表和楼栋全部读空，所以第一次读的时候先把旧键搬过来。 */
+  var LEGACY_KEY = "olympic-protocal.data.v1";
+  var LEGACY_FIRED_KEY = "olympic-protocal.fired.v1";
+
+  function readWithMigration(key, legacyKey) {
+    var raw = null;
+    try {
+      raw = window.localStorage.getItem(key);
+      if (raw) return raw;
+
+      var old = window.localStorage.getItem(legacyKey);
+      if (!old) return null;
+
+      /* 搬过去之后就按新键走；旧键留着不删，万一新键出问题还能退回去。 */
+      window.localStorage.setItem(key, old);
+      raw = old;
+    } catch (err) {
+      /* 隐私模式下 localStorage 可能不可读，按「没有存档」处理 */
+    }
+    return raw;
+  }
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -61,7 +84,7 @@ window.OP = window.OP || {};
 
   function load() {
     try {
-      var raw = window.localStorage.getItem(KEY);
+      var raw = readWithMigration(KEY, LEGACY_KEY);
       if (!raw) return normalize(defaults());
       return normalize(merge(JSON.parse(raw)));
     } catch (err) {
@@ -92,7 +115,7 @@ window.OP = window.OP || {};
   /* 已经播报过的提醒，按「日期 + 课程」记账，避免重复播报 */
   function loadFired() {
     try {
-      var raw = window.localStorage.getItem(FIRED_KEY);
+      var raw = readWithMigration(FIRED_KEY, LEGACY_FIRED_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch (err) {
       return {};
@@ -117,7 +140,7 @@ window.OP = window.OP || {};
     var a = document.createElement("a");
     var stamp = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = "olympic-protocal-" + stamp + ".json";
+    a.download = "olympic-protocol-" + stamp + ".json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

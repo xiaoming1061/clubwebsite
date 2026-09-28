@@ -119,7 +119,7 @@ window.OP = window.OP || {};
         url:
           "https://api.map.baidu.com/direction?destination=latlng:" +
           bd.lat.toFixed(6) + "," + bd.lng.toFixed(6) + "|name:" + label +
-          "&mode=walking&region=%E5%85%A8%E5%9B%BD&output=html&src=webapp.olympic-protocal"
+          "&mode=walking&region=%E5%85%A8%E5%9B%BD&output=html&src=webapp.olympic-protocol"
       },
       {
         label: "Google 地图",
