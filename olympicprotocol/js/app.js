@@ -1259,7 +1259,8 @@
 
     list.forEach(function (c, i) {
       var match = OP.Ocr.matchBuilding(c.buildingName, buildings);
-      var options = '<option value="">（未指定）</option>' +
+      /* 「不需要教室」的课没有地点，下拉里说清楚，别让人以为漏读了 */
+      var options = '<option value="">' + (c.noRoom ? "（不需要教室）" : "（未指定）") + "</option>" +
         buildings.map(function (b) {
           return '<option value="' + esc(b.id) + '"' + (match && match.id === b.id ? " selected" : "") + ">" +
             esc(b.name) + "</option>";
@@ -1272,6 +1273,7 @@
       var notes = [];
       if (c.waiting) notes.push("原课表标记为候补（Waiting）");
       if (c.tba) notes.push("地点是待定（TBA），导入后需要自己补");
+      if (c.noRoom) notes.push("课表写的是「不需要教室」，这条不带地点");
       if (c.needsTime) notes.push("时间没读准，请核对");
       if (c.buildingName && !match) {
         notes.push("「" + c.buildingName + "」不在楼栋列表里，导入时会新建，之后要补坐标");

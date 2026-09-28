@@ -358,15 +358,45 @@ window.OP = window.OP || {};
 
   /* ================= 4. 解析一个格子 ================= */
 
+  /**
+   * 课表上说"这节课不需要教室"的写法。
+   *
+   * CUSIS 上体育、实习、线上课之类的会写 "No room required"；
+   * 那不是地点，是"没有地点"。要是当楼名收进来，
+   * 会平白多出一栋叫「No room required」的楼，之后还得手工删。
+   */
+  var NO_ROOM_RE = new RegExp(
+    "(?:" +
+      "no\\s+(?:room|rooms|venue|classroom|classrooms|location)\\s+(?:is\\s+)?" +
+        "(?:required|needed|necessary|req['\u2019]?d|reqd)" +
+    "|(?:room|venue|classroom|location)\\s+(?:is\\s+)?not\\s+(?:required|needed)" +
+      /* 识别漏词时只剩 "No room" 的短版本 */
+    "|(?:^|\\s)no\\s+(?:room|rooms|venue|classroom|location)(?=\\s*(?:[.。]|$))" +
+    ")[.。]?",
+    "i"
+  );
+
   /* "Science Centre L5" → 楼栋 Science Centre，房间 L5 */
   function parseVenue(text) {
     var t = String(text || "")
       .replace(/^\s*(location|venue|地点|地點|教室|上课地点)\s*[:：]\s*/i, "")
       .trim();
 
-    if (!t) return { building: "", room: "", tba: false };
+    /* "No room required" 先摘掉：它可能单独占一行，
+       也可能跟在别的文字后面，先摘再解析剩下的 */
+    var noRoom = NO_ROOM_RE.test(t);
+    if (noRoom) {
+      t = t.replace(NO_ROOM_RE, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        /* 摘掉之后可能剩个孤零零的句号 */
+        .replace(/^[.。]+|[.。]+$/g, "")
+        .trim();
+    }
+
+    if (!t) return { building: "", room: "", tba: false, noRoom: noRoom };
     if (/^(tba|t\.b\.a\.?|待定|另定|to be announced|to be confirmed|tbc)$/i.test(t)) {
-      return { building: "", room: "", tba: true };
+      return { building: "", room: "", tba: true, noRoom: noRoom };
     }
 
     var parts = t.split(/\s+/);
@@ -374,10 +404,10 @@ window.OP = window.OP || {};
       var last = parts[parts.length - 1];
       /* 房间号长得像 504 / L5 / LT2 / C3 / 301A */
       if (/^[A-Z]{0,3}\d{1,4}[A-Z]?$/i.test(last)) {
-        return { building: parts.slice(0, -1).join(" "), room: last, tba: false };
+        return { building: parts.slice(0, -1).join(" "), room: last, tba: false, noRoom: noRoom };
       }
     }
-    return { building: t, room: "", tba: false };
+    return { building: t, room: "", tba: false, noRoom: noRoom };
   }
 
   /* 把 "BMEG 2410 - -" / "T02" 这类拼成课程全名 */
@@ -419,7 +449,7 @@ window.OP = window.OP || {};
     var flat = lines.join(" ");
     var out = {
       code: "", section: "", type: "", start: "", end: "",
-      buildingName: "", room: "", tba: false,
+      buildingName: "", room: "", tba: false, noRoom: false,
       waiting: /\bwaiting\b|候补|候補|待補|待补/i.test(flat),
       raw: lines.slice()
     };
@@ -526,6 +556,7 @@ window.OP = window.OP || {};
       out.buildingName = venue.building;
       out.room = venue.room;
       out.tba = venue.tba;
+      out.noRoom = venue.noRoom;
     }
 
     out.name = composeName(out.code, out.section, out.type);
@@ -601,7 +632,7 @@ window.OP = window.OP || {};
           warnings.push(item.code + " 的时间没读出来，需要手工补。");
           item.needsTime = true;
         }
-        if (!item.buildingName && !item.tba) {
+        if (!item.buildingName && !item.tba && !item.noRoom) {
           warnings.push((item.code || item.name) + " 的地点没读出来。");
         }
 
