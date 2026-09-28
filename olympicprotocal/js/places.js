@@ -490,6 +490,28 @@ window.OP = window.OP || {};
     });
   }
 
+  /**
+   * 把常见缩写展开，方便拿去检索。
+   * 实测 "Yasumoto Int'l Acad Park" 直接搜返回 0 条，
+   * 展开成 "Yasumoto International Academic Park" 才有结果。
+   * 缩写表复用 ocr.js 里那份（运行时才取，避免模块顺序依赖）。
+   */
+  function expandAbbreviations(text) {
+    var map = (OP.Ocr && OP.Ocr.ABBREVIATIONS) || {};
+    return String(text || "").replace(/[\u2019']/g, "")
+      .split(/\s+/)
+      .map(function (token) {
+        var mapped = map[token.toLowerCase()];
+        if (!mapped) return token;
+        /* 原词是大写开头就跟着大写，否则 "Int'l" 会变成小写的 "international" */
+        return /^[A-Z]/.test(token)
+          ? mapped.charAt(0).toUpperCase() + mapped.slice(1)
+          : mapped;
+      })
+      .join(" ")
+      .trim();
+  }
+
   /* "邵逸夫夫人樓 Lady Shaw Building, 大學道..." → 中英文名分开 */
   function labelToNames(label) {
     var first = String(label || "").split(",")[0].trim();
@@ -546,20 +568,36 @@ window.OP = window.OP || {};
       return Promise.reject(new Error("这个浏览器不支持网络请求"));
     }
 
-    var url = NOMINATIM + "?format=jsonv2&limit=15&addressdetails=0" +
-      "&q=" + encodeURIComponent(word);
+    function buildUrl(text) {
+      var url = NOMINATIM + "?format=jsonv2&limit=15&addressdetails=0" +
+        "&q=" + encodeURIComponent(text);
 
-    /* viewbox 只是加权，不会排除范围外的结果 */
-    if (typeof opts.lat === "number" && typeof opts.lng === "number") {
-      var d = 0.05;
-      url += "&viewbox=" +
-        (opts.lng - d).toFixed(5) + "," + (opts.lat + d).toFixed(5) + "," +
-        (opts.lng + d).toFixed(5) + "," + (opts.lat - d).toFixed(5);
+      /* viewbox 只是加权，不会排除范围外的结果 */
+      if (typeof opts.lat === "number" && typeof opts.lng === "number") {
+        var d = 0.05;
+        url += "&viewbox=" +
+          (opts.lng - d).toFixed(5) + "," + (opts.lat + d).toFixed(5) + "," +
+          (opts.lng + d).toFixed(5) + "," + (opts.lat - d).toFixed(5);
+      }
+      return url;
+    }
+
+    /* 缩写直接拿去搜是搜不到的：实测 "Yasumoto Int'l Acad Park" 返回 0 条，
+       展开成 "Yasumoto International Academic Park" 才有结果。 */
+    var expanded = expandAbbreviations(word);
+    var variants = (expanded && expanded !== word) ? [word, expanded] : [word];
+
+    function attempt(i) {
+      if (i >= variants.length) return Promise.resolve([]);
+      return fetchJson(buildUrl(variants[i]), NAME_TIMEOUT).then(function (list) {
+        if (list && list.length) return list;
+        return attempt(i + 1);
+      });
     }
 
     var origin = (typeof opts.lat === "number") ? { lat: opts.lat, lng: opts.lng } : null;
 
-    return fetchJson(url, NAME_TIMEOUT).then(function (list) {
+    return attempt(0).then(function (list) {
       /* 先按 osm_type/osm_id 把原始标签取回来（Nominatim 的 osm_type 是复数） */
       var refs = (list || []).map(function (item) {
         return {
@@ -611,6 +649,46 @@ window.OP = window.OP || {};
         return finalize(results, origin, 0);
       });
     });
+  }
+
+  /**
+   * 从一批候选里挑出名字最像的那一栋。
+   *
+   * 课表上的写法往往和 OSM 不完全一样——"Lady Shaw Bldg" 对 "Lady Shaw Building"、
+   * "Yasumoto Int'l Acad Park" 对 "Yasumoto International Academic Park"，
+   * 所以按模糊分挑，而不是要求完全相等。
+   *
+   * 打分复用 ocr.js 里的 nameScore（缩写展开、中英文、编辑距离都考虑）。
+   * ocr.js 在 places.js 之后加载，所以这里是运行时才去取，不能写成模块级依赖。
+   *
+   * @returns {object|null} 最像的那个候选（带上 matchScore），都不够像时返回 null
+   */
+  function bestNameMatch(name, candidates, minScore) {
+    var min = (minScore === undefined) ? 0.6 : minScore;
+    if (!name || !candidates || !candidates.length) return null;
+
+    /* 没有打分模块时退回第一个结果，总比什么都不做要好 */
+    if (!OP.Ocr || !OP.Ocr.nameScore || !OP.Ocr.nameForms) return candidates[0];
+
+    var query = OP.Ocr.nameForms(name);
+    var best = null;
+
+    candidates.forEach(function (item) {
+      if (!item) return;
+      var score = OP.Ocr.nameScore(query, OP.Ocr.nameForms(item.name));
+
+      /* 别名也要算上：OSM 的中文名可能是最接近课表写法的那个 */
+      (item.alias || []).forEach(function (alias) {
+        var s = OP.Ocr.nameScore(query, OP.Ocr.nameForms(alias));
+        if (s > score) score = s;
+      });
+
+      if (!best || score > best.score) best = { score: score, item: item };
+    });
+
+    if (!best || best.score < min) return null;
+    best.item.matchScore = best.score;
+    return best.item;
   }
 
   /* 同一个位置短时间内重复搜索直接用缓存（坐标取到约 11 米精度，
@@ -686,7 +764,9 @@ window.OP = window.OP || {};
     ENDPOINTS: ENDPOINTS,
     NOMINATIM: NOMINATIM,
     labelToNames: labelToNames,
+    expandAbbreviations: expandAbbreviations,
     searchByName: searchByName,
+    bestNameMatch: bestNameMatch,
     timeoutFor: timeoutFor,
     hedgeDelayFor: hedgeDelayFor,
     resultLimitFor: resultLimitFor,

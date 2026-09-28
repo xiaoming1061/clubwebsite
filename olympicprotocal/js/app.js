@@ -1028,6 +1028,92 @@
 
   /* ================= 从截图导入课表 ================= */
 
+  /* ================= 自动补齐楼栋 =================
+   *
+   * 导入课表时，匹配不上已有楼栋的地点会先建一个"没有坐标"的占位。
+   * 这里逐个拿它们的名字去 OSM 找，挑名字最像的那一栋，把坐标和别名填进去。
+   */
+
+  /* Nominatim 的使用条款要求每秒最多一次请求 */
+  var NOMINATIM_GAP = 1100;
+
+  function pendingBuildings() {
+    return ((data.campus && data.campus.buildings) || []).filter(function (b) {
+      return b.name && (typeof b.lat !== "number" || typeof b.lng !== "number");
+    });
+  }
+
+  /**
+   * @param {Function} onProgress (已完成, 总数, 当前楼栋名)
+   * @returns {Promise<{total, filled, skipped}>}
+   */
+  function autoFillBuildings(onProgress) {
+    var todo = pendingBuildings();
+    if (!todo.length) return Promise.resolve({ total: 0, filled: 0, skipped: [] });
+
+    var pos = effectivePosition();
+    var near = pos ? { lat: pos.lat, lng: pos.lng } : {};
+    var filled = 0;
+    var skipped = [];
+    var index = 0;
+
+    function step() {
+      if (index >= todo.length) return Promise.resolve();
+
+      var building = todo[index++];
+      if (onProgress) onProgress(index, todo.length, building.name);
+
+      return OP.Places.searchByName(building.name, near).then(function (candidates) {
+        var match = OP.Places.bestNameMatch(building.name, candidates, 0.6);
+        if (!match) {
+          skipped.push(building.name);
+          return;
+        }
+        building.lat = Number(Number(match.lat).toFixed(6));
+        building.lng = Number(Number(match.lng).toFixed(6));
+        /* 显示名保留课表里的写法，OSM 的中英文名补进别名 */
+        OP.Places.mergeAliases(match, building);
+        filled++;
+      }).catch(function () {
+        skipped.push(building.name);
+      }).then(function () {
+        return new Promise(function (done) { window.setTimeout(done, NOMINATIM_GAP); });
+      }).then(step);
+    }
+
+    return step().then(function () {
+      saveAndRender();
+      return { total: todo.length, filled: filled, skipped: skipped };
+    });
+  }
+
+  function runAutoFill(silentWhenEmpty) {
+    var button = $("#btnAutoFillBuildings");
+    var original = button ? button.textContent : "";
+    if (button) button.disabled = true;
+
+    return autoFillBuildings(function (done, total) {
+      if (button) button.textContent = "补齐中 " + done + "/" + total;
+    }).then(function (result) {
+      if (button) {
+        button.disabled = false;
+        button.textContent = original;
+      }
+
+      if (!result.total) {
+        if (!silentWhenEmpty) toast("没有需要补的楼栋", "所有楼栋都有坐标了", "ok");
+        return result;
+      }
+
+      var detail = result.filled + " / " + result.total + " 栋已补上坐标";
+      if (result.skipped.length) {
+        detail += "；没找到：" + result.skipped.join("、");
+      }
+      toast("自动补齐完成", detail, result.filled ? "ok" : "warn");
+      return result;
+    });
+  }
+
   function ocrProgress(text, ratio) {
     var box = $("#ocrProgress");
     var bar = $("#ocrProgressBar");
@@ -1274,6 +1360,11 @@
       toast("这些楼栋还没有坐标",
         createdBuildings.join("、") + "。去「设置 → 校区楼栋」补一下，路线才能算。", "warn");
     }
+
+    /* 导入完直接去 OSM 找这些楼，省得手工一栋栋补 */
+    if (createdBuildings.length) {
+      window.setTimeout(function () { runAutoFill(true); }, 900);
+    }
   }
 
   function openBuildingForm(building) {
@@ -1464,6 +1555,8 @@
     $("#btnAddBuilding").addEventListener("click", function () { openBuildingForm(null); });
 
     /* --- 获取楼栋海拔 --- */
+    $("#btnAutoFillBuildings").addEventListener("click", function () { runAutoFill(false); });
+
     $("#btnFetchElevation").addEventListener("click", function () {
       var button = this;
       var list = (data.campus && data.campus.buildings) || [];
@@ -1726,6 +1819,8 @@
         if (outcome.addedBuildings) detail.push("新增 " + outcome.addedBuildings + " 栋楼");
         if (outcome.replacedCourses) detail.push("课表已替换");
         toast("导入成功", detail.join("；") || "内容已合并", "ok");
+        /* 新导入的课表若带来没坐标的楼栋，顺手去 OSM 补齐 */
+        window.setTimeout(function () { runAutoFill(true); }, 900);
       }).catch(function () {
         toast("导入失败", "文件不是有效的 JSON", "err");
       });
