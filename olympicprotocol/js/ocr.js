@@ -713,8 +713,24 @@ window.OP = window.OP || {};
     intl: "international", acad: "academic", univ: "university",
     ctr: "centre", center: "centre", labs: "laboratory", lab: "laboratory",
     dept: "department", sci: "science", tech: "technology",
-    eng: "engineering", stud: "student", admin: "administration"
+    eng: "engineering", stud: "student", admin: "administration",
+    med: "medical", meds: "medical"
   };
+
+  /**
+   * 两个词算不算同一个。
+   *
+   * 课表上的名字是缩写版，展开表不可能列全，所以再补一条前缀规则：
+   * med / medical、science / sciences、eng / engineering 都算同一个词。
+   * 最短要 3 个字母——"Li" 这种两字母的要是也认前缀，
+   * 会把 "Li" 和 "Library" 拼到一起。
+   */
+  function sameWord(a, b) {
+    if (a === b) return true;
+    var short = a.length <= b.length ? a : b;
+    var long = short === a ? b : a;
+    return short.length >= 3 && long.indexOf(short) === 0;
+  }
 
   /**
    * 把一个名字拆成可比较的几种形式。
@@ -781,10 +797,35 @@ window.OP = window.OP || {};
     var keysA = Object.keys(setA), keysB = Object.keys(setB);
 
     if (keysA.length && keysB.length) {
-      var shared = keysA.filter(function (t) { return setB[t]; }).length;
+      /* 一对一地配对，同一个词不会被重复算两次 */
+      var usedB = {};
+      var shared = 0;
+      keysA.forEach(function (ta) {
+        for (var i = 0; i < keysB.length; i++) {
+          if (usedB[keysB[i]]) continue;
+          if (sameWord(ta, keysB[i])) {
+            usedB[keysB[i]] = true;
+            shared++;
+            return;
+          }
+        }
+      });
+
       if (shared) {
         var jaccard = shared / (keysA.length + keysB.length - shared);
-        return 0.35 + 0.5 * jaccard;
+        var score = 0.35 + 0.5 * jaccard;
+
+        /* 课表上的名字常常是缩得很短的版本：
+             "Basic Med Sci Bldg" → "Choh-Ming Li Basic Medical Sciences Building"
+           词面上只有 basic / building 一模一样，靠 med→medical、science→sciences
+           这两条前缀规则才凑齐。这种情况下 jaccard 会被"目标名字长"拖低，
+           但"短的一边几乎全被覆盖"其实是很强的信号，所以再补一次分。
+           要求至少对上两个词，否则单独一个 "Building" 也会拿到高分。 */
+        var coverage = shared / Math.min(keysA.length, keysB.length);
+        if (shared >= 2 && coverage >= 0.8) {
+          score = Math.max(score, 0.55 + 0.25 * coverage);
+        }
+        return score;
       }
     }
 
