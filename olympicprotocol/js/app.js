@@ -1272,17 +1272,17 @@
 
       var notes = [];
       if (c.waiting) notes.push("原课表标记为候补（Waiting）");
-      if (c.tba) notes.push("地点是待定（TBA），导入后需要自己补");
-      if (c.noRoom) notes.push("课表写的是「不需要教室」，这条不带地点");
       if (c.needsTime) notes.push("时间没读准，请核对");
       if (c.buildingName && !match) {
         notes.push("「" + c.buildingName + "」不在楼栋列表里，导入时会新建，之后要补坐标");
-      } else if (match && !match.exact) {
-        notes.push("自动匹配到「" + match.name + "」（把握 " + Math.round(match.score * 100) +
-          "%），请确认是不是这栋，不对就在下拉里换");
       }
 
-      var bad = c.tba || c.needsTime || (c.buildingName && !match) || (match && !match.exact);
+      /* 黄框只给"页面上确实写了原因"的行留着。
+         待定（TBA）和模糊匹配不再单独提醒，所以也不标黄——
+         否则会出现"黄框但一个字都没说"的怪状态。
+         这两个信息在下拉框里仍然看得出来：待定显示"（未指定）"，
+         匹配到的楼栋会直接选中。 */
+      var bad = c.needsTime || (c.buildingName && !match);
 
       html += '<div class="ocr-row' + (bad ? " is-bad" : "") + '" data-idx="' + i + '"' +
         ' data-building-name="' + esc(c.buildingName || "") + '">' +
