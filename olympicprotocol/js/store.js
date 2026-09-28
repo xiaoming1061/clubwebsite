@@ -83,6 +83,69 @@ window.OP = window.OP || {};
     }
   }
 
+  /* ---------- 默认楼栋的版本同步 ---------- */
+
+  /* 最近一次 load() 补进来了哪些楼，界面拿它提示一句 */
+  var lastSync = { added: [] };
+
+  function shippedBuildings() {
+    var shipped = OP.DEFAULT_BUILDINGS;
+    if (!shipped || !Array.isArray(shipped.buildings)) {
+      return { version: 0, name: "", buildings: [] };
+    }
+    return {
+      version: Number(shipped.version) || 0,
+      name: shipped.name || "",
+      buildings: shipped.buildings
+    };
+  }
+
+  /* 比对楼栋是否同一个：忽略大小写、空格和标点 */
+  function buildingKey(text) {
+    return String(text || "").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "");
+  }
+
+  function rememberKeys(index, building) {
+    if (building.id) index["id:" + building.id] = true;
+    if (building.name) index["n:" + buildingKey(building.name)] = true;
+    (building.alias || []).forEach(function (alias) {
+      if (alias) index["n:" + buildingKey(alias)] = true;
+    });
+  }
+
+  function isKnown(index, building) {
+    if (building.id && index["id:" + building.id]) return true;
+    if (building.name && index["n:" + buildingKey(building.name)]) return true;
+    return (building.alias || []).some(function (alias) {
+      return alias && index["n:" + buildingKey(alias)];
+    });
+  }
+
+  /**
+   * 把默认楼栋里「本地还没有的」补进来。
+   *
+   * 只加不改：本地已有的（同 id、同名或同别名）一律原样留着，
+   * 用户自己改过的坐标和别名不会被默认值覆盖。
+   *
+   * 为什么需要它：默认楼栋会跟着仓库更新（补录新楼、修正坐标），
+   * 但用户一旦在本地存过楼栋，默认值就不再自动生效了——
+   * 没有这一步，后来补录的楼永远进不到他们那儿。
+   */
+  function mergeShippedBuildings(list, shipped) {
+    var index = {};
+    list.forEach(function (b) { rememberKeys(index, b); });
+
+    var added = [];
+    (shipped.buildings || []).forEach(function (b) {
+      if (!b || !b.name || isKnown(index, b)) return;
+      var copy = clone(b);
+      list.push(copy);
+      rememberKeys(index, copy);
+      added.push(copy);
+    });
+    return added;
+  }
+
   /* ---------- 三份数据各自的合并规则 ---------- */
 
   /**
@@ -136,6 +199,7 @@ window.OP = window.OP || {};
   }
 
   function load() {
+    var shipped = shippedBuildings();
     var parts = {
       buildings: readJSON(BUILDINGS_KEY),
       courses: readJSON(COURSES_KEY),
@@ -154,22 +218,37 @@ window.OP = window.OP || {};
       }
     }
 
+    /* 默认楼栋有新版本就把缺的补进来。
+       本地楼栋是空的时候不补：那是用户自己清空的，别硬塞回去。 */
+    var added = [];
+    if (parts.buildings && Array.isArray(parts.buildings.buildings) &&
+        parts.buildings.buildings.length &&
+        shipped.version > (Number(parts.buildings.defaultVersion) || 0)) {
+      added = mergeShippedBuildings(parts.buildings.buildings, shipped);
+      parts.buildings.defaultVersion = shipped.version;
+    }
+
     var data = compose(parts.buildings, parts.courses, parts.settings);
 
-    /* 拆完就落盘，并把老键删掉。
+    /* 拆老存档的时候要落盘，并把老键删掉。
        不删的话，「清空数据」之后老键还在，下次打开又会被拆一遍，
        看起来像数据自己长回来了。 */
     if (fromLegacy) {
       save(data);
       LEGACY_BUNDLE_KEYS.forEach(removeKey);
+    } else if (added.length) {
+      save(data);
     }
 
+    lastSync = { added: added };
     return data;
   }
 
   function save(data) {
     try {
       writeJSON(BUILDINGS_KEY, {
+        /* 记下这份列表已经合到哪一版默认楼栋，避免每次打开都重算一遍 */
+        defaultVersion: shippedBuildings().version,
         name: (data.campus && data.campus.name) || "",
         buildings: (data.campus && data.campus.buildings) || []
       });
@@ -337,6 +416,10 @@ window.OP = window.OP || {};
     readFile: readFile,
     applyImport: applyImport,
     appendBuildings: appendBuildings,
+    /* 上一次 load() 补进来了哪些默认楼栋（界面用来提示） */
+    lastSync: function () { return { added: lastSync.added.slice() }; },
+    /* 默认楼栋当前的版本号 */
+    defaultBuildingsVersion: function () { return shippedBuildings().version; },
     KEYS: {
       buildings: BUILDINGS_KEY,
       courses: COURSES_KEY,

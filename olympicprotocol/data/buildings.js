@@ -3,6 +3,9 @@
  * 这份数据是从浏览器里导出的真实校区楼栋（共 242 栋，含中英文别名和海拔），
  * 用来当页面的默认楼栋：第一次打开、点了「恢复默认数据」、或者本地没存档时，用的就是它。
  *
+ * version 是内容版本：改一次数据就 +1。页面靠它把新补的楼并进
+ * 用户本地已经存过的那份列表（只补不改，用户自己改过的照旧）。
+ *
  * 不要手改这个文件，它由下面的命令生成：
  *     node tools/make-buildings.js <导出的 JSON>
  * 课表和设置是每个人自己的，放在浏览器本地，不在这里。
@@ -11,6 +14,7 @@
 window.OP = window.OP || {};
 
 window.OP.DEFAULT_BUILDINGS = {
+  version: 1,
   name: "香港中文大学",
   buildings: [
     { id: "b-muk35r0x-pkbmz", name: "12W", alias: [], lat: 22.427188, lng: 114.209693, elevation: 6 },

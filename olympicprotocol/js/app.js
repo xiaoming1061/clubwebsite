@@ -9,6 +9,8 @@
   var Store = OP.Store;
 
   var data = Store.load();
+  /* load() 会把默认楼栋里新补的楼并进本地那份，启动后提示一句 */
+  var pendingBuildingSync = Store.lastSync();
   var state = {
     view: "today",
     now: new Date(),
@@ -1915,6 +1917,14 @@
     render();
 
     window.setInterval(tick, 1000);
+
+    /* 默认楼栋更新了，告诉用户补进来了哪几栋 */
+    if (pendingBuildingSync.added.length) {
+      var names = pendingBuildingSync.added.map(function (b) { return b.name; });
+      toast("楼栋已补齐 " + names.length + " 栋",
+        names.slice(0, 4).join("、") + (names.length > 4 ? " 等" : "") +
+        "（默认数据更新了，只补不加改）", "ok");
+    }
 
     window.addEventListener("resize", function () {
       measureBottomSpace();
