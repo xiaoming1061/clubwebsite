@@ -1,6 +1,6 @@
 /* Olympic Protocol — 默认楼栋数据
  *
- * 这份数据是从浏览器里导出的真实校区楼栋（共 241 栋，含中英文别名和海拔），
+ * 这份数据是从浏览器里导出的真实校区楼栋（共 242 栋，含中英文别名和海拔），
  * 用来当页面的默认楼栋：第一次打开、点了「恢复默认数据」、或者本地没存档时，用的就是它。
  *
  * 不要手改这个文件，它由下面的命令生成：
@@ -189,6 +189,7 @@ window.OP.DEFAULT_BUILDINGS = {
     { id: "b-muk35r0x-t4hfn", name: "Shaw College Lecture Theatre", alias: ["逸夫書院大講堂"], lat: 22.422396, lng: 114.201566, elevation: 77 },
     { id: "b-muk3huqp-bvawq", name: "Sino Building", alias: ["信和樓"], lat: 22.415537, lng: 114.207196, elevation: 44 },
     { id: "b-muk3huqp-d6afm", name: "Sinopec", alias: ["中國石化", "中国石化"], lat: 22.43222, lng: 114.194023, elevation: 83 },
+    { id: "b-cuhk-haddon-cave-field", name: "Sir Philip Haddon-Cave Sports Field", alias: ["夏鼎基運動場", "夏鼎基运动场"], lat: 22.418766, lng: 114.211954, elevation: 27 },
     { id: "b-muk35r0x-kjj1l", name: "Sir Run Run Shaw Hall", alias: ["邵逸夫堂"], lat: 22.420148, lng: 114.207159, elevation: 138 },
     { id: "b-muk35r0x-j9fs8", name: "Staff Student Centre - Leung Hung Kee Building", alias: ["樂群館 - 梁雄姬樓"], lat: 22.420938, lng: 114.209215, elevation: 139 },
     { id: "b-muk35r0x-15g77", name: "Student Hostel 2 (Low Block)", alias: ["第二學生宿舍（低座）", "二宿低座 Student Hostel 2 (Low Block)"], lat: 22.423724, lng: 114.201084, elevation: 28 },

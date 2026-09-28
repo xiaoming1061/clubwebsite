@@ -425,7 +425,7 @@ body {
 
 .bld-order {
   fill: var(--text);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   text-anchor: middle;
   font-family: inherit;
@@ -433,7 +433,7 @@ body {
 .bld-order.is-next { fill: #04121c; font-weight: 800; }
 
 .bld-time {
-  fill: var(--text-faint);
+  fill: var(--text-dim);
   font-size: 16px;
   text-anchor: middle;
   font-family: inherit;
@@ -448,14 +448,14 @@ body {
 }
 
 .map-note {
-  fill: var(--text-faint);
+  fill: var(--text-dim);
   font-size: 18px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 .bld-label {
-  fill: var(--text-dim);
+  fill: var(--text);
   font-size: 20px;
   font-weight: 600;
   text-anchor: middle;
@@ -463,8 +463,10 @@ body {
 }
 
 /* 地图上的文字都加一层描边光晕：楼名、时间和距离经常挨得很近，
-   没有光晕时叠在一起就看不清了 */
+   没有光晕时叠在一起就看不清了。
+   opacity 写死 1：简图上的字要看得清，不能被别处的透明度影响。 */
 .bld-label, .bld-time, .bld-flag, .dist-label, .me-label, .map-note {
+  opacity: 1;
   paint-order: stroke;
   stroke: #0a1120;
   stroke-width: 5px;
@@ -493,16 +495,16 @@ body {
 .me-label { fill: var(--accent); font-size: 20px; font-weight: 700; text-anchor: middle; font-family: inherit; }
 
 .dist-label {
-  fill: var(--text-dim);
+  fill: var(--text);
   font-size: 18px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 @keyframes pulse {
-  0% { r: 10; opacity: 0.9; }
-  70% { r: 34; opacity: 0; }
-  100% { r: 34; opacity: 0; }
+  0% { r: 8; opacity: 0.9; }
+  70% { r: 24; opacity: 0; }
+  100% { r: 24; opacity: 0; }
 }
 
 .map-empty { color: var(--text-faint); font-size: 12px; text-align: center; padding: 26px 10px; }

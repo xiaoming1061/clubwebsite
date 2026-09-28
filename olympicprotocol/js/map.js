@@ -133,14 +133,14 @@ window.OP = window.OP || {};
     stops.forEach(function (s) {
       var b = s.building;
       var p = project(b);
-      /* 圆圈缩小了：标签本身已经够说明问题，圈太大反而压住路线 */
-      var r = s.isNext ? 17 : 14;
+      /* 圆圈继续缩小：标签本身已经够说明问题，圈太大反而压住路线和楼名 */
+      var r = s.isNext ? 13 : 11;
 
       parts.push("<g>" +
         '<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
           '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '"/>' +
         '<text class="bld-order' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 6).toFixed(1) + '">' +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '">' +
           esc(s.order || "") + "</text>" +
         '<text class="bld-label' + (s.isNext ? " is-next" : "") +
           '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 22).toFixed(1) + '">' +
@@ -159,9 +159,9 @@ window.OP = window.OP || {};
     if (opts.position) {
       var me = project(opts.position);
       parts.push("<g>" +
-        '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="12"/>' +
-        '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="9"/>' +
-        '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 24).toFixed(1) + '">我的位置</text>' +
+        '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="9"/>' +
+        '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="7"/>' +
+        '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 18).toFixed(1) + '">我的位置</text>' +
         "</g>");
     } else if (stops.length) {
       /* 没定位时在图上说一句，免得以为坏了 */
