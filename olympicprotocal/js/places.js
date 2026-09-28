@@ -358,15 +358,19 @@ window.OP = window.OP || {};
   }
 
   function readOverpassJson(res) {
+    return readJson(res, "地图服务");
+  }
+
+  function readJson(res, label) {
     return res.text().then(function (text) {
       var json;
       try {
         json = JSON.parse(text);
       } catch (err) {
         /* 节点繁忙时会返回一段说明文字而不是 JSON */
-        throw new Error("地图服务返回了预期之外的内容（HTTP " + res.status + "）");
+        throw new Error(label + "返回了预期之外的内容（HTTP " + res.status + "）");
       }
-      if (!res.ok) throw new Error("地图服务返回 HTTP " + res.status);
+      if (!res.ok) throw new Error(label + "返回 HTTP " + res.status);
       return json;
     });
   }
@@ -443,6 +447,172 @@ window.OP = window.OP || {};
    * @param {object} opts { lat, lng, radius, keyword, merge, mergeMeters }
    * @returns {Promise<Array>}
    */
+  /* ================= 按名字搜楼栋 =================
+   *
+   * 半径搜索走 Overpass，有结果条数上限。校园里带名字的建筑动辄上百栋，
+   * 想找的某一栋可能正好被截断在外（而且 Overpass 不按距离排序，
+   * 截掉哪些是不确定的）。所以"找指定的楼"应该走名字检索。
+   */
+
+  var NOMINATIM = "https://nominatim.openstreetmap.org/search";
+  var OSM_API = "https://api.openstreetmap.org/api/0.6";
+  var NAME_TIMEOUT = 15000;
+
+  /**
+   * 批量取 OSM 元素的原始标签。
+   *
+   * 为什么必须再取一次：Nominatim 会按请求方的语言偏好返回**单一**名字，
+   * 浏览器默认要中文，于是拿到的就是"邵逸夫夫人樓"——没有英文，
+   * 导入后匹配不上英文课表。原始标签里 name / name:en / name:zh 都在。
+   */
+  function fetchOsmTags(refs) {
+    var byType = { way: [], relation: [] };
+    (refs || []).forEach(function (r) {
+      if (byType[r.type] && r.id) byType[r.type].push(r.id);
+    });
+
+    var jobs = Object.keys(byType).filter(function (t) { return byType[t].length; })
+      .map(function (type) {
+        var url = OSM_API + "/" + type + "s.json?" + type + "s=" + byType[type].slice(0, 200).join(",");
+        return fetchJson(url, 12000).then(function (json) {
+          return (json && json.elements) || [];
+        }).catch(function () { return []; });   /* 取不到就退回 Nominatim 的名字 */
+      });
+
+    return Promise.all(jobs).then(function (lists) {
+      var byKey = {};
+      lists.forEach(function (list) {
+        list.forEach(function (el) {
+          if (el && el.type && el.id && el.tags) byKey[el.type + "/" + el.id] = el.tags;
+        });
+      });
+      return byKey;
+    });
+  }
+
+  /* "邵逸夫夫人樓 Lady Shaw Building, 大學道..." → 中英文名分开 */
+  function labelToNames(label) {
+    var first = String(label || "").split(",")[0].trim();
+    if (!first) return null;
+
+    var zh = (first.match(/[\u4e00-\u9fa5]+/g) || []).join("");
+    var en = (first.match(/[A-Za-z0-9][A-Za-z0-9\s.'&()-]*/g) || [])
+      .join(" ").replace(/\s+/g, " ").trim();
+    if (!zh && !en) return null;
+
+    /* 课表上一般写英文，所以显示名优先用英文，中文进别名 */
+    var name = en || zh;
+    var alias = [];
+    if (zh && zh !== name) alias.push(zh);
+    if (en && en !== name) alias.push(en);
+
+    return { name: name, alias: alias, nameEn: en, nameZh: zh };
+  }
+
+  function fetchJson(url, timeoutMs) {
+    var options = {};
+    if (typeof AbortController !== "function") {
+      return fetch(url, options).then(function (res) { return readJson(res, "名字检索"); });
+    }
+
+    var controller = new AbortController();
+    var timer = window.setTimeout(function () { controller.abort(); }, timeoutMs || NAME_TIMEOUT);
+    options.signal = controller.signal;
+
+    return fetch(url, options).then(function (res) {
+      window.clearTimeout(timer);
+      return readJson(res, "名字检索");
+    }, function (err) {
+      window.clearTimeout(timer);
+      if (err && err.name === "AbortError") {
+        throw new Error("名字检索超时，稍后再试");
+      }
+      throw err;
+    });
+  }
+
+  /**
+   * 按名字找楼栋。用的是 OpenStreetMap 官方的地名检索接口，
+   * 和半径搜索不是一回事——它是为"找某个具体地方"设计的。
+   *
+   * @param {string} query 楼栋名字，中英文都行
+   * @param {object} opts  { lat, lng } 有位置时会优先返回附近的同名地点
+   */
+  function searchByName(query, opts) {
+    opts = opts || {};
+    var word = String(query || "").trim();
+    if (!word) return Promise.reject(new Error("请先输入楼栋名字"));
+    if (typeof fetch !== "function") {
+      return Promise.reject(new Error("这个浏览器不支持网络请求"));
+    }
+
+    var url = NOMINATIM + "?format=jsonv2&limit=15&addressdetails=0" +
+      "&q=" + encodeURIComponent(word);
+
+    /* viewbox 只是加权，不会排除范围外的结果 */
+    if (typeof opts.lat === "number" && typeof opts.lng === "number") {
+      var d = 0.05;
+      url += "&viewbox=" +
+        (opts.lng - d).toFixed(5) + "," + (opts.lat + d).toFixed(5) + "," +
+        (opts.lng + d).toFixed(5) + "," + (opts.lat - d).toFixed(5);
+    }
+
+    var origin = (typeof opts.lat === "number") ? { lat: opts.lat, lng: opts.lng } : null;
+
+    return fetchJson(url, NAME_TIMEOUT).then(function (list) {
+      /* 先按 osm_type/osm_id 把原始标签取回来（Nominatim 的 osm_type 是复数） */
+      var refs = (list || []).map(function (item) {
+        return {
+          type: String(item.osm_type || "").replace(/s$/, ""),
+          id: item.osm_id
+        };
+      });
+
+      return fetchOsmTags(refs).then(function (tagsByKey) {
+        return (list || []).map(function (item) {
+        /* display_name 的第一段通常已经包含名字了（"邵逸夫夫人樓 Lady Shaw Building, …"），
+           再拼一次 item.name 会让中文段出现两遍——踩过。 */
+        var parts = String(item.display_name || "").split(",");
+        var first = parts[0].trim();
+        var extra = String(item.name || "").trim();
+        var label = (extra && first.toLowerCase().indexOf(extra.toLowerCase()) < 0)
+          ? extra + " " + first
+          : first;
+
+        var type = String(item.osm_type || "").replace(/s$/, "");
+        var tags = tagsByKey[type + "/" + item.osm_id];
+        /* 有原始标签就用它（中英文名都全），否则退回 Nominatim 的标签 */
+        var names = (tags && (tags.name || tags["name:en"] || tags["name:zh"]))
+          ? pickNames(tags, true)
+          : labelToNames(label);
+        if (!names) return null;
+
+        var lat = Number(item.lat);
+        var lng = Number(item.lon);
+        if (!isFinite(lat) || !isFinite(lng)) return null;
+
+        return {
+          id: (type || "osm") + "/" + (item.osm_id || item.place_id),
+          name: names.name,
+          alias: names.alias,
+          nameEn: names.nameEn,
+          nameZh: names.nameZh,
+          allNames: names.allNames || [names.nameEn, names.nameZh].filter(function (n) { return n; }),
+          joinedName: names.joinedName || "",
+          lat: lat,
+          lng: lng,
+          source: "osm",
+          kind: item.type || item.category || "",
+          address: parts.slice(1).join(",").trim()
+        };
+        }).filter(function (x) { return x; });
+      }).then(function (results) {
+        /* 半径传 0：名字搜索不按距离过滤，多远都要找出来 */
+        return finalize(results, origin, 0);
+      });
+    });
+  }
+
   /* 同一个位置短时间内重复搜索直接用缓存（坐标取到约 11 米精度，
      所以走动一点点也能命中）。Overpass 一次要好几秒，缓存省得很明显。 */
   var CACHE_TTL = 5 * 60 * 1000;
@@ -514,6 +684,9 @@ window.OP = window.OP || {};
 
   OP.Places = {
     ENDPOINTS: ENDPOINTS,
+    NOMINATIM: NOMINATIM,
+    labelToNames: labelToNames,
+    searchByName: searchByName,
     timeoutFor: timeoutFor,
     hedgeDelayFor: hedgeDelayFor,
     resultLimitFor: resultLimitFor,

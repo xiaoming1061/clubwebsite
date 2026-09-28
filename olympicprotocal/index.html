@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocal · 校园通行指挥台</title>
-  <link rel="stylesheet" href="styles.css?v=mukrf3cy" />
+  <link rel="stylesheet" href="styles.css?v=mukrpg0g" />
 </head>
 <body>
   <div class="app">
@@ -154,6 +154,19 @@
             <h3>从地图读取附近楼栋</h3>
             <span class="muted" id="plStatus">未搜索</span>
           </div>
+          <label class="field">
+            <span>按名字搜（找指定的楼）</span>
+            <input type="text" id="plNameQuery" placeholder="例如：Lady Shaw / 邵逸夫" />
+          </label>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="btnSearchByName">按名字搜</button>
+          </div>
+          <p class="hint">
+            半径搜索走 Overpass，结果有条数上限（800 米约 150 条）。
+            校园里带名字的建筑动辄上百栋，想找的那一栋可能正好被截断在外，
+            而且它不按距离排序，截掉哪些是不确定的。**找指定的楼用上面这个。**
+          </p>
+          <hr class="sep" />
           <label class="field">
             <span>搜索半径（米）</span>
             <input type="number" id="plRadius" min="100" max="5000" step="50" value="800" />
@@ -420,16 +433,16 @@
     </div>
   </div>
 
-  <script src="data/defaults.js?v=mukrf3cy"></script>
-  <script src="js/store.js?v=mukrf3cy"></script>
-  <script src="js/geo.js?v=mukrf3cy"></script>
-  <script src="js/elevation.js?v=mukrf3cy"></script>
-  <script src="js/speech.js?v=mukrf3cy"></script>
-  <script src="js/planner.js?v=mukrf3cy"></script>
-  <script src="js/map.js?v=mukrf3cy"></script>
-  <script src="js/realmaps.js?v=mukrf3cy"></script>
-  <script src="js/places.js?v=mukrf3cy"></script>
-  <script src="js/ocr.js?v=mukrf3cy"></script>
-  <script src="js/app.js?v=mukrf3cy"></script>
+  <script src="data/defaults.js?v=mukrpg0g"></script>
+  <script src="js/store.js?v=mukrpg0g"></script>
+  <script src="js/geo.js?v=mukrpg0g"></script>
+  <script src="js/elevation.js?v=mukrpg0g"></script>
+  <script src="js/speech.js?v=mukrpg0g"></script>
+  <script src="js/planner.js?v=mukrpg0g"></script>
+  <script src="js/map.js?v=mukrpg0g"></script>
+  <script src="js/realmaps.js?v=mukrpg0g"></script>
+  <script src="js/places.js?v=mukrpg0g"></script>
+  <script src="js/ocr.js?v=mukrpg0g"></script>
+  <script src="js/app.js?v=mukrpg0g"></script>
 </body>
 </html>

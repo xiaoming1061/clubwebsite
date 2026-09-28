@@ -891,6 +891,11 @@
       renderPlaces();
       if (!list.length) {
         toast("没有找到建筑", "换个来源、把半径调大，或清空名称过滤再试", "warn");
+      } else if (state.placesRaw && state.placesRaw.length >= OP.Places.resultLimitFor(radius)) {
+        /* 结果顶到上限，说明很可能被截断了 */
+        toast("结果已达上限，可能有楼栋没列出来",
+          "这个半径下带名字的建筑超过 " + OP.Places.resultLimitFor(radius) +
+          " 栋。找指定的楼用上面的「按名字搜」。", "warn");
       }
     }).catch(function (err) {
       stopPlacesTicker();
@@ -931,6 +936,44 @@
   }
 
   /* 搜索时显示已用秒数，免得看起来像卡死了 */
+  /**
+   * 按名字找指定的楼。
+   *
+   * 半径搜索有结果条数上限，校园里楼多的时候想找的那一栋可能被截断在外，
+   * 所以"找某个具体的楼"必须走名字检索，和"看看附近有什么"是两件事。
+   */
+  function searchPlacesByName() {
+    var query = $("#plNameQuery").value.trim();
+    if (!query) {
+      toast("请输入楼栋名字", "中文英文都行，例如 Lady Shaw 或 邵逸夫", "warn");
+      return;
+    }
+
+    var pos = effectivePosition();
+    state.placesRaw = null;
+    state.places = [];
+    renderPlaces();
+    $("#btnSearchByName").disabled = true;
+    $("#plStatus").textContent = "搜索中…";
+
+    OP.Places.searchByName(query, pos ? { lat: pos.lat, lng: pos.lng } : {}).then(function (list) {
+      state.places = OP.Places.shape(list, placeOptions(pos || { lat: 0, lng: 0 },
+        Number($("#plRadius").value) || 800));
+      state.placesStatus = list.length ? "按名字找到 " + state.places.length + " 个" : "没找到";
+      renderPlaces();
+      if (!list.length) {
+        toast("没找到这个楼栋", "换个写法试试，比如只输一部分名字", "warn");
+      }
+    }).catch(function (err) {
+      state.places = [];
+      state.placesStatus = "搜索失败";
+      renderPlaces();
+      toast("按名字搜索失败", err.message, "err");
+    }).then(function () {
+      $("#btnSearchByName").disabled = false;
+    });
+  }
+
   var placesTicker = null;
 
   function startPlacesTicker(radius) {
@@ -1526,6 +1569,15 @@
     });
 
     $("#btnSearchPlaces").addEventListener("click", searchPlaces);
+    $("#btnSearchByName").addEventListener("click", searchPlacesByName);
+
+    /* 名字框里直接回车也能搜 */
+    $("#plNameQuery").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        searchPlacesByName();
+      }
+    });
 
     $("#placesList").addEventListener("click", function (ev) {
       var btn = ev.target.closest(".place-merge");

@@ -767,6 +767,12 @@ a.nav-link:active { transform: scale(0.97); }
 
 .ocr-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 
+.sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 18px 0;
+}
+
 /* 顶部那两个按钮：只在下拉预览出现时显示，别占着地方 */
 .ocr-actions-top {
   margin-top: 0;
