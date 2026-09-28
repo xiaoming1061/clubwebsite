@@ -1,42 +1,31 @@
-/* Olympic Protocol — 示例数据
+/* Olympic Protocol — 课表与设置的默认值
  *
- * 这里的坐标是示例值，请用「设置 → 校区楼栋 → 用我的当前位置填入」改成你学校的真实坐标。
- * 课表同样可以直接在「课表」页里增删改，或导入导出的 JSON。
+ * 楼栋不在这里：它单独放在 data/buildings.js，是真实校区数据，
+ * 由「设置 → 校区楼栋 → 导出」出来的结果生成（见 tools/make-buildings.js）。
+ *
+ * 页面把三样东西分开存：
+ *   楼栋  → localStorage 的 buildings 键
+ *   课表  → courses 键
+ *   设置  → settings 键
+ * 所以换课表不会动到楼栋，改楼栋也不会动到课表。
  */
 
 window.OP = window.OP || {};
 
 window.OP.DEFAULT_DATA = {
   version: 1,
+
+  /* 默认楼栋来自 data/buildings.js，要改请改那个文件 */
   campus: {
-    name: "示例校区",
-    /*
-     * 门禁/集合点之类的固定点位，会一起参与"最近楼栋"计算。
-     */
-    buildings: [
-      { id: "A", name: "第一教学楼", alias: ["一教", "A楼", "教一"], lat: 31.2320, lng: 121.4710 },
-      { id: "B", name: "第二教学楼", alias: ["二教", "B楼", "教二"], lat: 31.2315, lng: 121.4760 },
-      { id: "C", name: "实验楼", alias: ["C楼", "机房"], lat: 31.2290, lng: 121.4745 },
-      { id: "D", name: "图书馆", alias: ["馆"], lat: 31.2298, lng: 121.4700 },
-      { id: "E", name: "体育馆", alias: ["操场", "体育场"], lat: 31.2268, lng: 121.4762 },
-      { id: "F", name: "学生食堂", alias: ["食堂", "饭堂"], lat: 31.2302, lng: 121.4788 },
-      { id: "G", name: "宿舍区", alias: ["宿舍", "寝室"], lat: 31.2338, lng: 121.4752 },
-      { id: "H", name: "音乐厅", alias: ["礼堂"], lat: 31.2278, lng: 121.4712 }
-    ]
+    name: window.OP.DEFAULT_BUILDINGS.name,
+    buildings: window.OP.DEFAULT_BUILDINGS.buildings
   },
 
-  courses: [
-    { id: "c1",  name: "高等数学",   teacher: "张老师", buildingId: "A", room: "A301", weekdays: [1, 3], start: "08:00", end: "09:40", weeks: [1, 16] },
-    { id: "c2",  name: "线性代数",   teacher: "孙老师", buildingId: "A", room: "A208", weekdays: [1],    start: "14:00", end: "15:40", weeks: [1, 16] },
-    { id: "c3",  name: "大学英语",   teacher: "李老师", buildingId: "B", room: "B205", weekdays: [1, 4], start: "10:00", end: "11:40", weeks: [1, 16] },
-    { id: "c4",  name: "数据结构",   teacher: "王老师", buildingId: "C", room: "C401", weekdays: [2, 5], start: "08:00", end: "09:40", weeks: [1, 16] },
-    { id: "c5",  name: "大学物理",   teacher: "陈老师", buildingId: "A", room: "A102", weekdays: [2],    start: "14:00", end: "15:40", weeks: [1, 16] },
-    { id: "c6",  name: "概率论",     teacher: "吴老师", buildingId: "A", room: "A305", weekdays: [3],    start: "10:00", end: "11:40", weeks: [1, 16] },
-    { id: "c7",  name: "体育（羽毛球）", teacher: "刘老师", buildingId: "E", room: "主馆", weekdays: [3], start: "16:00", end: "17:30", weeks: [1, 16] },
-    { id: "c8",  name: "算法实验",   teacher: "王老师", buildingId: "C", room: "C501", weekdays: [4],    start: "08:00", end: "09:40", weeks: [1, 16] },
-    { id: "c9",  name: "音乐鉴赏",   teacher: "周老师", buildingId: "H", room: "音乐厅", weekdays: [4],   start: "14:00", end: "15:40", weeks: [1, 16] },
-    { id: "c10", name: "软件工程",   teacher: "赵老师", buildingId: "C", room: "C302", weekdays: [5],    start: "14:00", end: "15:40", weeks: [1, 16] }
-  ],
+  /*
+   * 课表默认是空的：它是每个人自己的东西，第一次打开时用课表截图导入，
+   * 或者到「课表 → 新增课程」手动加。楼栋已经有默认值了，不用再导入。
+   */
+  courses: [],
 
   settings: {
     leadMinutes: 10,        // 上课前多少分钟播报一次

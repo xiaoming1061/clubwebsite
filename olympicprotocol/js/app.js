@@ -1850,10 +1850,10 @@
     });
 
     $("#btnResetData").addEventListener("click", function () {
-      askConfirm("会用示例数据覆盖现在的课表和楼栋，确定吗？", function () {
+      askConfirm("课表和楼栋都会变回默认的（楼栋 = 内置校区数据，课表 = 空），确定吗？", function () {
         data = Store.reset();
         saveAndRender();
-        toast("已恢复示例数据", "", "ok");
+        toast("已恢复默认数据", "楼栋回到内置校区数据，课表清空", "ok");
       });
     });
 
