@@ -122,7 +122,16 @@ window.OP = window.OP || {};
           "&mode=walking&region=%E5%85%A8%E5%9B%BD&output=html&src=webapp.olympic-protocal"
       },
       {
+        label: "Google 地图",
+        /* 这是 Google 的通用链接（universal link）：
+           装了 App 就直接打开 App，没装才退回网页。
+           香港用标准 WGS-84 坐标，不需要转换。 */
+        url: "https://www.google.com/maps/dir/?api=1&destination=" +
+          lat.toFixed(6) + "," + lng.toFixed(6) + "&travelmode=walking"
+      },
+      {
         label: "苹果地图",
+        /* maps.apple.com 也是通用链接，会直接唤起「地图」App */
         url: "https://maps.apple.com/?daddr=" + lat.toFixed(6) + "," + lng.toFixed(6) + "&dirflg=w"
       },
       {
