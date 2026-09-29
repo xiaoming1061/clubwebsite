@@ -333,6 +333,13 @@ body {
 /* ---------- 地图 ---------- */
 
 .map-wrap {
+  /* 给 Leaflet 单独开一个层叠上下文。
+     不加这个，Leaflet 内部那些 z-index（图层面板 400、控件 1000）会直接跟
+     整页比高低，于是往下滑时地图会盖在顶栏「Olympic Protocol」和底部导航上面。
+     有了这一层，地图再高也只是在自己这块地盘里排。 */
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
   border-radius: var(--radius-sm);
   background: radial-gradient(circle at 50% 40%, #101c33, #0a1120 72%);
   border: 1px solid var(--line);
@@ -375,13 +382,13 @@ body {
 .rm-pin {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #16324a;
-  border: 2.5px solid var(--accent);
+  border: 2px solid var(--accent);
   color: var(--text);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
@@ -392,11 +399,11 @@ body {
 .leaflet-tooltip.rm-tip {
   background: rgba(10, 17, 32, 0.92);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
-  padding: 5px 9px;
+  padding: 4px 7px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
 }
@@ -425,7 +432,7 @@ body {
 
 .bld-order {
   fill: var(--text);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   text-anchor: middle;
   font-family: inherit;
@@ -434,14 +441,14 @@ body {
 
 .bld-time {
   fill: var(--text-dim);
-  font-size: 16px;
+  font-size: 18px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 .bld-flag {
   fill: var(--accent);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
   text-anchor: middle;
   font-family: inherit;
@@ -449,14 +456,14 @@ body {
 
 .map-note {
   fill: var(--text-dim);
-  font-size: 18px;
+  font-size: 20px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 .bld-label {
   fill: var(--text);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   text-anchor: middle;
   font-family: inherit;
@@ -492,19 +499,19 @@ body {
 
 .me-ring { fill: rgba(56, 225, 255, 0.18); animation: pulse 2s ease-out infinite; }
 .me-dot { fill: var(--accent); stroke: #04121c; stroke-width: 3; }
-.me-label { fill: var(--accent); font-size: 20px; font-weight: 700; text-anchor: middle; font-family: inherit; }
+.me-label { fill: var(--accent); font-size: 23px; font-weight: 700; text-anchor: middle; font-family: inherit; }
 
 .dist-label {
   fill: var(--text);
-  font-size: 18px;
+  font-size: 21px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 @keyframes pulse {
-  0% { r: 8; opacity: 0.9; }
-  70% { r: 24; opacity: 0; }
-  100% { r: 24; opacity: 0; }
+  0% { r: 13; opacity: 0.9; }
+  70% { r: 36; opacity: 0; }
+  100% { r: 36; opacity: 0; }
 }
 
 .map-empty { color: var(--text-faint); font-size: 12px; text-align: center; padding: 26px 10px; }

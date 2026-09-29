@@ -14,7 +14,7 @@
 window.OP = window.OP || {};
 
 window.OP.DEFAULT_BUILDINGS = {
-  version: 1,
+  version: 2,
   name: "香港中文大学",
   buildings: [
     { id: "b-muk35r0x-pkbmz", name: "12W", alias: [], lat: 22.427188, lng: 114.209693, elevation: 6 },
@@ -239,7 +239,7 @@ window.OP.DEFAULT_BUILDINGS = {
     { id: "b-muk35r0x-yd4r5", name: "University Residence No. 16", alias: ["第十六苑"], lat: 22.423756, lng: 114.207966, elevation: 43 },
     { id: "b-muk35r0x-jxnuh", name: "University Residence No. 17", alias: ["第十七苑"], lat: 22.423499, lng: 114.208335, elevation: 27 },
     { id: "b-muk35r0x-0qo0a", name: "University Residence Nos. 3", alias: ["三苑"], lat: 22.421465, lng: 114.203032, elevation: 109 },
-    { id: "b-muk35r0x-lfize", name: "University Science Centre", alias: ["科學館"], lat: 22.419516, lng: 114.20799, elevation: 109 },
+    { id: "b-muk35r0x-lfize", name: "University Science Centre", alias: ["科學館", "Science Centre"], lat: 22.419516, lng: 114.20799, elevation: 109 },
     { id: "b-muk3huqp-a2pf6", name: "University Sports Centre", alias: ["大學體育中心"], lat: 22.418594, lng: 114.211111, elevation: 55 },
     { id: "b-muk3huqp-c09tj", name: "University Station Cycling Entry/Exit Hub", alias: ["大學站單車匯合中心"], lat: 22.414062, lng: 114.210532, elevation: 8 },
     { id: "b-muk35r0x-kbwio", name: "Vice-Chancellor Residence", alias: ["漢園"], lat: 22.416756, lng: 114.202814, elevation: 127 },

@@ -133,8 +133,9 @@ window.OP = window.OP || {};
     stops.forEach(function (s) {
       var b = s.building;
       var p = project(b);
-      /* 圆圈继续缩小：标签本身已经够说明问题，圈太大反而压住路线和楼名 */
-      var r = s.isNext ? 13 : 11;
+      /* 简图是"一眼看清今天去哪几栋"，圈和字都要够大。
+         真实街道图上那是另一回事——那边会压住地图细节，所以那边反过来缩小。 */
+      var r = s.isNext ? 18 : 15;
 
       parts.push("<g>" +
         '<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
@@ -143,14 +144,14 @@ window.OP = window.OP || {};
           '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '">' +
           esc(s.order || "") + "</text>" +
         '<text class="bld-label' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 22).toFixed(1) + '">' +
+          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 26).toFixed(1) + '">' +
           esc(b.name) + "</text>" +
         (s.time
-          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 42).toFixed(1) + '">' +
+          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 48).toFixed(1) + '">' +
             esc(s.time) + "</text>"
           : "") +
         (s.isNext
-          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 10).toFixed(1) + '">下一节</text>'
+          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 12).toFixed(1) + '">下一节</text>'
           : "") +
         "</g>");
     });
@@ -159,9 +160,9 @@ window.OP = window.OP || {};
     if (opts.position) {
       var me = project(opts.position);
       parts.push("<g>" +
-        '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="9"/>' +
-        '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="7"/>' +
-        '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 18).toFixed(1) + '">我的位置</text>' +
+        '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="13"/>' +
+        '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="10"/>' +
+        '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 28).toFixed(1) + '">我的位置</text>' +
         "</g>");
     } else if (stops.length) {
       /* 没定位时在图上说一句，免得以为坏了 */

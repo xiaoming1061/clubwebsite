@@ -92,12 +92,13 @@ window.OP = window.OP || {};
   function markerFor(L, stop) {
     var cls = "rm-pin" + (stop.isNext ? " is-next" : "");
 
+    /* 街道图/港中文地图上的点要小：底图本身信息密，点大了就盖住路和楼 */
     var marker = L.marker([stop.building.lat, stop.building.lng], {
       icon: L.divIcon({
         className: "rm-icon",
         html: '<span class="' + cls + '">' + esc(stop.order || "") + "</span>",
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
       }),
       zIndexOffset: stop.isNext ? 1000 : 0
     });
@@ -110,7 +111,7 @@ window.OP = window.OP || {};
     marker.bindTooltip(label, {
       permanent: !!stop.isNext,
       direction: stop.isNext ? "bottom" : "top",
-      offset: [0, stop.isNext ? 14 : -14],
+      offset: [0, stop.isNext ? 12 : -12],
       className: "rm-tip" + (stop.isNext ? " is-next" : "")
     });
 
@@ -151,7 +152,7 @@ window.OP = window.OP || {};
 
     if (opts.position && hasCoords(opts.position)) {
       L.circleMarker([opts.position.lat, opts.position.lng], {
-        radius: 7,
+        radius: 5,
         color: "#04121c",
         weight: 3,
         fillColor: "#38e1ff",
@@ -159,7 +160,7 @@ window.OP = window.OP || {};
       }).addTo(overlay).bindTooltip("我的位置", {
         permanent: true,
         direction: "top",
-        offset: [0, -10],
+        offset: [0, -8],
         className: "rm-tip is-me"
       });
       points.push([opts.position.lat, opts.position.lng]);

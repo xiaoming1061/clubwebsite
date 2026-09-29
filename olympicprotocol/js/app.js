@@ -1921,12 +1921,18 @@
 
     window.setInterval(tick, 1000);
 
-    /* 默认楼栋更新了，告诉用户补进来了哪几栋 */
-    if (pendingBuildingSync.added.length) {
-      var names = pendingBuildingSync.added.map(function (b) { return b.name; });
-      toast("楼栋已补齐 " + names.length + " 栋",
-        names.slice(0, 4).join("、") + (names.length > 4 ? " 等" : "") +
-        "（默认数据更新了，只补不加改）", "ok");
+    /* 默认楼栋更新了，告诉用户补了什么 */
+    if (pendingBuildingSync.added.length || pendingBuildingSync.aliased.length) {
+      var synced = [];
+      if (pendingBuildingSync.added.length) {
+        var names = pendingBuildingSync.added.map(function (b) { return b.name; });
+        synced.push("新增 " + names.length + " 栋：" + names.slice(0, 4).join("、") +
+          (names.length > 4 ? " 等" : ""));
+      }
+      if (pendingBuildingSync.aliased.length) {
+        synced.push("补了 " + pendingBuildingSync.aliased.length + " 个别名");
+      }
+      toast("楼栋数据已更新", synced.join("；") + "（只补不加改）", "ok");
     }
 
     window.addEventListener("resize", function () {

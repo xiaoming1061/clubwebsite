@@ -85,8 +85,8 @@ window.OP = window.OP || {};
 
   /* ---------- 默认楼栋的版本同步 ---------- */
 
-  /* 最近一次 load() 补进来了哪些楼，界面拿它提示一句 */
-  var lastSync = { added: [] };
+  /* 最近一次 load() 补了什么（新楼、别名），界面拿它提示一句 */
+  var lastSync = { added: [], aliased: [] };
 
   function shippedBuildings() {
     var shipped = OP.DEFAULT_BUILDINGS;
@@ -106,26 +106,35 @@ window.OP = window.OP || {};
   }
 
   function rememberKeys(index, building) {
-    if (building.id) index["id:" + building.id] = true;
-    if (building.name) index["n:" + buildingKey(building.name)] = true;
+    if (building.id) index["id:" + building.id] = building;
+    if (building.name) index["n:" + buildingKey(building.name)] = building;
     (building.alias || []).forEach(function (alias) {
-      if (alias) index["n:" + buildingKey(alias)] = true;
+      if (alias) index["n:" + buildingKey(alias)] = building;
     });
   }
 
-  function isKnown(index, building) {
-    if (building.id && index["id:" + building.id]) return true;
-    if (building.name && index["n:" + buildingKey(building.name)]) return true;
-    return (building.alias || []).some(function (alias) {
-      return alias && index["n:" + buildingKey(alias)];
+  /* 本地列表里有没有这栋（同 id、同名或同别名），有就返回它 */
+  function findKnown(index, building) {
+    if (building.id && index["id:" + building.id]) return index["id:" + building.id];
+    if (building.name && index["n:" + buildingKey(building.name)]) {
+      return index["n:" + buildingKey(building.name)];
+    }
+    var hit = null;
+    (building.alias || []).forEach(function (alias) {
+      if (!hit && alias && index["n:" + buildingKey(alias)]) {
+        hit = index["n:" + buildingKey(alias)];
+      }
     });
+    return hit;
   }
 
   /**
-   * 把默认楼栋里「本地还没有的」补进来。
+   * 把默认楼栋里「本地还没有的」补进来，顺手把缺的别名补上。
    *
-   * 只加不改：本地已有的（同 id、同名或同别名）一律原样留着，
-   * 用户自己改过的坐标和别名不会被默认值覆盖。
+   * 只加不改：本地已有的（同 id、同名或同别名）保留原样，
+   * 名字、坐标、用户自己写的别名都不会被默认值覆盖；
+   * 只有"默认数据里有、本地没有"的别名才会追加进去——
+   * 默认数据里改的是"课表上那种写法"，不补的话用户那边永远对不上。
    *
    * 为什么需要它：默认楼栋会跟着仓库更新（补录新楼、修正坐标），
    * 但用户一旦在本地存过楼栋，默认值就不再自动生效了——
@@ -136,14 +145,36 @@ window.OP = window.OP || {};
     list.forEach(function (b) { rememberKeys(index, b); });
 
     var added = [];
+    var aliased = [];
+
     (shipped.buildings || []).forEach(function (b) {
-      if (!b || !b.name || isKnown(index, b)) return;
-      var copy = clone(b);
-      list.push(copy);
-      rememberKeys(index, copy);
-      added.push(copy);
+      if (!b || !b.name) return;
+
+      var local = findKnown(index, b);
+
+      if (!local) {
+        var copy = clone(b);
+        list.push(copy);
+        rememberKeys(index, copy);
+        added.push(copy);
+        return;
+      }
+
+      /* 已经在列表里：只补别名 */
+      if (!Array.isArray(local.alias)) local.alias = [];
+      (b.alias || []).forEach(function (alias) {
+        if (!alias) return;
+        var aliasKey = "n:" + buildingKey(alias);
+        /* 别的楼已经占着这个名字了，就别硬塞，免得一栋楼被两处认领 */
+        if (index[aliasKey] && index[aliasKey] !== local) return;
+        if (local.alias.some(function (a) { return buildingKey(a) === aliasKey.slice(2); })) return;
+        local.alias.push(alias);
+        index[aliasKey] = local;
+        aliased.push({ name: local.name, alias: alias });
+      });
     });
-    return added;
+
+    return { added: added, aliased: aliased };
   }
 
   /* ---------- 三份数据各自的合并规则 ---------- */
@@ -220,11 +251,11 @@ window.OP = window.OP || {};
 
     /* 默认楼栋有新版本就把缺的补进来。
        本地楼栋是空的时候不补：那是用户自己清空的，别硬塞回去。 */
-    var added = [];
+    var sync = { added: [], aliased: [] };
     if (parts.buildings && Array.isArray(parts.buildings.buildings) &&
         parts.buildings.buildings.length &&
         shipped.version > (Number(parts.buildings.defaultVersion) || 0)) {
-      added = mergeShippedBuildings(parts.buildings.buildings, shipped);
+      sync = mergeShippedBuildings(parts.buildings.buildings, shipped);
       parts.buildings.defaultVersion = shipped.version;
     }
 
@@ -236,11 +267,11 @@ window.OP = window.OP || {};
     if (fromLegacy) {
       save(data);
       LEGACY_BUNDLE_KEYS.forEach(removeKey);
-    } else if (added.length) {
+    } else if (sync.added.length || sync.aliased.length) {
       save(data);
     }
 
-    lastSync = { added: added };
+    lastSync = sync;
     return data;
   }
 
@@ -416,8 +447,10 @@ window.OP = window.OP || {};
     readFile: readFile,
     applyImport: applyImport,
     appendBuildings: appendBuildings,
-    /* 上一次 load() 补进来了哪些默认楼栋（界面用来提示） */
-    lastSync: function () { return { added: lastSync.added.slice() }; },
+    /* 上一次 load() 补了什么：新增的楼栋、补上的别名（界面用来提示） */
+    lastSync: function () {
+      return { added: lastSync.added.slice(), aliased: lastSync.aliased.slice() };
+    },
     /* 默认楼栋当前的版本号 */
     defaultBuildingsVersion: function () { return shippedBuildings().version; },
     KEYS: {
