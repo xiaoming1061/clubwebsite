@@ -342,69 +342,72 @@
    * 这一段能不能坐校巴。
    *
    * 按"你按建议出发时间出门"来算：走到车站 → 等车 → 坐车 → 下车走到教室，
-   * 然后和走路比谁先到。最多给两个方案。
+   * 然后和走路比谁先到。
+   *
+   * 上车站取离你最近的、下车站取离教室最近的；最近那个站没车可坐才退到第二近。
+   * 每条线把**所有赶得上的班次**都列出来，每班写清楚车几点到这个站、
+   * 几点到目标站、下车走到教室几点。
    */
   function busOptions(leg, course) {
     if (!OP.Shuttle || !leg.fromPoint || !leg.toPoint) return "";
 
     var walkMin = leg.metrics ? leg.metrics.minutes : null;
-    var plans = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin, data.settings);
+    var plan = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin,
+      data.settings, leg.start);
 
-    /* 明显比走路慢的就不显示了——那种情况只会让页面变吵 */
-    plans = plans.filter(function (o) { return o.saves === null || o.saves >= -2; });
-    if (!plans.length) return "";
+    /* 明显比走路慢的班次不列 */
+    var worth = OP.Shuttle.WORTH_MIN;
+    var groups = (plan.groups || []).map(function (g) {
+      return Object.assign({}, g, {
+        rides: g.rides.filter(function (r) { return r.saves === null || r.saves >= worth; })
+      });
+    }).filter(function (g) {
+      return g.rides.length;
+    }).slice(0, 2);
+    if (!groups.length) return "";
 
-    var classStart = P.hm(course.start);
+    var html = groups.map(function (g) {
+      var flags = [];
+      if (g.caveat === "teaching" || g.route.group === "meetclass") flags.push("只在教學日");
+      if (g.caveat === "nonTeaching") flags.push("只在非教學日");
+      if (g.route.group === "night") flags.push("晚間/假日線");
+      if (g.wrapped) flags.push("要繞一圈");
+      if (g.boardNote) flags.push("上車：" + g.boardNote);
+      if (g.alightNote) flags.push("下車：" + g.alightNote);
 
-    var rows = plans.slice(0, 2).map(function (o) {
-      var arriveMin = o.arriveAt.getHours() * 60 + o.arriveAt.getMinutes();
-      var verdict = "";
-      var tone = "";
+      var rides = g.rides.map(function (r) {
+        var verdict;
+        var tone = "";
+        if (r.saves === null) verdict = "";
+        else if (r.saves >= 1) { verdict = "比走路快 " + Math.round(r.saves) + " 分"; tone = " is-faster"; }
+        else if (r.saves <= -1) verdict = "比走路慢 " + Math.round(-r.saves) + " 分";
+        else verdict = "和走路差不多";
 
-      if (arriveMin > classStart) {
-        verdict = "赶不上 " + esc(course.start);
-        tone = " is-late";
-      } else if (o.saves !== null && o.saves >= 1) {
-        verdict = "比走路快 " + Math.round(o.saves) + " 分";
-        tone = " is-faster";
-      } else if (o.saves !== null && o.saves <= -1) {
-        verdict = "比走路慢 " + Math.round(-o.saves) + " 分";
-      } else {
-        verdict = "和走路差不多";
-      }
-
-      var extra = [];
-      if (o.wrapped) extra.push("要绕一圈");
-      if (o.boardNote) extra.push("上車：" + o.boardNote);
-      if (o.alightNote) extra.push("下車：" + o.alightNote);
-      if (o.caveat === "teaching") extra.push("只在教學日");
-      if (o.caveat === "nonTeaching") extra.push("只在非教學日");
-      if (o.route.group === "meetclass") extra.push("只限教學日");
-      if (o.route.group === "night") extra.push("晚間/假日線");
-
-      return '<div class="bus-row' + tone + '">' +
-        '<div class="bus-where">' +
-          '<span class="bus-tag">' + esc(o.route.no) + "</span>" +
-          esc(o.route.nameZh) +
-          '<span class="bus-stops">' + esc(o.board.stop.zh) + " 上車 → " +
-            esc(o.alight.stop.zh) + " 下車</span>" +
-        "</div>" +
-        '<div class="bus-when">' +
-          "上車 <b>" + clockText(o.boardAt) + "</b> · " +
-          "到達 <b>" + clockText(o.arriveAt) + "</b> · " +
-          "合計 <b>" + Math.round(o.totalMin) + " 分</b>" +
+        return '<div class="bus-ride' + tone + '">' +
+          "車到站 <b>" + clockText(r.busAtBoard) + "</b> · " +
+          "到目標站 <b>" + clockText(r.busAtAlight) + "</b> · " +
+          "到教室 <b>" + clockText(r.arriveAt) + "</b> · " +
+          "合計 <b>" + Math.round(r.totalMin) + " 分</b>" +
           (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
+        "</div>";
+      }).join("");
+
+      var first = g.rides[0];
+      return '<div class="bus-group">' +
+        '<div class="bus-where">' +
+          '<span class="bus-tag">' + esc(g.route.no) + "</span>" + esc(g.route.nameZh) +
         "</div>" +
-        '<div class="bus-breakdown">' +
-          "走到車站 " + Math.round(o.board.minutes) + " 分 · 等 " + Math.round(o.waitMin) +
-          " 分 · 車程 " + Math.round(o.rideMin) + " 分 · 下車走 " +
-          Math.round(o.alight.minutes) + " 分" +
-          (extra.length ? " · " + esc(extra.join(" · ")) : "") +
+        '<div class="bus-stops">' + esc(g.board.stop.zh) + " 上車 → " +
+          esc(g.alight.stop.zh) + " 下車" +
+          "（走 " + Math.round(g.board.minutes) + " 分 + 車程 " +
+          Math.round(first.rideMin) + " 分 + 走 " + Math.round(first.walkAfterMin) + " 分）" +
         "</div>" +
+        rides +
+        (flags.length ? '<div class="bus-breakdown">' + esc(flags.join(" · ")) + "</div>" : "") +
       "</div>";
     }).join("");
 
-    return '<div class="leg-bus"><div class="leg-bus-head">校巴</div>' + rows + "</div>";
+    return '<div class="leg-bus"><div class="leg-bus-head">校巴</div>' + html + "</div>";
   }
 
   function renderRoute() {

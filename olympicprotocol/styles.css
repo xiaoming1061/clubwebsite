@@ -574,8 +574,8 @@ body {
   color: var(--accent);
 }
 
-.bus-row { display: flex; flex-direction: column; gap: 3px; }
-.bus-row + .bus-row { border-top: 1px solid rgba(34, 48, 77, 0.7); padding-top: 9px; }
+.bus-group { display: flex; flex-direction: column; gap: 4px; }
+.bus-group + .bus-group { border-top: 1px solid rgba(34, 48, 77, 0.7); padding-top: 10px; }
 
 .bus-where {
   display: flex;
@@ -601,15 +601,16 @@ body {
 
 .bus-stops { font-size: 12.5px; font-weight: 500; color: var(--text-dim); }
 
-.bus-when {
+.bus-ride {
   font-size: 12.5px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+  padding-left: 2px;
 }
 
-.bus-when b { color: var(--text); font-weight: 650; }
+.bus-ride b { color: var(--text); font-weight: 650; }
+.bus-ride.is-faster b:last-of-type { color: var(--accent); }
 .bus-verdict { color: var(--ok); font-weight: 700; }
-.bus-row.is-late .bus-verdict { color: var(--err); }
 
 .bus-breakdown { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
 
