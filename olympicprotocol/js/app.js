@@ -339,19 +339,15 @@
 
   /* ================= 校巴方案 ================= */
 
-  function clockText(date) {
-    return pad2(date.getHours()) + ":" + pad2(date.getMinutes());
-  }
-
   /**
    * 这一段能不能坐校巴。
    *
-   * 按"你按建议出发时间出门"来算：走到车站 → 等车 → 坐车 → 下车走到教室，
-   * 然后和走路比谁先到。
+   * 上车站取离你最近的、下车站取离教室最近的；最近那个站坐不了才退到第二近。
+   * 只要能到目的地附近的车站，这条线就列出来——慢的、赶不上的都列，
+   * 由你自己判断。
    *
-   * 上车站取离你最近的、下车站取离教室最近的；最近那个站没车可坐才退到第二近。
-   * 每条线把**所有赶得上的班次**都列出来，每班写清楚车几点到这个站、
-   * 几点到目标站、下车走到教室几点。
+   * **只写时长，不写"几点到"**：校巴到站时间太不稳，报了反而误导。
+   * 每行是「走到车站 + 车程 + 走到教室 = 合计」，再加这条线大概几分钟一班。
    */
   function busOptions(leg, course) {
     if (!leg.fromPoint || !leg.toPoint) return "";
@@ -364,17 +360,15 @@
         '（iOS 加到桌面的话：删掉图标重新添加）。</div></div>';
     }
 
-    var walkMin = leg.metrics ? leg.metrics.minutes : null;
-    var plan = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin,
-      data.settings, leg.start);
+    var plan = leg.busPlan;
+    if (!plan) return "";
 
     /* 全部列出来：比走路慢也好、赶不上这一节也好，都摆出来让人自己挑。
        排在前面的仍然是"上车站离你最近"的那些。 */
     var groups = plan.groups || [];
     if (!groups.length) {
-      /* 说清楚为什么没有：没车 / 赶不上 / 都比走路慢，三种情况不一样 */
       return '<div class="leg-bus is-none"><div class="leg-bus-head">校巴</div>' +
-        '<div class="bus-none">' + esc(plan.reason || "這段沒有合適的班次") + "</div></div>";
+        '<div class="bus-none">' + esc(plan.reason || "这段没有合适的班次") + "</div></div>";
     }
 
     var html = groups.map(function (g) {
@@ -385,36 +379,27 @@
       if (g.boardNote) flags.push("上车：" + g.boardNote);
       if (g.alightNote) flags.push("下车：" + g.alightNote);
 
-      var rides = g.rides.map(function (r) {
-        var verdict;
-        var tone = "";
-        if (r.saves === null) verdict = "";
-        else if (r.saves >= 1) { verdict = "比走路快 " + Math.round(r.saves) + " 分"; tone = " is-faster"; }
-        else if (r.saves <= -1) verdict = "比走路慢 " + Math.round(-r.saves) + " 分";
-        else verdict = "和走路差不多";
-        if (r.late) tone += " is-late";
+      /* 只写预估时长，不写"几点到"——校巴到站时间不稳，报了反而误导 */
+      var verdict = "";
+      var tone = "";
+      if (g.saves !== null && g.saves >= 1) { verdict = "比走路快 " + Math.round(g.saves) + " 分"; tone = " is-faster"; }
+      else if (g.saves !== null && g.saves <= -1) verdict = "比走路慢 " + Math.round(-g.saves) + " 分";
+      else if (g.saves !== null) verdict = "和走路差不多";
 
-        return '<div class="bus-ride' + tone + '">' +
-          "车到站 <b>" + clockText(r.busAtBoard) + "</b> · " +
-          "到目标站 <b>" + clockText(r.busAtAlight) + "</b> · " +
-          "到教室 <b>" + clockText(r.arriveAt) + "</b> · " +
-          "合计 <b>" + Math.round(r.totalMin) + " 分</b>" +
-          (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
-          (r.late ? ' <span class="bus-late">赶不上 ' + esc(course.start) + "</span>" : "") +
-        "</div>";
-      }).join("");
-
-      var first = g.rides[0];
       return '<div class="bus-group">' +
         '<div class="bus-where">' +
           '<span class="bus-tag">' + esc(g.route.no) + "</span>" + esc(g.route.nameZh) +
         "</div>" +
         '<div class="bus-stops">' + esc(g.board.stop.zh) + " 上车 → " +
           esc(g.alight.stop.zh) + " 下车" +
-          "（走 " + Math.round(g.board.minutes) + " 分 + 车程 " +
-          Math.round(first.rideMin) + " 分 + 走 " + Math.round(first.walkAfterMin) + " 分）" +
         "</div>" +
-        rides +
+        '<div class="bus-ride' + tone + '">' +
+          "走到车站 <b>" + Math.round(g.walkBeforeMin) + "</b> 分 + 车程 <b>" +
+            Math.round(g.rideMin) + "</b> 分 + 走到教室 <b>" + Math.round(g.walkAfterMin) +
+            "</b> 分 = 合计 <b>" + Math.round(g.totalMin) + "</b> 分" +
+          (g.headwayMin ? ' · 约每 <b>' + g.headwayMin + "</b> 分钟一班" : "") +
+          (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
+        "</div>" +
         (flags.length ? '<div class="bus-breakdown">' + esc(flags.join(" · ")) + "</div>" : "") +
       "</div>";
     }).join("");
@@ -448,6 +433,38 @@
       s.isNext = s.building.id === nextBuildingId;
     });
 
+    /*
+     * 先把每段行程的校巴方案算出来。
+     * 必须在地图之前算：地图要标出这些车站（在哪上车、在哪下车）。
+     */
+    var busStops = [];
+    var busSeen = {};
+    var hasShuttle = !!(OP.Shuttle && (OP.SHUTTLE_ROUTES || []).length);
+
+    function rememberStop(entry, role) {
+      if (!entry || !entry.stop) return;
+      var key = entry.id;
+      if (!busSeen[key]) {
+        busSeen[key] = { id: entry.id, stop: entry.stop, roles: {} };
+        busStops.push(busSeen[key]);
+      }
+      busSeen[key].roles[role] = true;
+    }
+
+    route.forEach(function (leg) {
+      leg.busPlan = hasShuttle
+        ? OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.start,
+          leg.metrics ? leg.metrics.minutes : null, data.settings)
+        : null;
+      if (!leg.busPlan) return;
+
+      /* 实际用到的上下车站 */
+      (leg.busPlan.groups || []).forEach(function (g) {
+        rememberStop(g.board, "board");
+        rememberStop(g.alight, "alight");
+      });
+    });
+
     /* 三种底图：简图（离线 SVG）/ OSM 街道图 / 港中文校园地图 */
     var mode = data.settings.mapMode || "schematic";
     var svg = $("#mapSvg");
@@ -469,6 +486,7 @@
         buildings: buildings,
         position: info.position,
         stops: stops,
+        busStops: busStops,
         detourFactor: data.settings.detourFactor
       });
     } else {
@@ -478,7 +496,8 @@
       OP.RealMap.render(realBox, {
         source: mode,
         position: info.position,
-        stops: stops
+        stops: stops,
+        busStops: busStops
       }).catch(function (err) {
         toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
       });

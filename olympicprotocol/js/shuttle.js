@@ -34,11 +34,11 @@ window.OP = window.OP || {};
 
   var ROAD_FACTOR = 1.15;       // 站点直线距离 → 校巴实际走的路
   var DWELL_MIN = 0.25;         // 每停一站的时间
-  var MAX_ACCESS = 650;         // 走到车站超过这个距离就不考虑了
-  var MAX_BOARD_CANDIDATES = 3; // 最多退到第几近的上车站
-  var MAX_ALIGHT_CANDIDATES = 3;
-  var MAX_RIDES = 12;           // 每条线最多列几班车
-  var RIDE_WINDOW_MIN = 60;     // 从"第一班坐得上的车"起，往后最多列这么久
+  /* 上车那一头走太远就没意义；下车那一头放宽，让更多线路能显示出来 */
+  var MAX_ACCESS_BOARD = 650;
+  var MAX_ACCESS_ALIGHT = 1200;
+  var MAX_BOARD_CANDIDATES = 4;
+  var MAX_ALIGHT_CANDIDATES = 6;
   var DEFAULT_BUS_SPEED = 330;  // 米/分钟，约 20 km/h（含停站）
   var DEFAULT_CLIMB = 8;        // 1 米爬升 ≈ 几米平路
 
@@ -250,20 +250,25 @@ window.OP = window.OP || {};
   /**
    * 给一段行程找校巴方案。
    *
+   * 不再算"哪一班车几点到"——校巴到站时间太不稳，报了反而误导。
+   * 这里只给**稳定的那部分**：哪几个站、走多久、车程多久、上车下车各走多久、
+   * 这条线大概几分钟一班。
+   *
    * @param from     起点 { lat, lng, elevation }
    * @param to       终点 { lat, lng, elevation }
-   * @param when     什么时候从起点出发（Date）
-   * @param walkMin  走路要多少分钟（用来比较值不值得坐车）
+   * @param when     哪一天（只用来看星期几，决定哪些线开）
+   * @param walkMin  走路要多少分钟（用来比较坐车划不划算）
    * @param settings 设置
-   * @param deadline 最晚什么时候要到（一般是上课时间），超过的班次不列
-   * @returns {board, alight, groups} —— groups 里每个是"一条路线 + 一对上下车站 + 所有能坐的班次"
+   * @returns { board, alight, groups, reason }
+   *          groups 里每条线一个：{ route, board, alight, walkBeforeMin, rideMin,
+   *          walkAfterMin, totalMin, saves, headwayMin, caveat, boardNote, alightNote }
    */
-  function plan(from, to, when, walkMin, settings, deadline) {
+  function plan(from, to, when, walkMin, settings) {
     var empty = { board: null, alight: null, groups: [], reason: "" };
     if (!from || !to || !when) return empty;
 
-    var boards = nearbyStops(from, settings, MAX_ACCESS, MAX_BOARD_CANDIDATES);
-    var alights = nearbyStops(to, settings, MAX_ACCESS, MAX_ALIGHT_CANDIDATES);
+    var boards = nearbyStops(from, settings, MAX_ACCESS_BOARD, MAX_BOARD_CANDIDATES);
+    var alights = nearbyStops(to, settings, MAX_ACCESS_ALIGHT, MAX_ALIGHT_CANDIDATES);
     if (!boards.length || !alights.length) {
       empty.reason = "附近没有校巴站";
       return empty;
@@ -273,128 +278,79 @@ window.OP = window.OP || {};
     var connected = 0;   // 有多少对"上车站 → 下车站"在顺序上说得通
 
     boards.forEach(function (b, bRank) {
-      /* 走到车站的时刻 */
-      var atStop = new Date(when.getTime() + b.minutes * 60000);
-
       alights.forEach(function (a, aRank) {
         if (a.id === b.id) return;
         var walkAfter = walkMinutes(a.stop, to, settings);
         if (walkAfter === null) return;
 
         routeTable().forEach(function (route) {
-          var ids = stopIds(route);
-          if (ids.length < 2) return;
+          if (!runsOn(route, when)) return;
 
+          var ids = stopIds(route);
           var i = ids.indexOf(b.id);
           var j = ids.indexOf(a.id);
-          if (i < 0 || j < 0 || i === j) return;
+          if (i < 0 || j < 0 || i >= j) return;
 
-          var toBoard = i === 0 ? 0 : rideMinutes(route, 0, i, settings);
-          if (toBoard === null) return;
           var ride = rideMinutes(route, i, j, settings);
           if (ride === null) return;
           connected++;
 
-          var boardRules = noteRules(stopNote(route, b.id));
-          var alightRules = noteRules(stopNote(route, a.id));
-          var caveat = boardRules.dayType || alightRules.dayType;
-
-          /* 能坐的班次：车到这个站的时间不早于你到站的时刻 */
-          var departures = nextDepartures(route, new Date(atStop.getTime() - toBoard * 60000), MAX_RIDES + 4);
-          var rides = [];
-
-          for (var n = 0; n < departures.length; n++) {
-            var date = departures[n];
-            var busAtBoard = new Date(date.getTime() + toBoard * 60000);
-            if (busAtBoard.getTime() < atStop.getTime() - 1000) continue;
-            if (!runStops(boardRules, date)) continue;
-            if (!runStops(alightRules, date)) continue;
-
-            /* 列到"第一班之后一小时"为止：再往后就是同一趟车循环，
-               列出来只会把页面撑满 */
-            if (rides.length &&
-                (date.getTime() - rides[0].departAt.getTime()) > RIDE_WINDOW_MIN * 60000) break;
-
-            var busAtAlight = new Date(busAtBoard.getTime() + ride * 60000);
-            var arriveAt = new Date(busAtAlight.getTime() + walkAfter * 60000);
-            var total = (arriveAt.getTime() - when.getTime()) / 60000;
-
-            rides.push({
-              departAt: date,
-              busAtBoard: busAtBoard,
-              busAtAlight: busAtAlight,
-              arriveAt: arriveAt,
-              waitMin: (busAtBoard.getTime() - atStop.getTime()) / 60000,
-              rideMin: ride,
-              walkAfterMin: walkAfter,
-              totalMin: total,
-              /* 到得太晚也照样列出来，只做个记号让人自己判断 */
-              late: !!(deadline && arriveAt.getTime() > deadline.getTime()),
-              saves: (walkMin === null || walkMin === undefined) ? null : walkMin - total
-            });
-            if (rides.length >= MAX_RIDES) break;
-          }
-
-          if (!rides.length) return;
-
+          var total = b.minutes + ride + walkAfter;
           combos.push({
             route: route,
             board: b,
             alight: a,
             boardRank: bRank,
             alightRank: aRank,
-            caveat: caveat,
+            walkBeforeMin: b.minutes,
+            rideMin: ride,
+            walkAfterMin: walkAfter,
+            totalMin: total,
+            headwayMin: headwayOf(route),
+            caveat: noteRules(stopNote(route, b.id)).dayType ||
+              noteRules(stopNote(route, a.id)).dayType,
             boardNote: stopNote(route, b.id),
             alightNote: stopNote(route, a.id),
-            rides: rides
+            saves: (walkMin === null || walkMin === undefined) ? null : walkMin - total
           });
         });
       });
     });
 
-    /* 排序：
-       1) 上车站越近越前（用户要的"优先最近的车站"）
-       2) 下车站越近目的地越前
-       3) 要看校历才能确定的车次往后放
-       4) 最后才比谁先到 */
-    /* 不再按"值不值得"筛掉：只要能到目的地附近就有参考价值，
-       哪怕比走路慢、哪怕赶不上这一节课——把选择权交回给人。
-
-       排序按"第一班车什么时候到"：车站就近已经决定了**每条线自己**在哪站上车，
-       但线之间不该再按远近排——否则"晚上 7 点才开的首班车"会因为车站最近而
-       排到第一行。谁先到谁在前，一样近的再看车站远近。 */
-    combos.sort(function (a, b) {
-      var ta = a.rides[0].arriveAt.getTime();
-      var tb = b.rides[0].arriveAt.getTime();
-      if (ta !== tb) return ta - tb;
-      var ra = a.boardRank + a.alightRank;
-      var rb = b.boardRank + b.alightRank;
-      if (ra !== rb) return ra - rb;
-      if (!!a.caveat !== !!b.caveat) return a.caveat ? 1 : -1;
-      return 0;
-    });
-
     /* 同一条线只留最合适的那一组：同一趟车在近站和远站都上得去，
        列两遍只是重复，真正有用的是"还有哪条线能坐" */
+    combos.sort(function (a, b) {
+      if (a.totalMin !== b.totalMin) return a.totalMin - b.totalMin;
+      return (a.boardRank + a.alightRank) - (b.boardRank + b.alightRank);
+    });
+
     var seenRoute = {};
-    var deduped = combos.filter(function (c) {
+    var groups = combos.filter(function (c) {
       if (seenRoute[c.route.no]) return false;
       seenRoute[c.route.no] = true;
       return true;
     });
 
     var reason = "";
-    if (!deduped.length) {
-      if (!connected) reason = "没有线路从上车站坐到下车站（校巴单向）";
-      else reason = "这条线今天已经收车了";
+    if (!groups.length) {
+      reason = connected
+        ? "今天这些线都不开"
+        : "没有线路从上车站坐到下车站（校巴单向）";
     }
 
     return {
       board: boards[0],
       alight: alights[0],
-      groups: deduped,
+      groups: groups,
       reason: reason
     };
+  }
+
+  /* 这条线大概几分钟一班（按发布的开出分钟数推） */
+  function headwayOf(route) {
+    var minutes = (route && route.everyHour) || [];
+    if (!minutes.length) return null;
+    return Math.round(60 / minutes.length);
   }
 
   /* 今日还有哪些路线在开 */
@@ -416,8 +372,9 @@ window.OP = window.OP || {};
     stopNote: stopNote,
     noteRules: noteRules,
     runStops: runStops,
-    MAX_ACCESS: MAX_ACCESS,
-    MAX_RIDES: MAX_RIDES,
+    headwayOf: headwayOf,
+    MAX_ACCESS_BOARD: MAX_ACCESS_BOARD,
+    MAX_ACCESS_ALIGHT: MAX_ACCESS_ALIGHT,
     DEFAULT_BUS_SPEED: DEFAULT_BUS_SPEED
   };
 })(window.OP);

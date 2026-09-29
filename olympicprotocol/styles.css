@@ -508,6 +508,26 @@ body {
   font-family: inherit;
 }
 
+/* 校巴站：菱形 + 站名，和编号圆圈区分开 */
+.bus-stop {
+  fill: rgba(255, 197, 90, 0.22);
+  stroke: #ffc55a;
+  stroke-width: 2.5;
+}
+
+.bus-stop-label {
+  fill: #ffc55a;
+  font-size: 15px;
+  font-weight: 600;
+  text-anchor: middle;
+  font-family: inherit;
+  opacity: 1;
+  paint-order: stroke;
+  stroke: #0a1120;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
 @keyframes pulse {
   0% { r: 13; opacity: 0.9; }
   70% { r: 36; opacity: 0; }

@@ -133,6 +133,26 @@ window.OP = window.OP || {};
     return points;
   }
 
+  /** 校巴站也画出来：在哪上车、在哪下车 */
+  function drawBusStops(L, overlay, list) {
+    (list || []).forEach(function (s) {
+      var stop = s && s.stop;
+      if (!stop || !hasCoords(stop)) return;
+      var role = s.roles && s.roles.board ? "上车" : (s.roles && s.roles.alight ? "下车" : "");
+      L.circleMarker([stop.lat, stop.lng], {
+        radius: 4,
+        color: "#04121c",
+        weight: 2,
+        fillColor: "#ffc55a",
+        fillOpacity: 1
+      }).addTo(overlay).bindTooltip("巴士站 · " + stop.zh + (role ? "（" + role + "）" : ""), {
+        direction: "top",
+        offset: [0, -6],
+        className: "rm-tip is-stop"
+      });
+    });
+  }
+
   function draw(L, container, opts) {
     if (!map) {
       map = L.map(container, {
@@ -162,6 +182,7 @@ window.OP = window.OP || {};
     var points = routePoints(opts.position, stops);
 
     stops.forEach(function (s) { markerFor(L, s).addTo(overlay); });
+    drawBusStops(L, overlay, opts.busStops);
 
     if (opts.position && hasCoords(opts.position)) {
       L.circleMarker([opts.position.lat, opts.position.lng], {
@@ -187,8 +208,14 @@ window.OP = window.OP || {};
       }).addTo(overlay);
     }
 
-    if (points.length) {
-      map.fitBounds(L.latLngBounds(points).pad(0.35), { maxZoom: 18 });
+    /* 取景把校巴站也算进去，不然要去的站可能落在画面外 */
+    var bounds = points.slice();
+    (opts.busStops || []).forEach(function (s) {
+      if (s && s.stop && hasCoords(s.stop)) bounds.push([s.stop.lat, s.stop.lng]);
+    });
+
+    if (bounds.length) {
+      map.fitBounds(L.latLngBounds(bounds).pad(0.35), { maxZoom: 18 });
     }
 
     /* 容器尺寸变了（切页签、转屏）需要让 Leaflet 重新量一次 */

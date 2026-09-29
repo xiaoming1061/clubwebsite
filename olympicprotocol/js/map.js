@@ -95,6 +95,10 @@ window.OP = window.OP || {};
        这样画面会自然放大到有用的那块，而不是被上百栋楼撑开 */
     var frame = stops.map(function (s) { return s.building; });
     if (opts.position) frame.push(opts.position);
+    /* 校巴站也要进取景范围，否则要去的站可能落在画面外 */
+    (opts.busStops || []).forEach(function (b) {
+      if (b && b.stop && typeof b.stop.lat === "number") frame.push(b.stop);
+    });
 
     if (!frame.length) {
       svg.innerHTML = '<text x="500" y="350" class="bld-label">今天没有要去的地方</text>';
@@ -128,6 +132,21 @@ window.OP = window.OP || {};
         '" y="' + ((a.y + b2.y) / 2 - 12).toFixed(0) + '">' +
         esc(OP.Geo.formatDistance(straight * detour)) + "</text>");
     }
+
+    /* ---- 校巴站：画在行程点下面，别盖住编号圈 ---- */
+    (opts.busStops || []).forEach(function (s) {
+      var st = s && s.stop;
+      if (!st || typeof st.lat !== "number" || typeof st.lng !== "number") return;
+      var p = project(st);
+      parts.push("<g>" +
+        '<rect class="bus-stop" x="' + (p.x - 6).toFixed(1) + '" y="' + (p.y - 6).toFixed(1) +
+          '" width="12" height="12" rx="3" transform="rotate(45 ' +
+          p.x.toFixed(1) + " " + p.y.toFixed(1) + ')"/>' +
+        /* 只写站名：它在哪条线是上车、哪条线是下车，路线列表里已经写了 */
+        '<text class="bus-stop-label" x="' + p.x.toFixed(1) + '" y="' + (p.y + 23).toFixed(1) + '">' +
+          esc(st.zh) + "</text>" +
+        "</g>");
+    });
 
     /* ---- 今天要去的楼栋 ---- */
     stops.forEach(function (s) {
