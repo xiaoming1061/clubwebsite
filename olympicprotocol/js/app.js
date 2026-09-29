@@ -368,15 +368,9 @@
     var plan = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin,
       data.settings, leg.start);
 
-    /* 明显比走路慢的班次不列 */
-    var worth = OP.Shuttle.WORTH_MIN;
-    var groups = (plan.groups || []).map(function (g) {
-      return Object.assign({}, g, {
-        rides: g.rides.filter(function (r) { return r.saves === null || r.saves >= worth; })
-      });
-    }).filter(function (g) {
-      return g.rides.length;
-    }).slice(0, 2);
+    /* 全部列出来：比走路慢也好、赶不上这一节也好，都摆出来让人自己挑。
+       排在前面的仍然是"上车站离你最近"的那些。 */
+    var groups = plan.groups || [];
     if (!groups.length) {
       /* 说清楚为什么没有：没车 / 赶不上 / 都比走路慢，三种情况不一样 */
       return '<div class="leg-bus is-none"><div class="leg-bus-head">校巴</div>' +
@@ -398,6 +392,7 @@
         else if (r.saves >= 1) { verdict = "比走路快 " + Math.round(r.saves) + " 分"; tone = " is-faster"; }
         else if (r.saves <= -1) verdict = "比走路慢 " + Math.round(-r.saves) + " 分";
         else verdict = "和走路差不多";
+        if (r.late) tone += " is-late";
 
         return '<div class="bus-ride' + tone + '">' +
           "车到站 <b>" + clockText(r.busAtBoard) + "</b> · " +
@@ -405,6 +400,7 @@
           "到教室 <b>" + clockText(r.arriveAt) + "</b> · " +
           "合计 <b>" + Math.round(r.totalMin) + " 分</b>" +
           (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
+          (r.late ? ' <span class="bus-late">赶不上 ' + esc(course.start) + "</span>" : "") +
         "</div>";
       }).join("");
 

@@ -610,6 +610,8 @@ body {
 
 .bus-ride b { color: var(--text); font-weight: 650; }
 .bus-ride.is-faster b:last-of-type { color: var(--accent); }
+.bus-ride.is-late { opacity: 0.72; }
+.bus-late { color: var(--warn); font-weight: 700; }
 .bus-verdict { color: var(--ok); font-weight: 700; }
 
 .bus-breakdown { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }

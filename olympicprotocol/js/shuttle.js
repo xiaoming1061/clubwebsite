@@ -37,8 +37,8 @@ window.OP = window.OP || {};
   var MAX_ACCESS = 650;         // 走到车站超过这个距离就不考虑了
   var MAX_BOARD_CANDIDATES = 3; // 最多退到第几近的上车站
   var MAX_ALIGHT_CANDIDATES = 3;
-  var MAX_RIDES = 8;            // 每个组合最多列几班车
-  var WORTH_MIN = -2;           // 比走路慢超过这个数就不值得坐，前后端共用这个阈值
+  var MAX_RIDES = 12;           // 每条线最多列几班车
+  var RIDE_WINDOW_MIN = 60;     // 从"第一班坐得上的车"起，往后最多列这么久
   var DEFAULT_BUS_SPEED = 330;  // 米/分钟，约 20 km/h（含停站）
   var DEFAULT_CLIMB = 8;        // 1 米爬升 ≈ 几米平路
 
@@ -271,7 +271,6 @@ window.OP = window.OP || {};
 
     var combos = [];
     var connected = 0;   // 有多少对"上车站 → 下车站"在顺序上说得通
-    var lateOnly = 0;    // 有线路，但每一班都赶不上
 
     boards.forEach(function (b, bRank) {
       /* 走到车站的时刻 */
@@ -303,7 +302,6 @@ window.OP = window.OP || {};
           /* 能坐的班次：车到这个站的时间不早于你到站的时刻 */
           var departures = nextDepartures(route, new Date(atStop.getTime() - toBoard * 60000), MAX_RIDES + 4);
           var rides = [];
-          var droppedLate = false;
 
           for (var n = 0; n < departures.length; n++) {
             var date = departures[n];
@@ -312,14 +310,14 @@ window.OP = window.OP || {};
             if (!runStops(boardRules, date)) continue;
             if (!runStops(alightRules, date)) continue;
 
+            /* 列到"第一班之后一小时"为止：再往后就是同一趟车循环，
+               列出来只会把页面撑满 */
+            if (rides.length &&
+                (date.getTime() - rides[0].departAt.getTime()) > RIDE_WINDOW_MIN * 60000) break;
+
             var busAtAlight = new Date(busAtBoard.getTime() + ride * 60000);
             var arriveAt = new Date(busAtAlight.getTime() + walkAfter * 60000);
             var total = (arriveAt.getTime() - when.getTime()) / 60000;
-
-            if (deadline && arriveAt.getTime() > deadline.getTime()) {
-              droppedLate = true;
-              break;
-            }
 
             rides.push({
               departAt: date,
@@ -330,13 +328,14 @@ window.OP = window.OP || {};
               rideMin: ride,
               walkAfterMin: walkAfter,
               totalMin: total,
+              /* 到得太晚也照样列出来，只做个记号让人自己判断 */
+              late: !!(deadline && arriveAt.getTime() > deadline.getTime()),
               saves: (walkMin === null || walkMin === undefined) ? null : walkMin - total
             });
             if (rides.length >= MAX_RIDES) break;
           }
 
           if (!rides.length) return;
-          if (droppedLate) lateOnly++;
 
           combos.push({
             route: route,
@@ -358,33 +357,36 @@ window.OP = window.OP || {};
        2) 下车站越近目的地越前
        3) 要看校历才能确定的车次往后放
        4) 最后才比谁先到 */
-    /* 先扔掉"所有班次都不如走路"的组合：留着只会挡着真正有用的方案 */
-    var usable = combos.filter(function (c) {
-      return c.rides.some(function (r) { return r.saves === null || r.saves >= WORTH_MIN; });
-    });
+    /* 不再按"值不值得"筛掉：只要能到目的地附近就有参考价值，
+       哪怕比走路慢、哪怕赶不上这一节课——把选择权交回给人。
 
-    usable.sort(function (a, b) {
+       排序按"第一班车什么时候到"：车站就近已经决定了**每条线自己**在哪站上车，
+       但线之间不该再按远近排——否则"晚上 7 点才开的首班车"会因为车站最近而
+       排到第一行。谁先到谁在前，一样近的再看车站远近。 */
+    combos.sort(function (a, b) {
+      var ta = a.rides[0].arriveAt.getTime();
+      var tb = b.rides[0].arriveAt.getTime();
+      if (ta !== tb) return ta - tb;
       var ra = a.boardRank + a.alightRank;
       var rb = b.boardRank + b.alightRank;
       if (ra !== rb) return ra - rb;
       if (!!a.caveat !== !!b.caveat) return a.caveat ? 1 : -1;
-      return a.rides[0].arriveAt - b.rides[0].arriveAt;
+      return 0;
     });
 
     /* 同一条线只留最合适的那一组：同一趟车在近站和远站都上得去，
        列两遍只是重复，真正有用的是"还有哪条线能坐" */
     var seenRoute = {};
-    var deduped = usable.filter(function (c) {
+    var deduped = combos.filter(function (c) {
       if (seenRoute[c.route.no]) return false;
       seenRoute[c.route.no] = true;
       return true;
     });
 
     var reason = "";
-    if (!usable.length) {
+    if (!deduped.length) {
       if (!connected) reason = "没有线路从上车站坐到下车站（校巴单向）";
-      else if (lateOnly) reason = "都赶不上上课时间";
-      else reason = "都比走路慢";
+      else reason = "这条线今天已经收车了";
     }
 
     return {
@@ -416,7 +418,6 @@ window.OP = window.OP || {};
     runStops: runStops,
     MAX_ACCESS: MAX_ACCESS,
     MAX_RIDES: MAX_RIDES,
-    WORTH_MIN: WORTH_MIN,
     DEFAULT_BUS_SPEED: DEFAULT_BUS_SPEED
   };
 })(window.OP);
