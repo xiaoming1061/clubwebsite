@@ -354,7 +354,15 @@
    * 几点到目标站、下车走到教室几点。
    */
   function busOptions(leg, course) {
-    if (!OP.Shuttle || !leg.fromPoint || !leg.toPoint) return "";
+    if (!leg.fromPoint || !leg.toPoint) return "";
+
+    /* 模块没加载上说明页面是旧缓存（HTML 里没有 js/shuttle.js 那一行），
+       这种情况要明说，不能跟"这段没车"长得一样 */
+    if (!OP.Shuttle || !(OP.SHUTTLE_ROUTES || []).length) {
+      return '<div class="leg-bus is-missing"><div class="leg-bus-head">校巴</div>' +
+        '<div class="bus-none">校巴模块没加载——页面是旧缓存。强制刷新一次就会好' +
+        '（iOS 加到桌面的话：删掉图标重新添加）。</div></div>';
+    }
 
     var walkMin = leg.metrics ? leg.metrics.minutes : null;
     var plan = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin,
@@ -369,15 +377,19 @@
     }).filter(function (g) {
       return g.rides.length;
     }).slice(0, 2);
-    if (!groups.length) return "";
+    if (!groups.length) {
+      /* 说清楚为什么没有：没车 / 赶不上 / 都比走路慢，三种情况不一样 */
+      return '<div class="leg-bus is-none"><div class="leg-bus-head">校巴</div>' +
+        '<div class="bus-none">' + esc(plan.reason || "這段沒有合適的班次") + "</div></div>";
+    }
 
     var html = groups.map(function (g) {
       var flags = [];
-      if (g.caveat === "teaching" || g.route.group === "meetclass") flags.push("只在教學日");
-      if (g.caveat === "nonTeaching") flags.push("只在非教學日");
-      if (g.route.group === "night") flags.push("晚間/假日線");
-      if (g.boardNote) flags.push("上車：" + g.boardNote);
-      if (g.alightNote) flags.push("下車：" + g.alightNote);
+      if (g.caveat === "teaching" || g.route.group === "meetclass") flags.push("只在教学日");
+      if (g.caveat === "nonTeaching") flags.push("只在非教学日");
+      if (g.route.group === "night") flags.push("晚间/假日线");
+      if (g.boardNote) flags.push("上车：" + g.boardNote);
+      if (g.alightNote) flags.push("下车：" + g.alightNote);
 
       var rides = g.rides.map(function (r) {
         var verdict;
@@ -388,10 +400,10 @@
         else verdict = "和走路差不多";
 
         return '<div class="bus-ride' + tone + '">' +
-          "車到站 <b>" + clockText(r.busAtBoard) + "</b> · " +
-          "到目標站 <b>" + clockText(r.busAtAlight) + "</b> · " +
+          "车到站 <b>" + clockText(r.busAtBoard) + "</b> · " +
+          "到目标站 <b>" + clockText(r.busAtAlight) + "</b> · " +
           "到教室 <b>" + clockText(r.arriveAt) + "</b> · " +
-          "合計 <b>" + Math.round(r.totalMin) + " 分</b>" +
+          "合计 <b>" + Math.round(r.totalMin) + " 分</b>" +
           (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
         "</div>";
       }).join("");
@@ -401,9 +413,9 @@
         '<div class="bus-where">' +
           '<span class="bus-tag">' + esc(g.route.no) + "</span>" + esc(g.route.nameZh) +
         "</div>" +
-        '<div class="bus-stops">' + esc(g.board.stop.zh) + " 上車 → " +
-          esc(g.alight.stop.zh) + " 下車" +
-          "（走 " + Math.round(g.board.minutes) + " 分 + 車程 " +
+        '<div class="bus-stops">' + esc(g.board.stop.zh) + " 上车 → " +
+          esc(g.alight.stop.zh) + " 下车" +
+          "（走 " + Math.round(g.board.minutes) + " 分 + 车程 " +
           Math.round(first.rideMin) + " 分 + 走 " + Math.round(first.walkAfterMin) + " 分）" +
         "</div>" +
         rides +

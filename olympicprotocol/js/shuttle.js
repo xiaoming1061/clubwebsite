@@ -259,14 +259,19 @@ window.OP = window.OP || {};
    * @returns {board, alight, groups} —— groups 里每个是"一条路线 + 一对上下车站 + 所有能坐的班次"
    */
   function plan(from, to, when, walkMin, settings, deadline) {
-    var empty = { board: null, alight: null, groups: [] };
+    var empty = { board: null, alight: null, groups: [], reason: "" };
     if (!from || !to || !when) return empty;
 
     var boards = nearbyStops(from, settings, MAX_ACCESS, MAX_BOARD_CANDIDATES);
     var alights = nearbyStops(to, settings, MAX_ACCESS, MAX_ALIGHT_CANDIDATES);
-    if (!boards.length || !alights.length) return empty;
+    if (!boards.length || !alights.length) {
+      empty.reason = "附近没有校巴站";
+      return empty;
+    }
 
     var combos = [];
+    var connected = 0;   // 有多少对"上车站 → 下车站"在顺序上说得通
+    var lateOnly = 0;    // 有线路，但每一班都赶不上
 
     boards.forEach(function (b, bRank) {
       /* 走到车站的时刻 */
@@ -289,6 +294,7 @@ window.OP = window.OP || {};
           if (toBoard === null) return;
           var ride = rideMinutes(route, i, j, settings);
           if (ride === null) return;
+          connected++;
 
           var boardRules = noteRules(stopNote(route, b.id));
           var alightRules = noteRules(stopNote(route, a.id));
@@ -297,6 +303,7 @@ window.OP = window.OP || {};
           /* 能坐的班次：车到这个站的时间不早于你到站的时刻 */
           var departures = nextDepartures(route, new Date(atStop.getTime() - toBoard * 60000), MAX_RIDES + 4);
           var rides = [];
+          var droppedLate = false;
 
           for (var n = 0; n < departures.length; n++) {
             var date = departures[n];
@@ -309,7 +316,10 @@ window.OP = window.OP || {};
             var arriveAt = new Date(busAtAlight.getTime() + walkAfter * 60000);
             var total = (arriveAt.getTime() - when.getTime()) / 60000;
 
-            if (deadline && arriveAt.getTime() > deadline.getTime()) break;
+            if (deadline && arriveAt.getTime() > deadline.getTime()) {
+              droppedLate = true;
+              break;
+            }
 
             rides.push({
               departAt: date,
@@ -326,6 +336,7 @@ window.OP = window.OP || {};
           }
 
           if (!rides.length) return;
+          if (droppedLate) lateOnly++;
 
           combos.push({
             route: route,
@@ -369,10 +380,18 @@ window.OP = window.OP || {};
       return true;
     });
 
+    var reason = "";
+    if (!usable.length) {
+      if (!connected) reason = "没有线路从上车站坐到下车站（校巴单向）";
+      else if (lateOnly) reason = "都赶不上上课时间";
+      else reason = "都比走路慢";
+    }
+
     return {
       board: boards[0],
       alight: alights[0],
-      groups: deduped
+      groups: deduped,
+      reason: reason
     };
   }
 
