@@ -25,7 +25,7 @@ window.OP.SHUTTLE_STOPS = {
     "伍宜孫書院（下行）": { zh: "伍宜孫書院（下行）", en: "Wu Yee Sun College (Downward)", lat: 22.421199, lng: 114.203521, osm: [1716519421] },
     "十五苑": { zh: "十五苑", en: "Residence 15", lat: 22.423716, lng: 114.206598, osm: [2035133252] },
     "善衡書院": { zh: "善衡書院", en: "S.H. Ho College", lat: 22.418042, lng: 114.20985, osm: [2035104643] },
-    "大學站": { zh: "大學站", en: "University Station", lat: 22.41263, lng: 114.210523, osm: [1716519472, 4337989999, 4356090199, 5709169553, 7231973807, 7231973808] },
+    "大學站": { zh: "大學站", en: "University Station", lat: 22.414537, lng: 114.210221, osm: [1716519472] },
     "大學站廣場": { zh: "大學站廣場", en: "University MTR Station Piazza", lat: 22.413882, lng: 114.2096, osm: [2036051433, 5414326180] },
     "大學行政樓": { zh: "大學行政樓", en: "University Administration Building", lat: 22.418802, lng: 114.205443, osm: [1716519519, 5413637589] },
     "大學體育中心": { zh: "大學體育中心", en: "University Sports Centre", lat: 22.417812, lng: 114.210482, osm: [1716519481] },

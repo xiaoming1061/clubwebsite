@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
-  <link rel="stylesheet" href="styles.css?v=mumyzoum" />
+  <link rel="stylesheet" href="styles.css?v=mumzv96q" />
 </head>
 <body>
   <div class="app">
@@ -126,10 +126,14 @@
               <input type="number" id="sSpeed" min="30" max="140" step="1" />
             </label>
             <label class="field">
-              <span>路程系数</span>
-              <input type="number" id="sDetour" min="1" max="2" step="0.05" />
+              <span>校巴速度（米/分钟）</span>
+              <input type="number" id="sBusSpeed" min="120" max="800" step="10" />
             </label>
           </div>
+          <label class="field">
+            <span>路程系数</span>
+            <input type="number" id="sDetour" min="1" max="2" step="0.05" />
+          </label>
           <label class="field">
             <span>学期开始日期（用于计算教学周）</span>
             <input type="date" id="sTermStart" />
@@ -417,18 +421,19 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=mumyzoum"></script>
-  <script src="data/shuttle.js?v=mumyzoum"></script>
-  <script src="data/defaults.js?v=mumyzoum"></script>
-  <script src="js/store.js?v=mumyzoum"></script>
-  <script src="js/geo.js?v=mumyzoum"></script>
-  <script src="js/elevation.js?v=mumyzoum"></script>
-  <script src="js/speech.js?v=mumyzoum"></script>
-  <script src="js/planner.js?v=mumyzoum"></script>
-  <script src="js/map.js?v=mumyzoum"></script>
-  <script src="js/realmaps.js?v=mumyzoum"></script>
-  <script src="js/places.js?v=mumyzoum"></script>
-  <script src="js/ocr.js?v=mumyzoum"></script>
-  <script src="js/app.js?v=mumyzoum"></script>
+  <script src="data/buildings.js?v=mumzv96q"></script>
+  <script src="data/shuttle.js?v=mumzv96q"></script>
+  <script src="data/defaults.js?v=mumzv96q"></script>
+  <script src="js/store.js?v=mumzv96q"></script>
+  <script src="js/geo.js?v=mumzv96q"></script>
+  <script src="js/shuttle.js?v=mumzv96q"></script>
+  <script src="js/elevation.js?v=mumzv96q"></script>
+  <script src="js/speech.js?v=mumzv96q"></script>
+  <script src="js/planner.js?v=mumzv96q"></script>
+  <script src="js/map.js?v=mumzv96q"></script>
+  <script src="js/realmaps.js?v=mumzv96q"></script>
+  <script src="js/places.js?v=mumzv96q"></script>
+  <script src="js/ocr.js?v=mumzv96q"></script>
+  <script src="js/app.js?v=mumzv96q"></script>
 </body>
 </html>

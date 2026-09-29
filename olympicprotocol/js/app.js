@@ -332,6 +332,81 @@
 
   /* ================= 渲染：路线 ================= */
 
+  /* ================= 校巴方案 ================= */
+
+  function clockText(date) {
+    return pad2(date.getHours()) + ":" + pad2(date.getMinutes());
+  }
+
+  /**
+   * 这一段能不能坐校巴。
+   *
+   * 按"你按建议出发时间出门"来算：走到车站 → 等车 → 坐车 → 下车走到教室，
+   * 然后和走路比谁先到。最多给两个方案。
+   */
+  function busOptions(leg, course) {
+    if (!OP.Shuttle || !leg.fromPoint || !leg.toPoint) return "";
+
+    var walkMin = leg.metrics ? leg.metrics.minutes : null;
+    var plans = OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.departAt, walkMin, data.settings);
+
+    /* 明显比走路慢的就不显示了——那种情况只会让页面变吵 */
+    plans = plans.filter(function (o) { return o.saves === null || o.saves >= -2; });
+    if (!plans.length) return "";
+
+    var classStart = P.hm(course.start);
+
+    var rows = plans.slice(0, 2).map(function (o) {
+      var arriveMin = o.arriveAt.getHours() * 60 + o.arriveAt.getMinutes();
+      var verdict = "";
+      var tone = "";
+
+      if (arriveMin > classStart) {
+        verdict = "赶不上 " + esc(course.start);
+        tone = " is-late";
+      } else if (o.saves !== null && o.saves >= 1) {
+        verdict = "比走路快 " + Math.round(o.saves) + " 分";
+        tone = " is-faster";
+      } else if (o.saves !== null && o.saves <= -1) {
+        verdict = "比走路慢 " + Math.round(-o.saves) + " 分";
+      } else {
+        verdict = "和走路差不多";
+      }
+
+      var extra = [];
+      if (o.wrapped) extra.push("要绕一圈");
+      if (o.boardNote) extra.push("上車：" + o.boardNote);
+      if (o.alightNote) extra.push("下車：" + o.alightNote);
+      if (o.caveat === "teaching") extra.push("只在教學日");
+      if (o.caveat === "nonTeaching") extra.push("只在非教學日");
+      if (o.route.group === "meetclass") extra.push("只限教學日");
+      if (o.route.group === "night") extra.push("晚間/假日線");
+
+      return '<div class="bus-row' + tone + '">' +
+        '<div class="bus-where">' +
+          '<span class="bus-tag">' + esc(o.route.no) + "</span>" +
+          esc(o.route.nameZh) +
+          '<span class="bus-stops">' + esc(o.board.stop.zh) + " 上車 → " +
+            esc(o.alight.stop.zh) + " 下車</span>" +
+        "</div>" +
+        '<div class="bus-when">' +
+          "上車 <b>" + clockText(o.boardAt) + "</b> · " +
+          "到達 <b>" + clockText(o.arriveAt) + "</b> · " +
+          "合計 <b>" + Math.round(o.totalMin) + " 分</b>" +
+          (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
+        "</div>" +
+        '<div class="bus-breakdown">' +
+          "走到車站 " + Math.round(o.board.minutes) + " 分 · 等 " + Math.round(o.waitMin) +
+          " 分 · 車程 " + Math.round(o.rideMin) + " 分 · 下車走 " +
+          Math.round(o.alight.minutes) + " 分" +
+          (extra.length ? " · " + esc(extra.join(" · ")) : "") +
+        "</div>" +
+      "</div>";
+    }).join("");
+
+    return '<div class="leg-bus"><div class="leg-bus-head">校巴</div>' + rows + "</div>";
+  }
+
   function renderRoute() {
     var info = nextInfo();
     var buildings = (data.campus && data.campus.buildings) || [];
@@ -439,7 +514,7 @@
         '<div class="leg-meta"><span>' + esc(c.name) +
           (c.room ? " · " + esc(c.room) : "") +
           (c.teacher ? " · " + esc(c.teacher) : "") + "</span></div>" +
-        metrics + warn +
+        metrics + busOptions(leg, c) + warn +
         '<div class="leg-actions">' +
           links.map(function (l) {
             if (l.copy) {
@@ -529,6 +604,7 @@
     $("#sLead").value = s.leadMinutes;
     $("#sBuffer").value = s.bufferMinutes;
     $("#sSpeed").value = s.walkingSpeed;
+    $("#sBusSpeed").value = Number(s.busSpeed) || OP.Shuttle.DEFAULT_BUS_SPEED;
     $("#sDetour").value = s.detourFactor;
     $("#sTermStart").value = s.termStart || "";
     $("#sClimb").value = s.climbFactor;
@@ -1558,7 +1634,8 @@
 
     /* --- 提醒参数 --- */
     [["#sLead", "leadMinutes"], ["#sBuffer", "bufferMinutes"],
-     ["#sSpeed", "walkingSpeed"], ["#sDetour", "detourFactor"]].forEach(function (pair) {
+     ["#sSpeed", "walkingSpeed"], ["#sDetour", "detourFactor"],
+     ["#sBusSpeed", "busSpeed"]].forEach(function (pair) {
       $(pair[0]).addEventListener("change", function () {
         data.settings[pair[1]] = Number(this.value);
         saveAndRender();

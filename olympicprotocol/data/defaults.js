@@ -40,6 +40,7 @@ window.OP.DEFAULT_DATA = {
     leadMinutes: 10,        // 上课前多少分钟播报一次
     bufferMinutes: 5,       // 到楼之后再留出的缓冲
     walkingSpeed: 75,       // 米/分钟
+    busSpeed: 330,          // 校巴平均速度（米/分钟，约 20 km/h，含停站）
     detourFactor: 1.3,      // 直线距离 → 实际步行距离的折算系数
     climbFactor: 8,         // 1 米爬升折算成几米平路（Naismith 经验值）
     voiceEnabled: true,
