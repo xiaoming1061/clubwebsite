@@ -4,10 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#080c18" />
+  <!-- 部署脚本会把这里换成这次的构建号；本地打开时是 dev，不做版本检查 -->
+  <meta name="build" content="mun1180x" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
-  <link rel="stylesheet" href="styles.css?v=mun0pkg7" />
+  <script>
+    /* 部署后自动换新版本。
+     *
+     * GitHub Pages 给 HTML 也是 10 分钟缓存，所以光给 js/css 加版本号不够——
+     * 浏览器手里那份旧 HTML 里指的还是旧资源，刷新也还是旧的。
+     * 这里拿一份「不缓存」的 build.json 跟自己的构建号比，不一样就带参数重载一次；
+     * 参数一变，HTML 就必须重新取，新 HTML 里指的就是新资源了。
+     */
+    (function () {
+      var meta = document.querySelector('meta[name="build"]');
+      var mine = meta ? meta.getAttribute("content") : "";
+      if (!mine || mine === "dev") return;
+
+      fetch("build.json", { cache: "no-store" }).then(function (res) {
+        return res.ok ? res.json() : null;
+      }).then(function (info) {
+        if (!info || !info.stamp || info.stamp === mine) return;
+        var url = new URL(location.href);
+        /* 已经为这个版本重载过一次还不一致，就不再重载，免得来回死循环 */
+        if (url.searchParams.get("t") === info.stamp) return;
+        url.searchParams.set("t", info.stamp);
+        location.replace(url.toString());
+      }).catch(function () { /* 拿不到就算了，不影响页面 */ });
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css?v=mun1180x" />
 </head>
 <body>
   <div class="app">
@@ -421,19 +448,19 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=mun0pkg7"></script>
-  <script src="data/shuttle.js?v=mun0pkg7"></script>
-  <script src="data/defaults.js?v=mun0pkg7"></script>
-  <script src="js/store.js?v=mun0pkg7"></script>
-  <script src="js/geo.js?v=mun0pkg7"></script>
-  <script src="js/shuttle.js?v=mun0pkg7"></script>
-  <script src="js/elevation.js?v=mun0pkg7"></script>
-  <script src="js/speech.js?v=mun0pkg7"></script>
-  <script src="js/planner.js?v=mun0pkg7"></script>
-  <script src="js/map.js?v=mun0pkg7"></script>
-  <script src="js/realmaps.js?v=mun0pkg7"></script>
-  <script src="js/places.js?v=mun0pkg7"></script>
-  <script src="js/ocr.js?v=mun0pkg7"></script>
-  <script src="js/app.js?v=mun0pkg7"></script>
+  <script src="data/buildings.js?v=mun1180x"></script>
+  <script src="data/shuttle.js?v=mun1180x"></script>
+  <script src="data/defaults.js?v=mun1180x"></script>
+  <script src="js/store.js?v=mun1180x"></script>
+  <script src="js/geo.js?v=mun1180x"></script>
+  <script src="js/shuttle.js?v=mun1180x"></script>
+  <script src="js/elevation.js?v=mun1180x"></script>
+  <script src="js/speech.js?v=mun1180x"></script>
+  <script src="js/planner.js?v=mun1180x"></script>
+  <script src="js/map.js?v=mun1180x"></script>
+  <script src="js/realmaps.js?v=mun1180x"></script>
+  <script src="js/places.js?v=mun1180x"></script>
+  <script src="js/ocr.js?v=mun1180x"></script>
+  <script src="js/app.js?v=mun1180x"></script>
 </body>
 </html>

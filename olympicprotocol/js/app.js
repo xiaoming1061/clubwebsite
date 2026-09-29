@@ -23,6 +23,8 @@
     places: [],
     placesStatus: "未搜索",
     placesRaw: null,
+    /* 校区楼栋列表默认收起，只看前几栋 */
+    buildingListExpanded: false,
     ocr: { courses: [], warnings: [], busy: false }
   };
 
@@ -63,6 +65,9 @@
    */
 
   var MAX_BOTTOM_SPACE = 480;
+
+  /* 校区楼栋列表收起时显示几栋 */
+  var BUILDING_PREVIEW = 5;
 
   /* 读当前生效的留白值。不能只看内联样式——初始时它是空的，
      会被当成 0，反而把 CSS 里那个偏大的兜底值覆盖成更小的。 */
@@ -662,7 +667,13 @@
       return;
     }
 
-    $("#buildingList").innerHTML = shown.map(function (b) {
+    /* 收起时只显示前几栋。搜索/筛选时不收起——那说明你正在找某一栋 */
+    var searching = !!(query || missingOnly);
+    var visible = (searching || state.buildingListExpanded)
+      ? shown
+      : shown.slice(0, BUILDING_PREVIEW);
+
+    var items = visible.map(function (b) {
       var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
       var coordText = hasCoords
         ? Number(b.lat).toFixed(5) + ", " + Number(b.lng).toFixed(5)
@@ -682,6 +693,18 @@
           '<button class="btn btn-small btn-danger" data-del-building="' + esc(b.id) + '">删除</button>' +
         "</div></div>";
     }).join("");
+
+    /* 只在没搜索的时候给"展开/收起"，这时才有"全部"这个概念 */
+    var more = "";
+    if (!searching && shown.length > BUILDING_PREVIEW) {
+      more = '<button type="button" class="btn btn-small btn-ghost building-more" data-toggle-buildings>' +
+        (state.buildingListExpanded
+          ? "收起（只看前 " + BUILDING_PREVIEW + " 栋）"
+          : "显示全部 " + shown.length + " 栋") +
+        "</button>";
+    }
+
+    $("#buildingList").innerHTML = items + more;
 
     scheduleClearanceCheck();
   }
@@ -1828,6 +1851,12 @@
     });
 
     $("#buildingList").addEventListener("click", function (ev) {
+      var toggle = ev.target.closest("[data-toggle-buildings]");
+      if (toggle) {
+        state.buildingListExpanded = !state.buildingListExpanded;
+        renderBuildingList((data.campus && data.campus.buildings) || []);
+        return;
+      }
       var edit = ev.target.closest("[data-edit-building]");
       if (edit) {
         var bid = edit.getAttribute("data-edit-building");

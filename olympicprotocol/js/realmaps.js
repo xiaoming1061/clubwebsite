@@ -118,6 +118,21 @@ window.OP = window.OP || {};
     return marker;
   }
 
+  /**
+   * 连线的点顺序：我的位置 → 第一节 → 第二节 …
+   *
+   * 单独抽出来是为了能测。踩过的坑：原来是先 push 站点、最后才 push 我的位置，
+   * 连线就成了"第 2 栋 → 第 1 栋 → 我的位置"，起点跑到末尾去了。
+   */
+  function routePoints(position, stops) {
+    var points = [];
+    if (position && hasCoords(position)) points.push([position.lat, position.lng]);
+    (stops || []).forEach(function (s) {
+      if (s && hasCoords(s.building)) points.push([s.building.lat, s.building.lng]);
+    });
+    return points;
+  }
+
   function draw(L, container, opts) {
     if (!map) {
       map = L.map(container, {
@@ -143,12 +158,10 @@ window.OP = window.OP || {};
     overlay = L.layerGroup().addTo(map);
 
     var stops = (opts.stops || []).filter(function (s) { return s && hasCoords(s.building); });
-    var points = [];
 
-    stops.forEach(function (s) {
-      markerFor(L, s).addTo(overlay);
-      points.push([s.building.lat, s.building.lng]);
-    });
+    var points = routePoints(opts.position, stops);
+
+    stops.forEach(function (s) { markerFor(L, s).addTo(overlay); });
 
     if (opts.position && hasCoords(opts.position)) {
       L.circleMarker([opts.position.lat, opts.position.lng], {
@@ -163,7 +176,6 @@ window.OP = window.OP || {};
         offset: [0, -8],
         className: "rm-tip is-me"
       });
-      points.push([opts.position.lat, opts.position.lng]);
     }
 
     if (points.length > 1) {
@@ -212,6 +224,7 @@ window.OP = window.OP || {};
     SOURCES: SOURCES,
     loadLeaflet: loadLeaflet,
     render: render,
+    routePoints: routePoints,
     dispose: dispose
   };
 })(window.OP);
