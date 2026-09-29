@@ -371,7 +371,6 @@
       if (g.caveat === "teaching" || g.route.group === "meetclass") flags.push("只在教學日");
       if (g.caveat === "nonTeaching") flags.push("只在非教學日");
       if (g.route.group === "night") flags.push("晚間/假日線");
-      if (g.wrapped) flags.push("要繞一圈");
       if (g.boardNote) flags.push("上車：" + g.boardNote);
       if (g.alightNote) flags.push("下車：" + g.alightNote);
 

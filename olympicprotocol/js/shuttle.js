@@ -17,8 +17,10 @@
  * 3. **发车时间指"从该路线第一站开出"**，官网/路线图给的就是这个。
  *    所以到了后面的站要加上"首站 → 该站"的行驶时间，才是车到这个站的时刻。
  * 4. 行驶时间用站点之间的距离估算（乘道路系数），没有真实路网，只是量级参考。
- * 5. 穿梭/晚间/假日线按**环线**处理（坐过头会绕一圈回来）；
- *    转堂校巴（5/6A/6B/7）是单向的，不能绕。
+ * 5. **所有路线都是单向的，不能绕回去**。到了终点站所有人必须下车——
+ *    比如 3 号线从"逸夫书院（下行）"坐不到"科学馆"，因为科学馆在这条线的前段，
+ *    而车开到终点（大学站广场）就清客了。
+ *    要往回走只能换乘另一条线，或者走路。
  * 6. 公众假期和教学日算不出来（没有校历），只按星期几判断；
  *    受影响的站点会在结果里标出来。
  */
@@ -122,29 +124,19 @@ window.OP = window.OP || {};
     return length / busSpeed(settings);
   }
 
-  /* 环线：穿梭校巴 / 晚间及假日都绕圈；转堂校巴是单向的 */
-  function isCircular(route) {
-    return route.group === "shuttle" || route.group === "night";
-  }
-
   /**
    * 从第 i 站坐到第 j 站要多久。
-   * 环线允许"坐过头绕回来"，单向线不允许。
+   *
+   * **只能往后坐**：j 必须排在 i 后面。所有路线到终点都清客，
+   * 不存在"绕一圈回来"这种事。
    */
   function rideMinutes(route, i, j, settings) {
     var ids = stopIds(route);
     var table = stopTable();
-    if (i === j) return null;
+    if (i >= j) return null;
 
     var order = [];
-    if (j > i) {
-      for (var k = i; k <= j; k++) order.push(k);
-    } else if (isCircular(route)) {
-      for (var m = i; m < ids.length; m++) order.push(m);
-      for (var n = 0; n <= j; n++) order.push(n);
-    } else {
-      return null;
-    }
+    for (var k = i; k <= j; k++) order.push(k);
 
     var total = 0;
     for (var p = 0; p < order.length - 1; p++) {
@@ -344,8 +336,6 @@ window.OP = window.OP || {};
             caveat: caveat,
             boardNote: stopNote(route, b.id),
             alightNote: stopNote(route, a.id),
-            wrapped: j < i,
-            circular: isCircular(route),
             rides: rides
           });
         });
@@ -405,7 +395,6 @@ window.OP = window.OP || {};
     stopNote: stopNote,
     noteRules: noteRules,
     runStops: runStops,
-    isCircular: isCircular,
     MAX_ACCESS: MAX_ACCESS,
     MAX_RIDES: MAX_RIDES,
     WORTH_MIN: WORTH_MIN,
