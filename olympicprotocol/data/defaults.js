@@ -12,6 +12,15 @@
 
 window.OP = window.OP || {};
 
+/**
+ * 应用版本号。
+ *
+ * 设置页「数据」里显示的就是它。改版本只改这一处；
+ * 以后打成 APK 时，安卓那边的 versionName 请跟这里保持一致，
+ * 这样"页面上显示 1.0.0、装的是哪个包"就对得上了。
+ */
+window.OP.APP_VERSION = "1.0.0";
+
 window.OP.DEFAULT_DATA = {
   version: 1,
 

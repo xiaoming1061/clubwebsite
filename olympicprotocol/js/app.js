@@ -39,6 +39,22 @@
 
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
+  /**
+   * 当前跑的是哪一次构建。
+   *
+   * 部署脚本会给 js/css 的地址加一个 ?v=xxx 的时间戳，直接从 script 标签上
+   * 读回来就行——不用再单独维护一个"构建号"，省得两边对不上。
+   * 本地直接打开源码时没有这个参数，就显示「本地」。
+   */
+  function buildStamp() {
+    var tags = document.querySelectorAll("script[src]");
+    for (var i = 0; i < tags.length; i++) {
+      var hit = /[?&]v=([^&"']+)/.exec(tags[i].getAttribute("src") || "");
+      if (hit) return hit[1];
+    }
+    return "本地";
+  }
+
   /* ---------- 页尾留白 ----------
    * 底部导航是固定定位的，会盖住页尾内容。
    * 先按它实际占掉的高度预留，渲染完再核对一次"滑到底时最后一个卡片
@@ -499,6 +515,10 @@
 
   function renderSettings() {
     var s = data.settings;
+
+    $("#verApp").textContent = "v" + (OP.APP_VERSION || "0.0.0");
+    $("#verBuild").textContent = buildStamp();
+    $("#verData").textContent = "v" + (OP.Store.defaultBuildingsVersion() || 0);
 
     $("#vEnabled").checked = s.voiceEnabled !== false;
     $("#vRate").value = s.voiceRate;
