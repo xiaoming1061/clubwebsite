@@ -19,6 +19,14 @@
   --ok: #2fae76;
   --warn: #e08a00;
   --err: #ef4a63;
+  /* 提示条标题用的"加深版"同色系。
+     这几个是**文字色**，跟上面那组"点缀色"不是一回事：
+     --accent/--ok/--warn 直接拿来写字对比度都不够（粉字在白底上只有 2.8:1），
+     下面这几个全部 ≥ 4.5:1（自检里是算出来验的，不是看着差不多就行）。 */
+  --accent-ink: #c9256c;
+  --ok-ink: #177a4f;
+  --warn-ink: #9a5a00;
+  --err-ink: #c62236;
   --radius: 18px;
   --radius-sm: 12px;
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
@@ -1204,22 +1212,37 @@ body {
   pointer-events: none;
 }
 
+/* 提示条：跟页面同色系（粉白底 + 圆角 + 左侧一条语气色），字用深色。
+ *
+ * 之前这里是深蓝底（旧暗色主题留下的），字号色又是继承来的深褐，
+ * 深字配深底，对比度只有 1.34:1 —— 播报之后弹出来的那条基本看不见。
+ * 现在：底是 rgba(255,255,255,.97)（透一点点出来跟背景呼应），
+ * 正文用 --text（约 11.6:1），标题用对应语气的"加深色"（约 5:1 上下）。
+ */
 .toast {
-  background: rgba(20, 30, 52, 0.97);
+  background: rgba(255, 255, 255, 0.97);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 4px solid var(--accent);
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 13px;
   line-height: 1.55;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+  box-shadow: 0 14px 34px rgba(255, 95, 162, 0.22), 0 3px 10px rgba(74, 43, 58, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: toast-in 0.24s ease;
 }
 
+/* 语气：左边那条竖线 + 标题颜色，底色统一（不然绿底黄底跟粉色主题打架） */
+.toast.is-ok { border-left-color: var(--ok); }
 .toast.is-warn { border-left-color: var(--warn); }
 .toast.is-err { border-left-color: var(--err); }
-.toast.is-ok { border-left-color: var(--ok); }
-.toast strong { display: block; margin-bottom: 3px; font-size: 13.5px; }
+
+.toast strong { display: block; margin-bottom: 3px; font-size: 13.5px; color: var(--accent-ink); }
+.toast.is-ok strong { color: var(--ok-ink); }
+.toast.is-warn strong { color: var(--warn-ink); }
+.toast.is-err strong { color: var(--err-ink); }
 
 /* ---------- 页面内确认弹窗 ----------
    不用 window.confirm()：内置浏览器 / WebView 常把它静默屏蔽掉，
