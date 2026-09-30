@@ -52,6 +52,14 @@ window.OP.DEFAULT_DATA = {
     placesRadius: 800,
     placesMerge: true,      // 合并坐标几乎重合的点位
     placesEnglish: true,    // 地图取楼栋时优先用英文名，中文名存成别名
-    mapMode: "schematic"    // schematic 简图 / osm 街道图 / cuhk 港中文地图
+    mapMode: "schematic",   // schematic 简图 / osm 街道图 / cuhk 港中文地图
+
+    /* 返回宿舍：
+       dormId 指向 data/dorms.js 里的某一条（默认宿舍），或者 addedDorms 里的
+       一条（用户自己用「当前位置添加」补的）。addedDorms 是数组，
+       页面上的增删都改它，跟默认数据分开存。 */
+    dormId: "",
+    addedDorms: [],
+    dormFromClass: true     // 回宿舍的起点：true=今天最后一节课下课就走
   }
 };

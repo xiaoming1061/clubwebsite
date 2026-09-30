@@ -1,0 +1,131 @@
+/* 宿舍：默认数据 + 用户自己补的几处
+ *
+ * 默认宿舍来自 data/dorms.js（OpenStreetMap 里按
+ * 宿舍 / 舍堂 / 書院 / Hostel / Residence / Dormitory / Hall 搜出来的），
+ * 只读；用户在页面上用「用当前位置添加」补的是另一份，存在 settings.addedDorms 里。
+ *
+ * 故意不做「默认数据自动并进本地」那一套（楼栋那套的复杂度不值得再来一遍）：
+ * 宿舍是个人属性——一个人只住一个地方，多出来的列表对他没用。
+ */
+
+window.OP = window.OP || {};
+
+(function (OP) {
+  "use strict";
+
+  function shipped() {
+    var data = OP.DEFAULT_DORMS;
+    return data && Array.isArray(data.dorms) ? data.dorms : [];
+  }
+
+  function extras(settings) {
+    var list = settings && settings.addedDorms;
+    return Array.isArray(list) ? list : [];
+  }
+
+  function hasCoords(d) {
+    return !!(d && typeof d.lat === "number" && typeof d.lng === "number");
+  }
+
+  /* 补齐字段：搜索和播报都要能拿到 alias 数组，别到处判断 undefined */
+  function shape(d, custom) {
+    return {
+      id: d.id,
+      name: d.name,
+      alias: (d.alias || []).slice(),
+      lat: d.lat,
+      lng: d.lng,
+      kind: d.kind || "",
+      custom: !!custom
+    };
+  }
+
+  /** 全部宿舍，按名字排序（中英文混排就让 localeCompare 去管） */
+  function all(settings) {
+    var out = shipped().filter(hasCoords).map(function (d) { return shape(d, false); });
+    extras(settings).forEach(function (d) {
+      if (!hasCoords(d)) return;
+      if (out.some(function (x) { return x.id === d.id; })) return;
+      out.push(shape(d, true));
+    });
+    out.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return out;
+  }
+
+  function byId(settings, id) {
+    if (!id) return null;
+    var found = all(settings).filter(function (d) { return d.id === id; })[0];
+    return found || null;
+  }
+
+  /** 中英文、别名都能搜；空关键词返回全部 */
+  function search(settings, query) {
+    var list = all(settings);
+    var q = String(query === undefined || query === null ? "" : query).trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(function (d) {
+      var hay = [d.name].concat(d.alias).join(" ").toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+  }
+
+  /* 收录的所有名字，播报时念得出来 */
+  function names(dorm) {
+    if (!dorm) return [];
+    return [dorm.name].concat(dorm.alias || []).filter(Boolean);
+  }
+
+  function nearest(point, settings) {
+    if (!point) return null;
+    var best = null;
+    all(settings).forEach(function (d) {
+      var distance = OP.Geo.haversine(point, { lat: d.lat, lng: d.lng });
+      if (distance === null) return;
+      if (!best || distance < best.distance) best = { dorm: d, distance: distance };
+    });
+    return best;
+  }
+
+  /* 用户自己加的宿舍：id 带 d- 前缀，跟 OSM 的 way-/relation- 分开 */
+  function makeId() {
+    return "dorm-" + Date.now().toString(36) + "-" + Math.floor(Math.random() * 1e4).toString(36);
+  }
+
+  function add(settings, name, point) {
+    var clean = String(name || "").trim();
+    if (!clean || !point || typeof point.lat !== "number") return null;
+
+    var entry = {
+      id: makeId(),
+      name: clean,
+      alias: [],
+      lat: Number(point.lat.toFixed(6)),
+      lng: Number(point.lng.toFixed(6)),
+      kind: "custom"
+    };
+    if (typeof point.elevation === "number") entry.elevation = point.elevation;
+
+    if (!Array.isArray(settings.addedDorms)) settings.addedDorms = [];
+    settings.addedDorms.push(entry);
+    return entry;
+  }
+
+  /** 默认宿舍删不掉（那是数据文件里的），只能删自己加的 */
+  function remove(settings, id) {
+    if (!Array.isArray(settings.addedDorms)) return false;
+    var before = settings.addedDorms.length;
+    settings.addedDorms = settings.addedDorms.filter(function (d) { return d.id !== id; });
+    return settings.addedDorms.length !== before;
+  }
+
+  OP.Dorm = {
+    all: all,
+    byId: byId,
+    search: search,
+    names: names,
+    nearest: nearest,
+    add: add,
+    remove: remove,
+    hasCoords: hasCoords
+  };
+})(window.OP);

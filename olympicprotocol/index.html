@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#080c18" />
   <!-- 部署脚本会把这里换成这次的构建号；本地打开时是 dev，不做版本检查 -->
-  <meta name="build" content="munnph55" />
+  <meta name="build" content="munovsca" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
@@ -34,7 +34,7 @@
       }).catch(function () { /* 拿不到就算了，不影响页面 */ });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=munnph55" />
+  <link rel="stylesheet" href="styles.css?v=munovsca" />
 </head>
 <body>
   <!-- 背景层：一段 16 秒的视频循环（原片是个 4 分钟的长 mv，画面本身就是
@@ -315,6 +315,8 @@
             <span class="legend-item"><i class="dot dot-me"></i>我的位置</span>
             <span class="legend-item"><i class="dot dot-next"></i>下一节课</span>
             <span class="legend-item"><i class="dot dot-today"></i>今天还要去</span>
+            <span class="legend-item"><i class="line line-walk"></i>走这一段</span>
+            <span class="legend-item"><i class="line line-ride"></i>坐车这一段</span>
           </div>
         </article>
 
@@ -324,6 +326,39 @@
             <span class="muted" id="routeSummary">--</span>
           </div>
           <div class="route-list" id="routeList"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h3>返回宿舍</h3>
+            <span class="muted" id="dormState">未设置</span>
+          </div>
+          <label class="field">
+            <span>宿舍（中英文、别名都能搜）</span>
+            <input type="search" id="dormSearch" list="dormOptions" placeholder="例如：知行樓 / Chih Hsing" />
+            <datalist id="dormOptions"></datalist>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="dormFromClass" />
+            <span>从今天最后一节课的教室出发</span>
+          </label>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="btnDormGo">现在回宿舍</button>
+            <button class="btn" id="btnDormAddHere">用当前位置添加宿舍</button>
+            <button class="btn btn-ghost" id="btnDormRemove" hidden>删除这个宿舍</button>
+          </div>
+          <form id="dormForm" class="form" hidden>
+            <label class="field">
+              <span>宿舍名称</span>
+              <input type="text" id="dfName" required placeholder="例如：知行樓 Chih Hsing Hall" />
+            </label>
+            <p class="count-line" id="dfCoords">--</p>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">保存</button>
+              <button type="button" class="btn btn-ghost" id="dfCancel">取消</button>
+            </div>
+          </form>
+          <div class="dorm-plan" id="dormPlan"></div>
         </article>
       </section>
 
@@ -460,19 +495,21 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=munnph55"></script>
-  <script src="data/shuttle.js?v=munnph55"></script>
-  <script src="data/defaults.js?v=munnph55"></script>
-  <script src="js/store.js?v=munnph55"></script>
-  <script src="js/geo.js?v=munnph55"></script>
-  <script src="js/shuttle.js?v=munnph55"></script>
-  <script src="js/elevation.js?v=munnph55"></script>
-  <script src="js/speech.js?v=munnph55"></script>
-  <script src="js/planner.js?v=munnph55"></script>
-  <script src="js/map.js?v=munnph55"></script>
-  <script src="js/realmaps.js?v=munnph55"></script>
-  <script src="js/places.js?v=munnph55"></script>
-  <script src="js/ocr.js?v=munnph55"></script>
-  <script src="js/app.js?v=munnph55"></script>
+  <script src="data/buildings.js?v=munovsca"></script>
+  <script src="data/dorms.js?v=munovsca"></script>
+  <script src="data/shuttle.js?v=munovsca"></script>
+  <script src="data/defaults.js?v=munovsca"></script>
+  <script src="js/store.js?v=munovsca"></script>
+  <script src="js/dorm.js?v=munovsca"></script>
+  <script src="js/geo.js?v=munovsca"></script>
+  <script src="js/shuttle.js?v=munovsca"></script>
+  <script src="js/elevation.js?v=munovsca"></script>
+  <script src="js/speech.js?v=munovsca"></script>
+  <script src="js/planner.js?v=munovsca"></script>
+  <script src="js/map.js?v=munovsca"></script>
+  <script src="js/realmaps.js?v=munovsca"></script>
+  <script src="js/places.js?v=munovsca"></script>
+  <script src="js/ocr.js?v=munovsca"></script>
+  <script src="js/app.js?v=munovsca"></script>
 </body>
 </html>

@@ -109,17 +109,18 @@ window.OP = window.OP || {};
     var parts = [grid()];
 
     /*
-     * 连线只画"我和车站 / 车站和教室"这两段。
+     * 连线只画三段：走到上车站、上车站坐到下车站、下车走到教室。
      *
      * 原来画的是"我的位置 → 第一节 → 第二节"的行程链，但校巴不一定是直达的，
      * 那条线只是把地点连起来，看着像路线却没有任何指导意义。
-     * 现在只画真正要走的那两截：走到车站、下车走到教室。
+     * 中间那一截（上车站到下车站）是坐车，用另一种线画，免得跟走路的两截混淆。
      */
     (opts.busLinks || []).forEach(function (link) {
       if (!link || !link.from || !link.to) return;
       var a = project(link.from);
       var b = project(link.to);
-      parts.push('<line class="bus-link" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) +
+      parts.push('<line class="bus-link' + (link.ride ? " is-ride" : "") +
+        '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) +
         '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>');
     });
 

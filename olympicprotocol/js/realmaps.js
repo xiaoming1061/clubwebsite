@@ -199,14 +199,16 @@ window.OP = window.OP || {};
       });
     }
 
-    /* 连线只画"我和车站 / 车站和教室"这两截——
+    /* 连线只画三段：走到上车站、车站坐到车站、下车走到教室。
+       中间那截是坐车，换颜色和粗细区分开。
        原来那条把各地点串起来的线看着像路线，其实没有指导意义 */
     (opts.busLinks || []).forEach(function (link) {
       if (!link || !link.from || !link.to) return;
+      var ride = !!link.ride;
       L.polyline([[link.from.lat, link.from.lng], [link.to.lat, link.to.lng]], {
-        color: "#ff6fa5",
-        weight: 3,
-        dashArray: "8 7",
+        color: ride ? "#a06bff" : "#ff6fa5",
+        weight: ride ? 5 : 3,
+        dashArray: ride ? "3 8" : "8 7",
         opacity: 0.95
       }).addTo(overlay);
     });

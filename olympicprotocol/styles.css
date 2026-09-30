@@ -541,6 +541,16 @@ body {
   opacity: 0.85;
 }
 
+/* 上车站 → 下车站这一段：这一截是坐车，不是走路。
+   画粗一点、换成紫色，一眼能跟走路的两截分开。
+   虚线周期 3+6=9，动画走 -18 刚好两个周期，接得上不会跳。 */
+.bus-link.is-ride {
+  stroke: var(--accent-2);
+  stroke-width: 5;
+  stroke-dasharray: 3 6;
+  opacity: 0.9;
+}
+
 @keyframes dash {
   to { stroke-dashoffset: -18; }
 }
@@ -591,6 +601,10 @@ body {
 .dot-next { background: var(--accent); box-shadow: 0 0 0 3px rgba(255, 95, 162, 0.24); }
 .dot-today { background: #ffd9e8; box-shadow: inset 0 0 0 2px var(--accent); }
 
+/* 图例里的两种线：走路（细虚线）/ 坐车（粗点线） */
+.line { width: 22px; height: 0; display: inline-block; border-top: 3px dashed var(--accent); }
+.line-ride { border-top-style: dotted; border-top-width: 4px; border-top-color: var(--accent-2); }
+
 /* ---------- 路线 ---------- */
 
 .route-list { display: flex; flex-direction: column; gap: 10px; }
@@ -621,6 +635,22 @@ body {
 .leg-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
 .leg-warn { margin-top: 9px; font-size: 12px; color: var(--warn); }
+
+/* ---------- 返回宿舍 ---------- */
+
+.dorm-plan { margin-top: 12px; }
+
+.dorm-plan .empty { margin: 0; }
+
+/* 起点说明：为什么是从这栋楼出发的 */
+.dorm-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.dorm-leg .idx { background: rgba(185, 140, 255, 0.18); color: var(--accent-2); }
 
 /* ---------- 校巴方案 ---------- */
 

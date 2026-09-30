@@ -349,9 +349,7 @@
    * **只写时长，不写"几点到"**：校巴到站时间太不稳，报了反而误导。
    * 每行是「走到车站 + 车程 + 走到教室 = 合计」，再加这条线大概几分钟一班。
    */
-  function busOptions(leg, course) {
-    if (!leg.fromPoint || !leg.toPoint) return "";
-
+  function busHtml(plan, destLabel) {
     /* 模块没加载上说明页面是旧缓存（HTML 里没有 js/shuttle.js 那一行），
        这种情况要明说，不能跟"这段没车"长得一样 */
     if (!OP.Shuttle || !(OP.SHUTTLE_ROUTES || []).length) {
@@ -360,8 +358,10 @@
         '（iOS 加到桌面的话：删掉图标重新添加）。</div></div>';
     }
 
-    var plan = leg.busPlan;
     if (!plan) return "";
+
+    /* 教室和宿舍共用这块 HTML，只有"走到哪里"这个说法不一样 */
+    var dest = destLabel || "教室";
 
     /* 全部列出来：比走路慢也好、赶不上这一节也好，都摆出来让人自己挑。
        排在前面的仍然是"上车站离你最近"的那些。 */
@@ -395,7 +395,7 @@
         "</div>" +
         '<div class="bus-ride' + tone + '">' +
           "走到车站 <b>" + Math.round(g.walkBeforeMin) + "</b> 分 + 车程 <b>" +
-            Math.round(g.rideMin) + "</b> 分 + 走到教室 <b>" + Math.round(g.walkAfterMin) +
+            Math.round(g.rideMin) + "</b> 分 + 走到" + esc(dest) + " <b>" + Math.round(g.walkAfterMin) +
             "</b> 分 = 合计 <b>" + Math.round(g.totalMin) + "</b> 分" +
           (g.headwayMin ? ' · 约每 <b>' + g.headwayMin + "</b> 分钟一班" : "") +
           (verdict ? ' <span class="bus-verdict">' + verdict + "</span>" : "") +
@@ -415,6 +415,13 @@
     }
 
     return '<div class="leg-bus"><div class="leg-bus-head">校巴</div>' + html + "</div>";
+  }
+
+  /* 去教室那一段的校巴方案 */
+  function busOptions(leg, course) {
+    void course;
+    if (!leg.fromPoint || !leg.toPoint) return "";
+    return busHtml(leg.busPlan, "教室");
   }
 
   function renderRoute() {
@@ -481,6 +488,15 @@
       if (best) {
         if (leg.fromPoint && best.board.stop) {
           busLinks.push({ from: leg.fromPoint, to: best.board.stop });
+        }
+        /* 上车站到下车站这一段：这是坐车，不是走路，画成另一种线 */
+        if (best.board.stop && best.alight.stop) {
+          busLinks.push({
+            from: best.board.stop,
+            to: best.alight.stop,
+            ride: true,
+            route: best.route.no
+          });
         }
         if (best.alight.stop && leg.toPoint) {
           busLinks.push({ from: best.alight.stop, to: leg.toPoint });
@@ -588,6 +604,192 @@
     }).join("");
 
     box.innerHTML = html;
+  }
+
+  /* ================= 渲染：返回宿舍 ================= */
+
+  function dormTarget() {
+    if (!OP.Dorm) return null;
+    return OP.Dorm.byId(data.settings, data.settings.dormId);
+  }
+
+  /* 默认宿舍数据里没有海拔（OSM 不给），查到就记在内存里，
+     免得每次渲染都去问一次高程接口 */
+  var dormElevation = {};
+
+  function ensureDormElevation(dorm, done) {
+    if (!dorm) return;
+    if (typeof dormElevation[dorm.id] === "number") {
+      dorm.elevation = dormElevation[dorm.id];
+      return;
+    }
+    if (typeof dorm.elevation === "number") return;
+    if (!OP.Elevation || typeof OP.Elevation.at !== "function") return;
+
+    OP.Elevation.at(dorm.lat, dorm.lng).then(function (value) {
+      if (typeof value !== "number") return;
+      dormElevation[dorm.id] = value;
+      done();
+    }).catch(function () { /* 查不到就按平地算，不影响能不能用 */ });
+  }
+
+  /**
+   * 回宿舍从哪儿出发。
+   *
+   * 默认"今天最后一节课下课就走"——学生的真实场景大多是上完课回宿舍，
+   * 而不是从当前这个位置出发。没有课（或者关了那个开关）就用当前定位。
+   */
+  function dormStart() {
+    var now = state.now;
+
+    if (data.settings.dormFromClass !== false) {
+      var last = null;
+      P.todayCourses(data, now).forEach(function (c) {
+        /* todayCourses 已按开始时间排好，最后还有课的自然是最后一节 */
+        if (P.at(now, c.end).getTime() > now.getTime()) last = c;
+      });
+
+      if (last) {
+        var b = P.buildingById(data, last.buildingId);
+        if (b && typeof b.lat === "number" && typeof b.lng === "number") {
+          return {
+            point: { lat: b.lat, lng: b.lng, elevation: b.elevation },
+            name: b.name,
+            note: "今天最后一节 " + last.start + "–" + last.end + "（" + last.name + "）下课后就走",
+            at: P.at(now, last.end),
+            fromClass: true
+          };
+        }
+      }
+    }
+
+    var pos = effectivePosition();
+    if (!pos) return null;
+    return { point: pos, name: "我的位置", note: "", at: now, fromClass: false };
+  }
+
+  /**
+   * 输入框里那串字到底是哪个宿舍。
+   *
+   * 先按名字和别名找完全一样的，再找"包含"的，最后用和课表地名同一套
+   * 模糊打分兜底——宿舍名里有不少缩写（C.C. / U.C.）和"第几苑"这类写法。
+   */
+  function resolveDorm(text) {
+    if (!OP.Dorm) return null;
+    var q = String(text === undefined || text === null ? "" : text).trim();
+    if (!q) return null;
+
+    var list = OP.Dorm.all(data.settings);
+    var low = q.toLowerCase();
+    var namesOf = function (d) {
+      return [d.name].concat(d.alias || []).map(function (n) { return n.toLowerCase(); });
+    };
+
+    var exact = list.filter(function (d) { return namesOf(d).indexOf(low) >= 0; })[0];
+    if (exact) return exact;
+
+    var partial = list.filter(function (d) {
+      return namesOf(d).some(function (n) { return n.indexOf(low) >= 0; });
+    });
+    if (partial.length) return partial[0];
+
+    if (OP.Places && OP.Places.bestNameMatch) {
+      return OP.Places.bestNameMatch(q, list, 0.45);
+    }
+    return null;
+  }
+
+  function pickDormByName(text) {
+    var dorm = resolveDorm(text);
+    data.settings.dormId = dorm ? dorm.id : "";
+    if (!dorm && String(text || "").trim()) {
+      toast("没找到这个宿舍", "换个写法，或者走到楼下用「用当前位置添加宿舍」", "warn");
+    }
+    saveAndRender();
+  }
+
+  function renderDorm() {
+    if (!OP.Dorm) return;
+
+    var box = $("#dormPlan");
+    var list = OP.Dorm.all(data.settings);
+    var dorm = dormTarget();
+
+    /* 输入框的自动补全名单 */
+    $("#dormOptions").innerHTML = list.map(function (d) {
+      return '<option value="' + esc(d.name) + '"></option>';
+    }).join("");
+
+    var search = $("#dormSearch");
+    if (document.activeElement !== search) search.value = dorm ? dorm.name : "";
+
+    $("#dormState").textContent = list.length + " 处可选";
+    $("#btnDormRemove").hidden = !(dorm && dorm.custom);
+    $("#dormFromClass").checked = data.settings.dormFromClass !== false;
+
+    if (!dorm) {
+      box.innerHTML = '<p class="empty">上面选一个宿舍。列表里没有的话，' +
+        "走到那栋楼按「用当前位置添加宿舍」。</p>";
+      return;
+    }
+
+    var s = data.settings;
+    var start = dormStart();
+    /* 海拔缺了就先查回来再渲染一次：爬山校园里不算高差，时间会差很多 */
+    ensureDormElevation(dorm, renderDorm);
+    var metrics = start ? P.walkMetrics(start.point, dorm, s) : null;
+    var busPlan = (start && OP.Shuttle)
+      ? OP.Shuttle.plan(start.point, { lat: dorm.lat, lng: dorm.lng, elevation: dorm.elevation },
+        start.at, metrics ? metrics.minutes : null, s)
+      : null;
+
+    var head = '<div class="leg-head">' +
+      '<div class="leg-title"><span class="idx">返</span>' +
+        esc((start ? start.name : "起点未知") + " → " + dorm.name) + "</div>" +
+      '<div class="leg-time">' + esc(dorm.custom ? "自建" : "OSM") + "</div>" +
+      "</div>";
+
+    var note = start && start.note
+      ? '<p class="dorm-note">' + esc(start.note) + "</p>"
+      : "";
+
+    var stats = "";
+    if (!start) {
+      stats = '<p class="dorm-note">还没有位置信息：先到「设置 → 定位」开一下定位，' +
+        "或者在设置里填一个模拟位置。</p>";
+    } else if (metrics) {
+      /* 回宿舍大多是下坡。爬升要折算成时间，下降不折算（下坡不省时间，
+         这是 Naismith 那套经验规则的口径），所以分开写、并注明。 */
+      var drop = 0;
+      if (typeof start.point.elevation === "number" && typeof dorm.elevation === "number") {
+        drop = Math.max(0, start.point.elevation - dorm.elevation);
+      }
+
+      stats = '<div class="leg-meta">' +
+        "<span>距离 <b>" + esc(Geo.formatDistance(metrics.distance)) + "</b></span>" +
+        (metrics.hasElevation && metrics.rise >= 3
+          ? "<span>爬升 <b>" + Math.round(metrics.rise) + " 米</b></span>" : "") +
+        (drop >= 3 ? "<span>下降 <b>" + Math.round(drop) + " 米</b></span>" : "") +
+        "<span>步行 <b>" + esc(Geo.formatDuration(metrics.minutes)) + "</b></span>" +
+        (start.fromClass
+          ? "<span>下课后 <b>" + pad2(start.at.getHours()) + ":" +
+            pad2(start.at.getMinutes()) + "</b></span>"
+          : "") +
+        "</div>";
+    }
+
+    var links = Geo.navLinks(dorm.name, dorm.lat, dorm.lng);
+    var actions = '<div class="leg-actions">' + links.map(function (l) {
+      if (l.copy) {
+        return '<button type="button" class="nav-link" data-copy="' + esc(l.copy) + '">' +
+          esc(l.label) + "</button>";
+      }
+      return '<a class="nav-link" href="' + esc(l.url) + '" target="_blank" rel="noopener">' +
+        esc(l.label) + "</a>";
+    }).join("") + "</div>";
+
+    box.innerHTML = '<div class="leg dorm-leg">' + head + note + stats +
+      (start ? busHtml(busPlan, "宿舍") : "") + actions + "</div>";
   }
 
   /* ================= 渲染：课表 ================= */
@@ -818,7 +1020,7 @@
   function render() {
     renderTop();
     if (state.view === "today") renderToday();
-    else if (state.view === "route") renderRoute();
+    else if (state.view === "route") { renderRoute(); renderDorm(); }
     else if (state.view === "course") renderCourse();
     else if (state.view === "settings") renderSettings();
     /* 内容变了，页尾留白要重新核对 */
@@ -1626,6 +1828,77 @@
         data.settings.mapMode = btn.dataset.mapmode;
         saveAndRender();
       });
+    });
+
+    /* --- 返回宿舍 --- */
+    $("#dormFromClass").addEventListener("change", function () {
+      data.settings.dormFromClass = $("#dormFromClass").checked;
+      saveAndRender();
+    });
+
+    /* 输入框里可能是全名、中文别名或者半截名字，交给 resolveDorm 去挑 */
+    $("#dormSearch").addEventListener("change", function () {
+      pickDormByName($("#dormSearch").value);
+    });
+
+    $("#btnDormAddHere").addEventListener("click", function () {
+      var pos = effectivePosition();
+      if (!pos) {
+        toast("还没有位置", "先到「设置 → 定位」开一下定位，或者填一个模拟位置", "warn");
+        return;
+      }
+      /* 站在楼下时，最近的楼栋通常就是这栋楼，先把名字填上省得打字 */
+      var nearest = P.nearestBuilding(pos, (data.campus && data.campus.buildings) || []);
+      $("#dfName").value = (nearest && nearest.distance < 120) ? nearest.building.name : "";
+      $("#dfCoords").textContent = "当前位置 " + pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5);
+      $("#dormForm").hidden = false;
+      $("#dfName").focus();
+    });
+
+    $("#dfCancel").addEventListener("click", function () {
+      $("#dormForm").hidden = true;
+    });
+
+    $("#dormForm").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var pos = effectivePosition();
+      if (!pos) return;
+
+      var entry = OP.Dorm.add(data.settings, $("#dfName").value, pos);
+      if (!entry) {
+        toast("名字不能空着", "写一个你自己认得出的名字就行", "warn");
+        return;
+      }
+      data.settings.dormId = entry.id;
+      $("#dormForm").hidden = true;
+      saveAndRender();
+      toast("宿舍已添加", entry.name + "（用当前位置）", "ok");
+    });
+
+    $("#btnDormRemove").addEventListener("click", function () {
+      var dorm = dormTarget();
+      if (!dorm || !dorm.custom) return;
+      askConfirm("删掉宿舍「" + dorm.name + "」？", function () {
+        OP.Dorm.remove(data.settings, dorm.id);
+        data.settings.dormId = "";
+        saveAndRender();
+      });
+    });
+
+    $("#btnDormGo").addEventListener("click", function () {
+      var dorm = dormTarget();
+      if (!dorm) {
+        toast("还没选宿舍", "先在「返回宿舍」里选一个", "warn");
+        return;
+      }
+      var links = Geo.navLinks(dorm.name, dorm.lat, dorm.lng);
+      var pick = links.filter(function (l) { return l.primary && l.url; })[0] ||
+        links.filter(function (l) { return l.url; })[0];
+      if (!pick) {
+        toast("这个宿舍没有坐标", "换个宿舍，或者重新添加一次", "warn");
+        return;
+      }
+      window.open(pick.url, "_blank", "noopener");
     });
 
     /* --- 行程卡片里的「复制坐标」 --- */
