@@ -2111,10 +2111,47 @@
     }
   }
 
+  /* 背景视频：一段 16 秒的循环。
+     有些浏览器（iOS Safari、以及「加到主屏」后的独立窗口）不认 autoplay，
+     会把画面停在第一帧，所以这里主动补播一次；再不行就等用户第一次点屏幕。 */
+  function initBackgroundVideo() {
+    var video = document.getElementById("bgVideo");
+    if (!video || typeof video.play !== "function") return;
+
+    /* 系统开了「减少动态效果」：CSS 已经把视频藏起来退回静态图，
+       这里就别再让它偷偷播了，白费电。 */
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    function nudge() {
+      if (!video.paused && !video.ended) return;
+      var p = video.play();
+      if (p && typeof p.catch === "function") p.catch(function () { /* 补播失败就等下一次机会 */ });
+    }
+
+    nudge();
+    video.addEventListener("loadeddata", nudge);
+    video.addEventListener("canplay", nudge);
+
+    /* iOS 常常要等一次真实手势才肯播 */
+    function onGesture() { nudge(); }
+    document.addEventListener("touchstart", onGesture, { passive: true });
+    document.addEventListener("click", onGesture);
+    video.addEventListener("playing", function () {
+      document.removeEventListener("touchstart", onGesture);
+      document.removeEventListener("click", onGesture);
+    });
+
+    /* 切回前台时可能被系统暂停，回来了再补一次 */
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible") nudge();
+    });
+  }
+
   function boot() {
     OP.Speech.init();
     OP.Speech.onChange(fillVoiceOptions);
 
+    initBackgroundVideo();
     bindEvents();
     fillVoiceOptions();
     measureBottomSpace();
