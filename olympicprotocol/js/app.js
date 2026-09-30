@@ -681,8 +681,9 @@
 
     var list = OP.Dorm.all(data.settings);
     var low = q.toLowerCase();
+    /* 英文名、中文名、并排写法、别名，全都算 */
     var namesOf = function (d) {
-      return [d.name].concat(d.alias || []).map(function (n) { return n.toLowerCase(); });
+      return OP.Dorm.names(d).map(function (n) { return n.toLowerCase(); });
     };
 
     var exact = list.filter(function (d) { return namesOf(d).indexOf(low) >= 0; })[0];
@@ -715,13 +716,14 @@
     var list = OP.Dorm.all(data.settings);
     var dorm = dormTarget();
 
-    /* 输入框的自动补全名单 */
+    /* 输入框的自动补全名单：值用「英文 中文」，选进来两个名字都在，
+       回头 resolveDorm 也认这个写法 */
     $("#dormOptions").innerHTML = list.map(function (d) {
-      return '<option value="' + esc(d.name) + '"></option>';
+      return '<option value="' + esc(d.label) + '"></option>';
     }).join("");
 
     var search = $("#dormSearch");
-    if (document.activeElement !== search) search.value = dorm ? dorm.name : "";
+    if (document.activeElement !== search) search.value = dorm ? dorm.label : "";
 
     $("#dormState").textContent = list.length + " 处可选";
     $("#btnDormRemove").hidden = !(dorm && dorm.custom);
@@ -745,7 +747,7 @@
 
     var head = '<div class="leg-head">' +
       '<div class="leg-title"><span class="idx">返</span>' +
-        esc((start ? start.name : "起点未知") + " → " + dorm.name) + "</div>" +
+        esc((start ? start.name : "起点未知") + " → " + dorm.label) + "</div>" +
       '<div class="leg-time">' + esc(dorm.custom ? "自建" : "OSM") + "</div>" +
       "</div>";
 
@@ -778,7 +780,9 @@
         "</div>";
     }
 
-    var links = Geo.navLinks(dorm.name, dorm.lat, dorm.lng);
+    /* 名字给「英文 中文」：高德 / 百度会把这个名字显示在目的地上，
+       两个写法都带上，用中文地图的人也能一眼确认是不是这栋 */
+    var links = Geo.navLinks(dorm.label, dorm.lat, dorm.lng);
     var actions = '<div class="leg-actions">' + links.map(function (l) {
       if (l.copy) {
         return '<button type="button" class="nav-link" data-copy="' + esc(l.copy) + '">' +
@@ -1878,7 +1882,7 @@
     $("#btnDormRemove").addEventListener("click", function () {
       var dorm = dormTarget();
       if (!dorm || !dorm.custom) return;
-      askConfirm("删掉宿舍「" + dorm.name + "」？", function () {
+      askConfirm("删掉宿舍「" + dorm.label + "」？", function () {
         OP.Dorm.remove(data.settings, dorm.id);
         data.settings.dormId = "";
         saveAndRender();

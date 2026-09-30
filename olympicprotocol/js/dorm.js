@@ -27,11 +27,22 @@ window.OP = window.OP || {};
     return !!(d && typeof d.lat === "number" && typeof d.lng === "number");
   }
 
+  /* 显示用的名字：英文 + 中文并排，两个都看得见才有用
+     （只写 "Bethlehem Hall" 或只写 "伯利衡宿舍" 都有人认不出来） */
+  function labelOf(d) {
+    var zh = d.nameZh || "";
+    if (!zh || zh === d.name) return d.name;
+    return d.name + " " + zh;
+  }
+
   /* 补齐字段：搜索和播报都要能拿到 alias 数组，别到处判断 undefined */
   function shape(d, custom) {
     return {
       id: d.id,
       name: d.name,
+      nameZh: d.nameZh || "",
+      nameEn: d.nameEn || "",
+      label: labelOf(d),
       alias: (d.alias || []).slice(),
       lat: d.lat,
       lng: d.lng,
@@ -64,15 +75,22 @@ window.OP = window.OP || {};
     var q = String(query === undefined || query === null ? "" : query).trim().toLowerCase();
     if (!q) return list;
     return list.filter(function (d) {
-      var hay = [d.name].concat(d.alias).join(" ").toLowerCase();
+      var hay = names(d).join(" ").toLowerCase();
       return hay.indexOf(q) >= 0;
     });
   }
 
-  /* 收录的所有名字，播报时念得出来 */
+  /* 收录的所有名字（英文 / 中文 / 并排的那个写法 / 别名），搜索和播报都用它 */
   function names(dorm) {
     if (!dorm) return [];
-    return [dorm.name].concat(dorm.alias || []).filter(Boolean);
+    var out = [];
+    [dorm.name, dorm.nameZh, dorm.nameEn, dorm.label]
+      .concat(dorm.alias || [])
+      .filter(Boolean)
+      .forEach(function (n) {
+        if (out.indexOf(n) < 0) out.push(n);
+      });
+    return out;
   }
 
   function nearest(point, settings) {
@@ -98,6 +116,8 @@ window.OP = window.OP || {};
     var entry = {
       id: makeId(),
       name: clean,
+      nameZh: "",
+      nameEn: "",
       alias: [],
       lat: Number(point.lat.toFixed(6)),
       lng: Number(point.lng.toFixed(6)),
@@ -123,6 +143,7 @@ window.OP = window.OP || {};
     byId: byId,
     search: search,
     names: names,
+    label: labelOf,
     nearest: nearest,
     add: add,
     remove: remove,
