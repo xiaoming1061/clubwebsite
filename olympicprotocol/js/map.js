@@ -79,16 +79,22 @@ window.OP = window.OP || {};
 
   /* ---------- 地名简写 ---------- */
 
-  /* 取首字母拼代号时跳过的词 */
-  var SKIP_WORDS = ["the", "of", "and", "&", "at"];
+  /* 简图上可以省掉的词：都是"楼/馆"这类通用名词，
+     省掉之后名字还是认得出（Esther Lee Building → Esther Lee） */
+  var DROP_WORDS = [
+    "building", "buildings", "bldg", "bldgs", "block", "blocks",
+    "centre", "center", "complex", "tower", "annex", "wing",
+    "room", "rooms", "theatre", "theater", "auditorium"
+  ];
 
   /**
-   * 简图上的地名用简写。
+   * 简图上的地名去个尾。
    *
-   * "Academic Building No.2" 这种全称在简图上又长又容易互相压住，
-   * 而完整名字在下面的行程列表里就有，简图这里只要能对上号。
-   * 规则：每个词取首字母、数字照抄（Academic Building No.2 → AB2）——
-   * 这跟学校自己用的楼宇代号也是一致的。本来就短的名字（12W、C3、LT2）原样留着。
+   * 只去掉 "Building / Centre / Complex" 这类通用词，别的都留着：
+   *   Academic Building No.2   → Academic No.2
+   *   Esther Lee Building      → Esther Lee
+   *   Lady Shaw Building C3    → Lady Shaw C3
+   * 一开始做成了取首字母拼代号（AB2 / ELB），太激进了——简图上认不出是哪栋。
    * 全称没丢：每块字都带了 <title>，鼠标停上去 / 手机上长按能看全。
    */
   function shortLabel(name) {
@@ -103,25 +109,26 @@ window.OP = window.OP || {};
       return zh.length > 8 ? zh.slice(0, 8) + "…" : zh;
     }
 
-    /* 12W / C3 / LT2 / AB1 这类已经够短了 */
+    /* 已经够短的（12W / C3 / LT2）不用动 */
     if (raw.replace(/[^A-Za-z0-9]/g, "").length <= 4) return raw;
 
-    var code = raw.split(/[\s,]+/).filter(function (w) {
-      return w && SKIP_WORDS.indexOf(w.toLowerCase()) < 0;
-    }).map(function (w) {
-      var no = /^no\.?\s*(\d+)$/i.exec(w);
-      if (no) return no[1];
-      if (/^\d+$/.test(w)) return w;
-      /* C3 / L3 / 2W 这种带数字的短词整个留着 */
-      if (/\d/.test(w) && w.replace(/[^A-Za-z0-9]/g, "").length <= 3) {
-        return w.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-      }
-      var m = w.match(/[A-Za-z0-9]/);
-      return m ? m[0].toUpperCase() : "";
-    }).join("");
+    var words = raw.split(/\s+/).filter(Boolean);
+    var kept = words.filter(function (w) {
+      return DROP_WORDS.indexOf(w.toLowerCase().replace(/[.,]/g, "")) < 0;
+    });
+    /* 去完只剩一个词就先别去了：「Science Centre」变「Science」反而看不懂 */
+    if (kept.length < 2) kept = words;
 
-    if (code.length < 2) return raw.slice(0, 8) + "…";
-    return code.length > 8 ? code.slice(0, 8) : code;
+    /* 去掉通用词之后还是很长的（"Pentecostal Mission Hall Complex (High Block)"），
+       再截一下——按整词截，别把词切成半截 */
+    var out = "";
+    for (var i = 0; i < kept.length; i++) {
+      var next = out ? out + " " + kept[i] : kept[i];
+      if (next.length > 26) break;
+      out = next;
+    }
+    if (!out) out = kept[0].slice(0, 26);
+    return out === kept.join(" ") ? out : out + "…";
   }
 
   /* ---------- 摆地名：默认放下面，压住了就翻到上面 ---------- */

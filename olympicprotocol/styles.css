@@ -653,11 +653,11 @@ body {
 
 .leg-warn { margin-top: 9px; font-size: 12px; color: var(--warn); }
 
-/* ---------- 返回宿舍 ---------- */
+/* ---------- 返回宿舍 / 自定义路线 ---------- */
 
-.dorm-plan { margin-top: 12px; }
+.dorm-plan, .custom-plan { margin-top: 12px; }
 
-.dorm-plan .empty { margin: 0; }
+.dorm-plan .empty, .custom-plan .empty { margin: 0; }
 
 /* 宿舍输入框下面的候选列表。
    不用浏览器原生 <datalist>：它只认字面值，不认繁简和拼音首字母 */
@@ -703,8 +703,8 @@ body {
   line-height: 1.6;
 }
 
-/* 起点说明：为什么是从这栋楼出发的 */
-.dorm-note {
+/* 卡片里的小字说明（回宿舍的起点、自定义路线的提示等） */
+.plan-note {
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--text-dim);
@@ -712,6 +712,7 @@ body {
 }
 
 .dorm-leg .idx { background: rgba(185, 140, 255, 0.18); color: var(--accent-2); }
+.custom-leg .idx { background: rgba(255, 95, 162, 0.16); color: var(--accent); }
 
 /* ---------- 校巴方案 ---------- */
 

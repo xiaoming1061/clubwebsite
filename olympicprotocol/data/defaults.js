@@ -60,6 +60,10 @@ window.OP.DEFAULT_DATA = {
        页面上的增删都改它，跟默认数据分开存。 */
     dormId: "",
     addedDorms: [],
-    dormFromClass: true     // 回宿舍的起点：true=今天最后一节课下课就走
+    dormFromClass: true,    // 回宿舍的起点：true=今天最后一节课下课就走
+
+    /* 自定义路线：上次选的起点/终点楼栋 id。空字符串表示起点用「我的位置」 */
+    customFrom: "",
+    customTo: ""
   }
 };

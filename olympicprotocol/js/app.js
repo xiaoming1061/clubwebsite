@@ -810,12 +810,12 @@
       "</div>";
 
     var note = start && start.note
-      ? '<p class="dorm-note">' + esc(start.note) + "</p>"
+      ? '<p class="plan-note">' + esc(start.note) + "</p>"
       : "";
 
     var stats = "";
     if (!start) {
-      stats = '<p class="dorm-note">还没有位置信息：先到「设置 → 定位」开一下定位，' +
+      stats = '<p class="plan-note">还没有位置信息：先到「设置 → 定位」开一下定位，' +
         "或者在设置里填一个模拟位置。</p>";
     } else if (metrics) {
       /* 回宿舍大多是下坡。爬升要折算成时间，下降不折算（下坡不省时间，
@@ -852,6 +852,116 @@
 
     box.innerHTML = '<div class="leg dorm-leg">' + head + note + stats +
       (start ? busHtml(busPlan, "宿舍") : "") + actions + "</div>";
+  }
+
+  /* ================= 渲染：自定义路线 ================= */
+
+  /**
+   * 自己选起点和终点，算一遍怎么走。
+   *
+   * 用的是和「去上课」「回宿舍」完全同一套：步行时间（含高差）+ 校巴方案。
+   * 起点可以是「我的位置」，也可以是任意一栋有坐标的楼；终点是楼栋。
+   * 选完就自动算，不用再点一次按钮。
+   */
+  function renderCustom() {
+    var fromSel = $("#customFrom");
+    var toSel = $("#customTo");
+    if (!fromSel || !toSel) return;
+
+    var list = ((data.campus && data.campus.buildings) || []).filter(function (b) {
+      return typeof b.lat === "number" && typeof b.lng === "number";
+    });
+
+    function options() {
+      return list.map(function (b) {
+        return '<option value="' + esc(b.id) + '">' + esc(b.name) + "</option>";
+      }).join("");
+    }
+    fromSel.innerHTML = '<option value="">我的位置</option>' + options();
+    toSel.innerHTML = '<option value="">（选终点）</option>' + options();
+
+    /* 上次选的那两栋记在设置里，切走再回来还在 */
+    fromSel.value = data.settings.customFrom || "";
+    toSel.value = data.settings.customTo || "";
+    data.settings.customFrom = fromSel.value;
+    data.settings.customTo = toSel.value;
+
+    var box = $("#customPlan");
+    var stateEl = $("#customState");
+    var to = data.settings.customTo ? P.buildingById(data, data.settings.customTo) : null;
+
+    if (!to) {
+      box.innerHTML = '<p class="empty">选一个终点楼栋就会自动规划；' +
+        "起点默认是「我的位置」，也可以从全部楼栋里挑。</p>";
+      stateEl.textContent = list.length + " 栋可选";
+      return;
+    }
+
+    var fromPoint = null;
+    var fromName = "我的位置";
+    if (data.settings.customFrom) {
+      var fb = P.buildingById(data, data.settings.customFrom);
+      if (fb && typeof fb.lat === "number") {
+        fromPoint = { lat: fb.lat, lng: fb.lng, elevation: fb.elevation };
+        fromName = fb.name;
+      }
+    } else {
+      fromPoint = effectivePosition();
+    }
+
+    if (fromPoint && to.id === data.settings.customFrom) {
+      box.innerHTML = '<p class="empty">起点和终点是同一栋楼，换个终点试试。</p>';
+      stateEl.textContent = list.length + " 栋可选";
+      return;
+    }
+
+    if (!fromPoint) {
+      box.innerHTML = '<p class="empty">起点是「我的位置」，但还没定位。' +
+        "到「设置 → 定位」开一下定位，或者把起点换成一栋楼。</p>";
+      stateEl.textContent = list.length + " 栋可选";
+      return;
+    }
+
+    var s = data.settings;
+    var toPoint = { lat: to.lat, lng: to.lng, elevation: to.elevation };
+    var metrics = P.walkMetrics(fromPoint, toPoint, s);
+    var busPlan = OP.Shuttle
+      ? OP.Shuttle.plan(fromPoint, toPoint, state.now, metrics ? metrics.minutes : null, s)
+      : null;
+
+    stateEl.textContent = fromName + " → " + to.name;
+
+    var drop = 0;
+    if (typeof fromPoint.elevation === "number" && typeof to.elevation === "number") {
+      drop = Math.max(0, fromPoint.elevation - to.elevation);
+    }
+
+    var stats = metrics
+      ? '<div class="leg-meta">' +
+          "<span>距离 <b>" + esc(Geo.formatDistance(metrics.distance)) + "</b></span>" +
+          (metrics.hasElevation && metrics.rise >= 3
+            ? "<span>爬升 <b>" + Math.round(metrics.rise) + " 米</b></span>" : "") +
+          (drop >= 3 ? "<span>下降 <b>" + Math.round(drop) + " 米</b></span>" : "") +
+          "<span>步行 <b>" + esc(Geo.formatDuration(metrics.minutes)) + "</b></span>" +
+        "</div>"
+      : "";
+
+    var links = Geo.navLinks(to.name, to.lat, to.lng);
+    var actions = '<div class="leg-actions">' + links.map(function (l) {
+      if (l.copy) {
+        return '<button type="button" class="nav-link" data-copy="' + esc(l.copy) + '">' +
+          esc(l.label) + "</button>";
+      }
+      return '<a class="nav-link" href="' + esc(l.url) + '" target="_blank" rel="noopener">' +
+        esc(l.label) + "</a>";
+    }).join("") + "</div>";
+
+    box.innerHTML = '<div class="leg custom-leg">' +
+      '<div class="leg-head">' +
+        '<div class="leg-title"><span class="idx">自</span>' +
+          esc(fromName + " → " + to.name) + "</div>" +
+        '<div class="leg-time">' + esc(metrics ? Geo.formatDuration(metrics.minutes) : "--") + "</div>" +
+      "</div>" + stats + busHtml(busPlan, "终点") + actions + "</div>";
   }
 
   /* ================= 渲染：课表 ================= */
@@ -1082,7 +1192,7 @@
   function render() {
     renderTop();
     if (state.view === "today") renderToday();
-    else if (state.view === "route") { renderRoute(); renderDorm(); }
+    else if (state.view === "route") { renderRoute(); renderDorm(); renderCustom(); }
     else if (state.view === "course") renderCourse();
     else if (state.view === "settings") renderSettings();
     /* 内容变了，页尾留白要重新核对 */
@@ -1649,7 +1759,10 @@
     ocrProgress("正在准备", 0.02);
 
     OP.Ocr.run(file, {
-      lang: $("#ocrChinese").checked ? "eng+chi_sim" : "eng",
+      /* 只认英文。以前这里有个「课表里有中文」的开关，按用户要求去掉了：
+         开中文要另外下一个语言包、识别也慢一截，而课表上的课程代号、
+         时间、教室号本来就是英文数字。真要认中文，把这里改成 "eng+chi_sim"。 */
+      lang: "eng",
       onProgress: ocrProgress
     }).then(function (result) {
       ocrProgress(null);
@@ -1892,6 +2005,29 @@
       });
     });
 
+    /* --- 自定义路线（选完就自动算） --- */
+    $("#customFrom").addEventListener("change", function () {
+      data.settings.customFrom = $("#customFrom").value;
+      saveAndRender();
+    });
+
+    $("#customTo").addEventListener("change", function () {
+      data.settings.customTo = $("#customTo").value;
+      saveAndRender();
+    });
+
+    $("#btnCustomSwap").addEventListener("click", function () {
+      /* 起点是「我的位置」时没有"对调"可言：位置不在下拉里 */
+      if (!data.settings.customFrom) {
+        toast("起点是「我的位置」", "先把起点选成一栋楼，才能跟终点对调", "warn");
+        return;
+      }
+      var tmp = data.settings.customFrom;
+      data.settings.customFrom = data.settings.customTo;
+      data.settings.customTo = tmp;
+      saveAndRender();
+    });
+
     /* --- 返回宿舍 --- */
     $("#dormFromClass").addEventListener("change", function () {
       data.settings.dormFromClass = $("#dormFromClass").checked;
@@ -1989,8 +2125,8 @@
       window.open(pick.url, "_blank", "noopener");
     });
 
-    /* --- 行程卡片里的「复制坐标」 --- */
-    $("#routeList").addEventListener("click", function (ev) {
+    /* --- 卡片里的「复制坐标」（行程 / 返回宿舍 / 自定义路线都走这里） --- */
+    document.addEventListener("click", function (ev) {
       var btn = ev.target.closest("[data-copy]");
       if (!btn) return;
       ev.preventDefault();
@@ -2027,24 +2163,6 @@
     /* --- 定位 --- */
     $("#btnLocate").addEventListener("click", startLocate);
     $("#btnStopLocate").addEventListener("click", stopLocate);
-
-    $("#btnSimHere").addEventListener("click", function () {
-      var pos = effectivePosition();
-      if (!pos) {
-        toast("现在还没有位置", "先点「开始实时定位」，或手动填写楼栋坐标", "warn");
-        return;
-      }
-      data.settings.simulate = { lat: pos.lat, lng: pos.lng };
-      saveAndRender();
-      fillElevation(data.settings.simulate, saveAndRender);
-      toast("已设为模拟位置", pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5), "ok");
-    });
-
-    $("#btnClearSim").addEventListener("click", function () {
-      data.settings.simulate = null;
-      saveAndRender();
-      toast("已清除模拟位置", "");
-    });
 
     /* --- 语音 --- */
     $("#vEnabled").addEventListener("change", function () {
