@@ -5,9 +5,11 @@
      滚动条、滑块、日期选择器这些原生控件还是黑的 */
   color-scheme: light;
   --bg: #fff2f7;
-  --bg-soft: #ffe8f2;
-  --card: rgba(255, 255, 255, 0.92);
-  --card-2: rgba(255, 255, 255, 0.75);
+  /* 卡片、按钮这些都做成半透明的，底下的背景视频才透得出来。
+     字是深色的，靠「白色半透明底 + 背景模糊」保证还看得清。 */
+  --bg-soft: rgba(255, 232, 242, 0.55);
+  --card: rgba(255, 255, 255, 0.55);
+  --card-2: rgba(255, 255, 255, 0.46);
   --line: #ffd3e4;
   --text: #4a2b3a;
   --text-dim: #8c6a7c;
@@ -85,7 +87,7 @@ body {
 .bg-veil {
   position: absolute;
   inset: 0;
-  background: linear-gradient(rgba(255, 236, 246, 0.62), rgba(255, 228, 241, 0.72));
+  background: linear-gradient(rgba(255, 236, 246, 0.40), rgba(255, 228, 241, 0.50));
 }
 
 .app {
@@ -111,7 +113,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: calc(14px + env(safe-area-inset-top)) 18px 14px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.66);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 184, 214, 0.7);
@@ -175,6 +177,9 @@ body {
 
 .card {
   background: linear-gradient(180deg, var(--card), var(--bg-soft));
+  /* 半透明底 + 背景模糊：视频在动，不模糊的话字会飘 */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 18px;
@@ -200,7 +205,7 @@ body {
 .hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(150deg, #ffe3ef 0%, #ffe9f3 52%, rgba(255, 255, 255, 0.92) 100%);
+  background: linear-gradient(150deg, rgba(255, 227, 239, 0.58) 0%, rgba(255, 233, 243, 0.52) 52%, rgba(255, 255, 255, 0.48) 100%);
 }
 
 .hero::after {
@@ -383,7 +388,7 @@ body {
   z-index: 0;
   isolation: isolate;
   border-radius: var(--radius-sm);
-  background: radial-gradient(circle at 50% 40%, #ffeaf4, #fff6fa 72%);
+  background: radial-gradient(circle at 50% 40%, rgba(255, 234, 244, 0.55), rgba(255, 246, 250, 0.45) 72%);
   border: 1px solid var(--line);
   padding: 8px;
   overflow: hidden;
@@ -780,7 +785,7 @@ body {
   font-family: inherit;
   font-size: 14px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.62);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
@@ -1021,7 +1026,7 @@ body {
   font-family: inherit;
   font-size: 13px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.62);
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 8px 10px;
@@ -1042,7 +1047,7 @@ body {
   margin-top: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.55);
   padding: 10px 12px;
 }
 
@@ -1080,7 +1085,7 @@ body {
   gap: 6px;
   padding: 8px 12px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  background: rgba(255, 250, 253, 0.92);
+  background: rgba(255, 250, 253, 0.68);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid rgba(255, 184, 214, 0.8);
@@ -1168,7 +1173,10 @@ body {
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, var(--card), var(--bg-soft));
+  /* 确认框要看得清，所以比普通卡片厚一点，不走那套半透明变量 */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 236, 246, 0.88));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
 }
 
