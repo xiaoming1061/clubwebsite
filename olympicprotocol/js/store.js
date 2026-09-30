@@ -105,84 +105,12 @@ window.OP = window.OP || {};
     return String(text || "").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "");
   }
 
-  function rememberKeys(index, building) {
-    if (building.id) index["id:" + building.id] = building;
-    if (building.name) index["n:" + buildingKey(building.name)] = building;
-    (building.alias || []).forEach(function (alias) {
-      if (alias) index["n:" + buildingKey(alias)] = building;
-    });
-  }
-
-  /* 本地列表里有没有这栋（同 id、同名或同别名），有就返回它 */
-  function findKnown(index, building) {
-    if (building.id && index["id:" + building.id]) return index["id:" + building.id];
-    if (building.name && index["n:" + buildingKey(building.name)]) {
-      return index["n:" + buildingKey(building.name)];
-    }
-    var hit = null;
-    (building.alias || []).forEach(function (alias) {
-      if (!hit && alias && index["n:" + buildingKey(alias)]) {
-        hit = index["n:" + buildingKey(alias)];
-      }
-    });
-    return hit;
-  }
-
-  /**
-   * 把默认楼栋里「本地还没有的」补进来，顺手把缺的别名补上。
-   *
-   * 只加不改：本地已有的（同 id、同名或同别名）保留原样，
-   * 名字、坐标、用户自己写的别名都不会被默认值覆盖；
-   * 只有"默认数据里有、本地没有"的别名才会追加进去——
-   * 默认数据里改的是"课表上那种写法"，不补的话用户那边永远对不上。
-   *
-   * 为什么需要它：默认楼栋会跟着仓库更新（补录新楼、修正坐标），
-   * 但用户一旦在本地存过楼栋，默认值就不再自动生效了——
-   * 没有这一步，后来补录的楼永远进不到他们那儿。
-   */
-  function mergeShippedBuildings(list, shipped) {
-    var index = {};
-    list.forEach(function (b) { rememberKeys(index, b); });
-
-    var added = [];
-    var aliased = [];
-
-    (shipped.buildings || []).forEach(function (b) {
-      if (!b || !b.name) return;
-
-      var local = findKnown(index, b);
-
-      if (!local) {
-        var copy = clone(b);
-        list.push(copy);
-        rememberKeys(index, copy);
-        added.push(copy);
-        return;
-      }
-
-      /* 已经在列表里：只补别名 */
-      if (!Array.isArray(local.alias)) local.alias = [];
-      (b.alias || []).forEach(function (alias) {
-        if (!alias) return;
-        var aliasKey = "n:" + buildingKey(alias);
-        /* 别的楼已经占着这个名字了，就别硬塞，免得一栋楼被两处认领 */
-        if (index[aliasKey] && index[aliasKey] !== local) return;
-        if (local.alias.some(function (a) { return buildingKey(a) === aliasKey.slice(2); })) return;
-        local.alias.push(alias);
-        index[aliasKey] = local;
-        aliased.push({ name: local.name, alias: alias });
-      });
-    });
-
-    return { added: added, aliased: aliased };
-  }
-
   /**
    * 版本号一变，就把本地楼栋**整份换成新版默认数据**。
    *
-   * 以前这里是"只补不改"：本地已有的保留，只把默认里新加的补进来。
-   * 但用户清过一轮默认数据（把变电箱、村公所这类不需要的点删掉了），
-   * "只补不改"的话本地那份旧列表会一直留着——**删掉的那些根本删不掉**。
+   * 以前这里是"只补不改"（本地已有的保留，只把默认里新加的补进来），
+   * 但用户清过一轮默认数据——把变电箱、村公所这类用不上的点删掉了——
+   * "只补不改"的话本地那份旧列表会一直留着，**删掉的那些根本删不掉**。
    * 所以按用户要求改成强制采用：本地列表 = 新版默认数据。
    *
    * 代价是明确的：本地自己加过、改过的楼栋会被覆盖掉。
