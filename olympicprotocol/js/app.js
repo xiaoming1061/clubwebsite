@@ -720,30 +720,36 @@
   }
 
   /* 候选列表最多显示几条：再多也没人翻，剩下的靠自己多打一个字缩小 */
-  var DORM_SUGGEST_MAX = 8;
+  var DORM_SUGGEST_MAX = 20;
 
   /**
    * 输入框下面的候选列表。
+   *
+   * 两种用法，都要有：
+   *   点一下输入框（focus/click）→ 把宿舍**全部列出来**，就是一进页面能翻的那个下拉菜单；
+   *   边打字 → 按关键词筛，中英文 / 简体繁体 / 拼音首字母都认。
    *
    * 这里**不能用浏览器原生的 <datalist>**：原生下拉只拿你打的字去跟候选的
    * 字面值做包含匹配，它不懂繁简、也不懂拼音首字母——打「汤」的时候
    * 候选是「Adam Schall Residence 湯若望宿舍」，原生下拉就是空的，
    * 看起来像"搜不到"，而其实搜索本身完全能命中。
    * 所以候选列表自己渲染，跟搜索走同一套逻辑。
+   *
+   * @param query 输入框里现在的内容
+   * @param mode  "focus" 表示这是"点进来想翻一翻"，此时即使框里写着已选中的那栋
+   *              也要把全部列出来，方便改选
    */
-  function dormSuggest(query) {
+  function dormSuggest(query, mode) {
     var box = $("#dormSuggest");
     if (!box) return;
 
     var q = String(query === undefined || query === null ? "" : query).trim();
-    /* 空着的时候不把 59 条全倒出来，占地方又没意义 */
-    if (!q) {
-      box.hidden = true;
-      box.innerHTML = "";
-      return;
-    }
+    var selected = dormTarget();
 
-    var hits = OP.Dorm.search(data.settings, q);
+    /* 点进来时框里要么是空的、要么是当前选中那栋的名字——这两种都算"想翻全部" */
+    var browse = mode === "focus" && (!q || (selected && q === selected.label));
+    var hits = browse ? OP.Dorm.all(data.settings) : OP.Dorm.search(data.settings, q);
+
     if (!hits.length) {
       box.hidden = false;
       box.innerHTML = '<p class="dorm-suggest-note">没有匹配的宿舍。' +
@@ -751,14 +757,15 @@
       return;
     }
 
-    box.innerHTML = hits.slice(0, DORM_SUGGEST_MAX).map(function (d) {
+    var shown = hits.slice(0, DORM_SUGGEST_MAX);
+    box.innerHTML = shown.map(function (d) {
       return '<button type="button" class="dorm-suggest-item" data-dorm="' + esc(d.id) + '">' +
         '<span class="ds-name">' + esc(d.label) + "</span>" +
         '<span class="ds-meta">' + esc(d.custom ? "自建" : "OSM") + "</span>" +
         "</button>";
-    }).join("") + (hits.length > DORM_SUGGEST_MAX
-      ? '<p class="dorm-suggest-note">还有 ' + (hits.length - DORM_SUGGEST_MAX) +
-        " 条，再多打一个字就能缩小范围</p>"
+    }).join("") + (hits.length > shown.length
+      ? '<p class="dorm-suggest-note">还有 ' + (hits.length - shown.length) +
+        " 条，往上/往下滑，或者打个字缩小范围</p>"
       : "");
     box.hidden = false;
   }
@@ -788,8 +795,8 @@
     $("#dormFromClass").checked = data.settings.dormFromClass !== false;
 
     if (!dorm) {
-      box.innerHTML = '<p class="empty">上面选一个宿舍。列表里没有的话，' +
-        "走到那栋楼按「用当前位置添加宿舍」。</p>";
+      box.innerHTML = '<p class="empty">点上面的输入框会列出全部宿舍（也可以直接打名字、' +
+        "简体繁体、拼音首字母）。列表里没有的话，走到那栋楼按「用当前位置添加宿舍」。</p>";
       return;
     }
 
@@ -1904,7 +1911,16 @@
     });
 
     $("#dormSearch").addEventListener("focus", function () {
-      dormSuggest($("#dormSearch").value);
+      dormSuggest($("#dormSearch").value, "focus");
+    });
+
+    /* 选完一条之后输入框还是focus着的，再点一下就当"想改选"，重新把全部列出来 */
+    $("#dormSearch").addEventListener("click", function () {
+      dormSuggest($("#dormSearch").value, "focus");
+    });
+
+    $("#dormSearch").addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") $("#dormSuggest").hidden = true;
     });
 
     /* 输入框里可能是全名、中文别名或者半截名字，交给 resolveDorm 去挑 */
@@ -1927,6 +1943,16 @@
       var btn = ev.target.closest("[data-dorm]");
       if (!btn) return;
       chooseDorm(btn.getAttribute("data-dorm"));
+    });
+
+    /* 点到别的地方就把候选收起来 */
+    document.addEventListener("click", function (ev) {
+      var box = $("#dormSuggest");
+      if (!box || box.hidden) return;
+      var target = ev.target;
+      if (target === $("#dormSearch")) return;
+      if (target && target.closest && target.closest("#dormSuggest")) return;
+      box.hidden = true;
     });
 
     $("#btnDormAddHere").addEventListener("click", function () {
