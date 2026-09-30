@@ -371,7 +371,7 @@
         '<div class="bus-none">' + esc(plan.reason || "这段没有合适的班次") + "</div></div>";
     }
 
-    var html = groups.map(function (g) {
+    function renderGroup(g) {
       var flags = [];
       if (g.caveat === "teaching" || g.route.group === "meetclass") flags.push("只在教学日");
       if (g.caveat === "nonTeaching") flags.push("只在非教学日");
@@ -402,7 +402,17 @@
         "</div>" +
         (flags.length ? '<div class="bus-breakdown">' + esc(flags.join(" · ")) + "</div>" : "") +
       "</div>";
-    }).join("");
+    }
+
+    /* 现在在开的排前面；停运的（比如白天的 H 线、晚间的 N 线）自动折叠起来 */
+    var running = groups.filter(function (g) { return g.runningNow; });
+    var stopped = groups.filter(function (g) { return !g.runningNow; });
+
+    var html = running.map(renderGroup).join("");
+    if (stopped.length) {
+      html += '<details class="bus-off"><summary>现在停运的线路（' + stopped.length + " 条）</summary>" +
+        stopped.map(renderGroup).join("") + "</details>";
+    }
 
     return '<div class="leg-bus"><div class="leg-bus-head">校巴</div>' + html + "</div>";
   }
@@ -439,6 +449,8 @@
      */
     var busStops = [];
     var busSeen = {};
+    /* 地图上要画的两种连线：我去车站、车站去教室 */
+    var busLinks = [];
     var hasShuttle = !!(OP.Shuttle && (OP.SHUTTLE_ROUTES || []).length);
 
     function rememberStop(entry, role) {
@@ -463,6 +475,17 @@
         rememberStop(g.board, "board");
         rememberStop(g.alight, "alight");
       });
+
+      /* 取第一条线（现在在开的排最前）的上下车站画连线 */
+      var best = (leg.busPlan.groups || [])[0];
+      if (best) {
+        if (leg.fromPoint && best.board.stop) {
+          busLinks.push({ from: leg.fromPoint, to: best.board.stop });
+        }
+        if (best.alight.stop && leg.toPoint) {
+          busLinks.push({ from: best.alight.stop, to: leg.toPoint });
+        }
+      }
     });
 
     /* 三种底图：简图（离线 SVG）/ OSM 街道图 / 港中文校园地图 */
@@ -487,6 +510,7 @@
         position: info.position,
         stops: stops,
         busStops: busStops,
+        busLinks: busLinks,
         detourFactor: data.settings.detourFactor
       });
     } else {
@@ -497,7 +521,8 @@
         source: mode,
         position: info.position,
         stops: stops,
-        busStops: busStops
+        busStops: busStops,
+        busLinks: busLinks
       }).catch(function (err) {
         toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
       });
@@ -1628,7 +1653,14 @@
       }
       if (info.leg.metrics) say(P.leaveText(info.leg, state.now), "出发提醒");
       var links = Geo.navLinks(info.leg.building.name, info.leg.building.lat, info.leg.building.lng);
-      window.open(links[0].url, "_blank", "noopener");
+      /* 默认用 Google 地图（links 里标了 primary 的那条） */
+      var pick = links.filter(function (l) { return l.primary && l.url; })[0] ||
+        links.filter(function (l) { return l.url; })[0];
+      if (!pick) {
+        toast("这个地点没有坐标", "先去「设置 → 校区楼栋」补一下", "warn");
+        return;
+      }
+      window.open(pick.url, "_blank", "noopener");
     });
 
     /* --- 定位 --- */
@@ -1711,6 +1743,20 @@
         return;
       }
       say(P.leaveText(info.leg, state.now), "出发提醒");
+    });
+
+    /* 提醒与步行参数一键回到默认值。
+       只重置这一张卡片里的项，不动语音、地图、楼栋和课表 */
+    $("#btnResetWalk").addEventListener("click", function () {
+      askConfirm("提醒与步行参数会变回默认值，确定吗？", function () {
+        var base = OP.Store.defaults().settings;
+        ["leadMinutes", "bufferMinutes", "walkingSpeed", "busSpeed",
+          "detourFactor", "climbFactor", "termStart"].forEach(function (key) {
+          data.settings[key] = base[key];
+        });
+        saveAndRender();
+        toast("已恢复默认配置", "", "ok");
+      });
     });
 
     /* --- 校区 --- */

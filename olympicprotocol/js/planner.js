@@ -218,43 +218,60 @@ window.OP = window.OP || {};
     var fromPoint = position || null;
     var fromName = position ? "我的位置" : null;
     var prevEnd = date;
+    var prevBuilding = null;
 
-    remaining.forEach(function (course, i) {
+    remaining.forEach(function (course) {
       var building = buildingById(data, course.buildingId);
-      var metrics = walkMetrics(fromPoint, building, data.settings || {});
       var start = at(date, course.start);
       var end = at(date, course.end);
-      var bufferMs = (Number((data.settings || {}).bufferMinutes) || 0) * 60000;
-      var travelMs = metrics ? metrics.minutes * 60000 : 0;
 
-      var ideal = new Date(start.getTime() - travelMs - bufferMs);
-      var departAt = new Date(Math.max(prevEnd.getTime(), ideal.getTime()));
+      /*
+       * 连堂课：两节在同一栋楼、中间只隔十几分钟。
+       * 这种不用再拆出一段"从这栋楼去这栋楼"的行程——距离是 0，
+       * 校巴方案也会变成"原地打转"，只会让人以为是坏了。
+       */
+      var samePlace = !!(building && prevBuilding && building.id === prevBuilding.id);
 
-      var slackMin = metrics ? minutesBetween(date, start) - metrics.minutes - bufferMs / 60000 : null;
+      if (!samePlace) {
+        var metrics = walkMetrics(fromPoint, building, data.settings || {});
+        var bufferMs = (Number((data.settings || {}).bufferMinutes) || 0) * 60000;
+        var travelMs = metrics ? metrics.minutes * 60000 : 0;
 
-      legs.push({
-        index: i + 1,
-        course: course,
-        building: building,
-        fromName: fromName,
-        fromPoint: fromPoint,
-        toPoint: building ? { lat: building.lat, lng: building.lng } : null,
-        metrics: metrics,
-        start: start,
-        end: end,
-        departAt: departAt,
-        slackMin: slackMin,
-        missed: metrics ? departAt.getTime() <= date.getTime() : false,
-        status: statusOf(course, date)
-      });
+        var ideal = new Date(start.getTime() - travelMs - bufferMs);
+        var departAt = new Date(Math.max(prevEnd.getTime(), ideal.getTime()));
 
-      prevEnd = new Date(Math.max(end.getTime(), departAt.getTime()));
+        var slackMin = metrics
+          ? minutesBetween(date, start) - metrics.minutes - bufferMs / 60000
+          : null;
+
+        legs.push({
+          index: legs.length + 1,
+          course: course,
+          building: building,
+          fromName: fromName,
+          fromPoint: fromPoint,
+          toPoint: building ? { lat: building.lat, lng: building.lng } : null,
+          metrics: metrics,
+          start: start,
+          end: end,
+          departAt: departAt,
+          slackMin: slackMin,
+          missed: metrics ? departAt.getTime() <= date.getTime() : false,
+          status: statusOf(course, date)
+        });
+
+        prevEnd = new Date(Math.max(end.getTime(), departAt.getTime()));
+      } else {
+        prevEnd = new Date(Math.max(prevEnd.getTime(), end.getTime()));
+      }
+
       /* 通往下一段的起点是这栋楼，海拔要一起带上——
          之前只复制了经纬度，导致第二段之后爬升全部按"未知"处理 */
       fromPoint = building
         ? { lat: building.lat, lng: building.lng, elevation: building.elevation }
         : fromPoint;
       fromName = building ? building.name : fromName;
+      prevBuilding = building || prevBuilding;
     });
 
     return legs;

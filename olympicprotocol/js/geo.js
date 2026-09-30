@@ -126,6 +126,8 @@ window.OP = window.OP || {};
         /* 这是 Google 的通用链接（universal link）：
            装了 App 就直接打开 App，没装才退回网页。
            香港用标准 WGS-84 坐标，不需要转换。 */
+        /* primary：不问就跳这家。"现在出发"按钮用的就是它 */
+        primary: true,
         url: "https://www.google.com/maps/dir/?api=1&destination=" +
           lat.toFixed(6) + "," + lng.toFixed(6) + "&travelmode=walking"
       },

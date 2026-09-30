@@ -108,30 +108,20 @@ window.OP = window.OP || {};
     var project = makeProjector(frame);
     var parts = [grid()];
 
-    /* ---- 行程点：我的位置 → 第一节 → 第二节 … ---- */
-    var nodes = [];
-    if (opts.position) nodes.push({ point: opts.position, stop: null });
-    stops.forEach(function (s) { nodes.push({ point: s.building, stop: s }); });
-
-    if (nodes.length > 1) {
-      parts.push('<polyline class="route-line" points="' + nodes.map(function (n) {
-        var p = project(n.point);
-        return p.x.toFixed(1) + "," + p.y.toFixed(1);
-      }).join(" ") + '"/>');
-    }
-
-    /* ---- 每段的距离（和路线列表用同一套折算方式，数字对得上） ---- */
-    var detour = Number(opts.detourFactor) || 1.3;
-    for (var i = 1; i < nodes.length; i++) {
-      var straight = OP.Geo.haversine(nodes[i - 1].point, nodes[i].point);
-      if (straight === null) continue;
-
-      var a = project(nodes[i - 1].point);
-      var b2 = project(nodes[i].point);
-      parts.push('<text class="dist-label" x="' + ((a.x + b2.x) / 2).toFixed(0) +
-        '" y="' + ((a.y + b2.y) / 2 - 12).toFixed(0) + '">' +
-        esc(OP.Geo.formatDistance(straight * detour)) + "</text>");
-    }
+    /*
+     * 连线只画"我和车站 / 车站和教室"这两段。
+     *
+     * 原来画的是"我的位置 → 第一节 → 第二节"的行程链，但校巴不一定是直达的，
+     * 那条线只是把地点连起来，看着像路线却没有任何指导意义。
+     * 现在只画真正要走的那两截：走到车站、下车走到教室。
+     */
+    (opts.busLinks || []).forEach(function (link) {
+      if (!link || !link.from || !link.to) return;
+      var a = project(link.from);
+      var b = project(link.to);
+      parts.push('<line class="bus-link" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) +
+        '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>');
+    });
 
     /* ---- 校巴站：画在行程点下面，别盖住编号圈 ---- */
     (opts.busStops || []).forEach(function (s) {

@@ -47,7 +47,7 @@ window.OP.DEFAULT_DATA = {
     voiceRate: 1.0,
     voiceVolume: 1.0,
     voiceURI: "",
-    termStart: "2026-09-01",
+    termStart: "2026-09-07",
     simulate: null,         // { lat, lng } 手动指定的位置，便于在电脑上测试
     placesRadius: 800,
     placesMerge: true,      // 合并坐标几乎重合的点位

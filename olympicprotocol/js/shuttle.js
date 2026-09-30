@@ -160,6 +160,20 @@ window.OP = window.OP || {};
     return !!sessionFor(route, date);
   }
 
+  /**
+   * 此刻在不在服务时间内。
+   *
+   * 两个条件：今天开，而且当前时刻落在服务时段里。
+   * H 线只在星期日及公众假期开、N 线只在 19:00 之后——白天看路线页时
+   * 它们都算"停运"，界面会把它们折叠起来。
+   */
+  function runsNow(route, now) {
+    var session = sessionFor(route, now);
+    if (!session) return false;
+    var minutes = now.getHours() * 60 + now.getMinutes();
+    return minutes >= hm(session.from) && minutes <= hm(session.to);
+  }
+
   /* 从 after 起，这条路线（首站）接下来的发车时刻 */
   function nextDepartures(route, after, count) {
     var out = [];
@@ -284,7 +298,6 @@ window.OP = window.OP || {};
         if (walkAfter === null) return;
 
         routeTable().forEach(function (route) {
-          if (!runsOn(route, when)) return;
 
           var ids = stopIds(route);
           var i = ids.indexOf(b.id);
@@ -307,6 +320,7 @@ window.OP = window.OP || {};
             walkAfterMin: walkAfter,
             totalMin: total,
             headwayMin: headwayOf(route),
+            runningNow: runsNow(route, when),
             caveat: noteRules(stopNote(route, b.id)).dayType ||
               noteRules(stopNote(route, a.id)).dayType,
             boardNote: stopNote(route, b.id),
@@ -320,6 +334,8 @@ window.OP = window.OP || {};
     /* 同一条线只留最合适的那一组：同一趟车在近站和远站都上得去，
        列两遍只是重复，真正有用的是"还有哪条线能坐" */
     combos.sort(function (a, b) {
+      /* 现在在开的排前面，停运的自动沉到底下（界面会把它们折叠起来） */
+      if (a.runningNow !== b.runningNow) return a.runningNow ? -1 : 1;
       if (a.totalMin !== b.totalMin) return a.totalMin - b.totalMin;
       return (a.boardRank + a.alightRank) - (b.boardRank + b.alightRank);
     });
@@ -334,7 +350,7 @@ window.OP = window.OP || {};
     var reason = "";
     if (!groups.length) {
       reason = connected
-        ? "今天这些线都不开"
+        ? "这段没有班次"
         : "没有线路从上车站坐到下车站（校巴单向）";
     }
 
@@ -365,6 +381,7 @@ window.OP = window.OP || {};
     sessionFor: sessionFor,
     nextDepartures: nextDepartures,
     rideMinutes: rideMinutes,
+    runsNow: runsNow,
     legMinutes: legMinutes,
     walkMinutes: walkMinutes,
     nearbyStops: nearbyStops,
