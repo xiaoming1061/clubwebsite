@@ -642,6 +642,50 @@ body {
 
 .dorm-plan .empty { margin: 0; }
 
+/* 宿舍输入框下面的候选列表。
+   不用浏览器原生 <datalist>：它只认字面值，不认繁简和拼音首字母 */
+.dorm-suggest {
+  margin: -4px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.dorm-suggest-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dorm-suggest-item:last-of-type { border-bottom: 0; }
+.dorm-suggest-item:hover, .dorm-suggest-item:active { background: rgba(255, 95, 162, 0.14); }
+
+.ds-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+.dorm-suggest-note {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
 /* 起点说明：为什么是从这栋楼出发的 */
 .dorm-note {
   margin: 8px 0 0;

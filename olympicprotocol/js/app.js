@@ -719,18 +719,66 @@
     saveAndRender();
   }
 
+  /* 候选列表最多显示几条：再多也没人翻，剩下的靠自己多打一个字缩小 */
+  var DORM_SUGGEST_MAX = 8;
+
+  /**
+   * 输入框下面的候选列表。
+   *
+   * 这里**不能用浏览器原生的 <datalist>**：原生下拉只拿你打的字去跟候选的
+   * 字面值做包含匹配，它不懂繁简、也不懂拼音首字母——打「汤」的时候
+   * 候选是「Adam Schall Residence 湯若望宿舍」，原生下拉就是空的，
+   * 看起来像"搜不到"，而其实搜索本身完全能命中。
+   * 所以候选列表自己渲染，跟搜索走同一套逻辑。
+   */
+  function dormSuggest(query) {
+    var box = $("#dormSuggest");
+    if (!box) return;
+
+    var q = String(query === undefined || query === null ? "" : query).trim();
+    /* 空着的时候不把 59 条全倒出来，占地方又没意义 */
+    if (!q) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+
+    var hits = OP.Dorm.search(data.settings, q);
+    if (!hits.length) {
+      box.hidden = false;
+      box.innerHTML = '<p class="dorm-suggest-note">没有匹配的宿舍。' +
+        "中英文、简体繁体、拼音首字母都认；实在没有就走到楼下按「用当前位置添加宿舍」。</p>";
+      return;
+    }
+
+    box.innerHTML = hits.slice(0, DORM_SUGGEST_MAX).map(function (d) {
+      return '<button type="button" class="dorm-suggest-item" data-dorm="' + esc(d.id) + '">' +
+        '<span class="ds-name">' + esc(d.label) + "</span>" +
+        '<span class="ds-meta">' + esc(d.custom ? "自建" : "OSM") + "</span>" +
+        "</button>";
+    }).join("") + (hits.length > DORM_SUGGEST_MAX
+      ? '<p class="dorm-suggest-note">还有 ' + (hits.length - DORM_SUGGEST_MAX) +
+        " 条，再多打一个字就能缩小范围</p>"
+      : "");
+    box.hidden = false;
+  }
+
+  function chooseDorm(id) {
+    var dorm = OP.Dorm.byId(data.settings, id);
+    if (!dorm) return;
+    data.settings.dormId = dorm.id;
+    /* 直接把名字写回去：输入框通常还focus着，renderDorm 那边不会覆盖 */
+    $("#dormSearch").value = dorm.label;
+    $("#dormSuggest").hidden = true;
+    saveAndRender();
+  }
+
   function renderDorm() {
     if (!OP.Dorm) return;
 
     var box = $("#dormPlan");
     var list = OP.Dorm.all(data.settings);
     var dorm = dormTarget();
-
-    /* 输入框的自动补全名单：值用「英文 中文」，选进来两个名字都在，
-       回头 resolveDorm 也认这个写法 */
-    $("#dormOptions").innerHTML = list.map(function (d) {
-      return '<option value="' + esc(d.label) + '"></option>';
-    }).join("");
 
     var search = $("#dormSearch");
     if (document.activeElement !== search) search.value = dorm ? dorm.label : "";
@@ -1850,9 +1898,35 @@
       saveAndRender();
     });
 
+    /* 边打边出候选：搜索本身认简繁和首字母，候选列表跟着同一套逻辑走 */
+    $("#dormSearch").addEventListener("input", function () {
+      dormSuggest($("#dormSearch").value);
+    });
+
+    $("#dormSearch").addEventListener("focus", function () {
+      dormSuggest($("#dormSearch").value);
+    });
+
     /* 输入框里可能是全名、中文别名或者半截名字，交给 resolveDorm 去挑 */
     $("#dormSearch").addEventListener("change", function () {
       pickDormByName($("#dormSearch").value);
+      $("#dormSuggest").hidden = true;
+    });
+
+    /* 点候选：用 pointerdown 而不是 click。
+       等 click 的话，输入框会先失焦触发 change、把列表收掉，就点不着了。 */
+    $("#dormSuggest").addEventListener("pointerdown", function (ev) {
+      var btn = ev.target.closest("[data-dorm]");
+      if (!btn) return;
+      ev.preventDefault();
+      chooseDorm(btn.getAttribute("data-dorm"));
+    });
+
+    /* 键盘选中（Tab 到候选上按回车）走的是 click，补一个 */
+    $("#dormSuggest").addEventListener("click", function (ev) {
+      var btn = ev.target.closest("[data-dorm]");
+      if (!btn) return;
+      chooseDorm(btn.getAttribute("data-dorm"));
     });
 
     $("#btnDormAddHere").addEventListener("click", function () {
