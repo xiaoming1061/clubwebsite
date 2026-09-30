@@ -719,48 +719,130 @@
     saveAndRender();
   }
 
+  /* ================= 可搜索的下拉 ================= */
+
   /* 候选列表最多显示几条：再多也没人翻，剩下的靠自己多打一个字缩小 */
-  var DORM_SUGGEST_MAX = 8;
+  var PICK_MAX = 8;
+
+  /* 已经挂上的下拉，点空白处要一起收起来 */
+  var pickers = [];
 
   /**
-   * 输入框下面的候选列表。
+   * 给一个输入框挂上"候选列表"。
    *
-   * 这里**不能用浏览器原生的 <datalist>**：原生下拉只拿你打的字去跟候选的
-   * 字面值做包含匹配，它不懂繁简、也不懂拼音首字母——打「汤」的时候
-   * 候选是「Adam Schall Residence 湯若望宿舍」，原生下拉就是空的，
-   * 看起来像"搜不到"，而其实搜索本身完全能命中。
-   * 所以候选列表自己渲染，跟搜索走同一套逻辑。
+   * 三处在用：宿舍、自定义路线的起点、自定义路线的终点。
+   *
+   * 为什么不用浏览器原生的 `<datalist>`：它只拿你打的字去跟候选的**字面值**
+   * 做包含匹配，既不懂繁简也不懂拼音首字母——打「汤」的时候候选写着
+   * 「Adam Schall Residence 湯若望宿舍」，原生下拉就是空的，看着像"搜不到"，
+   * 而搜索本身完全能命中。所以候选列表自己渲染，跟搜索走同一套规则
+   * （js/zh.js 的 OP.Zh.matches：中英文、简繁体、拼音首字母）。
+   *
+   * @param cfg.input    输入框选择器
+   * @param cfg.list     候选容器选择器
+   * @param cfg.items    返回候选 [{ id, label, meta, names }]
+   * @param cfg.current  当前选中项的显示文字（用于"点一下列全部"）
+   * @param cfg.empty    一条都没匹配上时的提示
+   * @param cfg.onPick   选中回调
    */
-  function dormSuggest(query) {
-    var box = $("#dormSuggest");
-    if (!box) return;
+  function attachPicker(cfg) {
+    var input = $(cfg.input);
+    var box = $(cfg.list);
+    if (!input || !box) return null;
 
-    var q = String(query === undefined || query === null ? "" : query).trim();
-    /* 空着的时候不把 59 条全倒出来，占地方又没意义 */
-    if (!q) {
-      box.hidden = true;
-      box.innerHTML = "";
-      return;
-    }
+    function hide() { box.hidden = true; }
 
-    var hits = OP.Dorm.search(data.settings, q);
-    if (!hits.length) {
+    function paint(query, browse) {
+      var q = String(query === undefined || query === null ? "" : query).trim();
+      var items = cfg.items() || [];
+      /* 点进来（聚焦/点击）时，即使框里写着已选中的那条，也把全部列出来方便改选 */
+      var showAll = !q || (browse && q === cfg.current());
+      var hits = showAll ? items : items.filter(function (it) {
+        return OP.Zh.matches(q, it.names);
+      });
+
+      if (!hits.length) {
+        box.hidden = false;
+        box.innerHTML = '<p class="picker-note">' + esc(cfg.empty || "没有匹配的") + "</p>";
+        return;
+      }
+
+      var shown = hits.slice(0, PICK_MAX);
+      box.innerHTML = shown.map(function (it) {
+        return '<button type="button" class="picker-item" data-pick="' + esc(it.id) + '">' +
+          '<span class="picker-name">' + esc(it.label) + "</span>" +
+          (it.meta ? '<span class="picker-meta">' + esc(it.meta) + "</span>" : "") +
+          "</button>";
+      }).join("") + (hits.length > shown.length
+        ? '<p class="picker-note">还有 ' + (hits.length - shown.length) + " 条，打个字缩小范围</p>"
+        : "");
       box.hidden = false;
-      box.innerHTML = '<p class="dorm-suggest-note">没有匹配的宿舍。' +
-        "中英文、简体繁体、拼音首字母都认；实在没有就走到楼下按「用当前位置添加宿舍」。</p>";
-      return;
     }
 
-    box.innerHTML = hits.slice(0, DORM_SUGGEST_MAX).map(function (d) {
-      return '<button type="button" class="dorm-suggest-item" data-dorm="' + esc(d.id) + '">' +
-        '<span class="ds-name">' + esc(d.label) + "</span>" +
-        '<span class="ds-meta">' + esc(d.custom ? "自建" : "OSM") + "</span>" +
-        "</button>";
-    }).join("") + (hits.length > DORM_SUGGEST_MAX
-      ? '<p class="dorm-suggest-note">还有 ' + (hits.length - DORM_SUGGEST_MAX) +
-        " 条，再多打一个字就能缩小范围</p>"
-      : "");
-    box.hidden = false;
+    function pickFrom(btn) {
+      var id = btn.getAttribute("data-pick");
+      var item = (cfg.items() || []).filter(function (it) { return String(it.id) === id; })[0];
+      hide();
+      if (item) cfg.onPick(item);
+    }
+
+    input.addEventListener("input", function () { paint(input.value, false); });
+    input.addEventListener("focus", function () { paint(input.value, true); });
+    /* 选完一条之后输入框还是 focus 着的，再点一下就当"想改选" */
+    input.addEventListener("click", function () { paint(input.value, true); });
+    input.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") hide();
+    });
+
+    /* 点候选用 pointerdown 而不是 click：等 click 的话输入框会先失焦、
+       触发 change 把列表收掉，就点不着了 */
+    box.addEventListener("pointerdown", function (ev) {
+      var btn = ev.target.closest("[data-pick]");
+      if (!btn) return;
+      ev.preventDefault();
+      pickFrom(btn);
+    });
+    /* 键盘选中（Tab 到候选上按回车）走的是 click，补一个 */
+    box.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("[data-pick]");
+      if (btn) pickFrom(btn);
+    });
+
+    var handle = {
+      hide: hide,
+      hideIfOutside: function (target) {
+        if (box.hidden) return;
+        if (target === input) return;
+        if (target && target.closest && target.closest("[data-pick]")) return;
+        if (target && target.closest && target.closest(cfg.list)) return;
+        hide();
+      }
+    };
+    pickers.push(handle);
+    return handle;
+  }
+
+  /* 楼栋（校区楼栋）列表：自检和"可搜索下拉"共用同一个候选来源 */
+  function buildingPickerItems(includeMe) {
+    var items = [];
+    if (includeMe) {
+      items.push({
+        id: "",
+        label: "我的位置",
+        meta: "起点",
+        names: ["我的位置", "我的位置 wdwz", "当前位置"]
+      });
+    }
+    ((data.campus && data.campus.buildings) || []).forEach(function (b) {
+      if (typeof b.lat !== "number" || typeof b.lng !== "number") return;
+      items.push({
+        id: b.id,
+        label: b.name,
+        meta: (b.alias || [])[0] || "",
+        names: [b.name].concat(b.alias || [])
+      });
+    });
+    return items;
   }
 
   function chooseDorm(id) {
@@ -769,7 +851,48 @@
     data.settings.dormId = dorm.id;
     /* 直接把名字写回去：输入框通常还focus着，renderDorm 那边不会覆盖 */
     $("#dormSearch").value = dorm.label;
-    $("#dormSuggest").hidden = true;
+    saveAndRender();
+  }
+
+  /**
+   * 自定义路线的起点/终点：输入框里那串字是哪栋楼。
+   *
+   * 名字比完全一致 → 按包含（中英文、简繁体、拼音首字母）→ 最后模糊打分兜底，
+   * 和宿舍那套是同一个思路。includeMe 时"我的位置"也算一个候选（id 为空）。
+   */
+  function pickBuildingByName(inputSel, settingKey, includeMe) {
+    var input = $(inputSel);
+    var q = String(input.value || "").trim();
+    var items = buildingPickerItems(includeMe);
+
+    if (!q) {
+      /* 起点空着 = 我的位置；终点空着 = 没选 */
+      data.settings[settingKey] = "";
+      saveAndRender();
+      return;
+    }
+
+    var low = OP.Zh.normalize(q);
+    var exact = items.filter(function (it) {
+      return (it.names || []).some(function (n) { return OP.Zh.normalize(n) === low; });
+    })[0];
+
+    var hit = exact || items.filter(function (it) {
+      return OP.Zh.matches(q, it.names);
+    })[0];
+
+    if (!hit && OP.Places && OP.Places.bestNameMatch) {
+      var fuzzy = OP.Places.bestNameMatch(q, items.map(function (it) {
+        return { id: it.id, name: it.label, alias: (it.names || []).slice(1) };
+      }), 0.5);
+      if (fuzzy) hit = { id: fuzzy.id, label: fuzzy.name };
+    }
+
+    data.settings[settingKey] = hit ? hit.id : "";
+    if (!hit) {
+      toast("没找到这栋楼",
+        "中英文、简繁体、拼音首字母都认（蒙民伟楼 / 蒙民偉樓 / mmwl）", "warn");
+    }
     saveAndRender();
   }
 
@@ -864,31 +987,30 @@
    * 选完就自动算，不用再点一次按钮。
    */
   function renderCustom() {
-    var fromSel = $("#customFrom");
-    var toSel = $("#customTo");
-    if (!fromSel || !toSel) return;
+    var fromInput = $("#customFromSearch");
+    var toInput = $("#customToSearch");
+    if (!fromInput || !toInput) return;
 
     var list = ((data.campus && data.campus.buildings) || []).filter(function (b) {
       return typeof b.lat === "number" && typeof b.lng === "number";
     });
 
-    function options() {
-      return list.map(function (b) {
-        return '<option value="' + esc(b.id) + '">' + esc(b.name) + "</option>";
-      }).join("");
+    /* 两个输入框显示"当前选的是哪栋"（正在打字的时候别覆盖用户的输入）。
+       候选列表本身由 attachPicker 管，见 bindEvents 里的注册。 */
+    var fromBuilding = data.settings.customFrom
+      ? P.buildingById(data, data.settings.customFrom) : null;
+    var toBuilding = data.settings.customTo
+      ? P.buildingById(data, data.settings.customTo) : null;
+    if (document.activeElement !== fromInput) {
+      fromInput.value = fromBuilding ? fromBuilding.name : "我的位置";
     }
-    fromSel.innerHTML = '<option value="">我的位置</option>' + options();
-    toSel.innerHTML = '<option value="">（选终点）</option>' + options();
-
-    /* 上次选的那两栋记在设置里，切走再回来还在 */
-    fromSel.value = data.settings.customFrom || "";
-    toSel.value = data.settings.customTo || "";
-    data.settings.customFrom = fromSel.value;
-    data.settings.customTo = toSel.value;
+    if (document.activeElement !== toInput) {
+      toInput.value = toBuilding ? toBuilding.name : "";
+    }
 
     var box = $("#customPlan");
     var stateEl = $("#customState");
-    var to = data.settings.customTo ? P.buildingById(data, data.settings.customTo) : null;
+    var to = toBuilding;
 
     if (!to) {
       box.innerHTML = '<p class="empty">选一个终点楼栋就会自动规划；' +
@@ -2006,14 +2128,46 @@
     });
 
     /* --- 自定义路线（选完就自动算） --- */
-    $("#customFrom").addEventListener("change", function () {
-      data.settings.customFrom = $("#customFrom").value;
-      saveAndRender();
+    /* 起点：候选里第一项是「我的位置」（id 为空字符串） */
+    attachPicker({
+      input: "#customFromSearch",
+      list: "#customFromList",
+      items: function () { return buildingPickerItems(true); },
+      current: function () {
+        var b = data.settings.customFrom ? P.buildingById(data, data.settings.customFrom) : null;
+        return b ? b.name : "我的位置";
+      },
+      empty: "没找到这栋楼。中英文、简繁体、拼音首字母都认（蒙民伟楼 / 蒙民偉樓 / mmwl）。",
+      onPick: function (item) {
+        data.settings.customFrom = item.id;
+        $("#customFromSearch").value = item.label;
+        saveAndRender();
+      }
     });
 
-    $("#customTo").addEventListener("change", function () {
-      data.settings.customTo = $("#customTo").value;
-      saveAndRender();
+    /* 终点：只有楼栋 */
+    attachPicker({
+      input: "#customToSearch",
+      list: "#customToList",
+      items: function () { return buildingPickerItems(false); },
+      current: function () {
+        var b = data.settings.customTo ? P.buildingById(data, data.settings.customTo) : null;
+        return b ? b.name : "";
+      },
+      empty: "没找到这栋楼。中英文、简繁体、拼音首字母都认（蒙民伟楼 / 蒙民偉樓 / mmwl）。",
+      onPick: function (item) {
+        data.settings.customTo = item.id;
+        $("#customToSearch").value = item.label;
+        saveAndRender();
+      }
+    });
+
+    /* 输入框里可能是全名、别名或者半截名字，回车 / 失焦时交给这个名字解析器兜底 */
+    $("#customFromSearch").addEventListener("change", function () {
+      pickBuildingByName("#customFromSearch", "customFrom", true);
+    });
+    $("#customToSearch").addEventListener("change", function () {
+      pickBuildingByName("#customToSearch", "customTo", false);
     });
 
     $("#btnCustomSwap").addEventListener("click", function () {
@@ -2034,13 +2188,27 @@
       saveAndRender();
     });
 
-    /* 边打边出候选：搜索本身认简繁和首字母，候选列表跟着同一套逻辑走 */
-    $("#dormSearch").addEventListener("input", function () {
-      dormSuggest($("#dormSearch").value);
-    });
-
-    $("#dormSearch").addEventListener("focus", function () {
-      dormSuggest($("#dormSearch").value);
+    /* 宿舍：候选列表自己渲染，跟搜索走同一套规则（简繁 + 拼音首字母） */
+    attachPicker({
+      input: "#dormSearch",
+      list: "#dormSuggest",
+      items: function () {
+        return OP.Dorm.all(data.settings).map(function (d) {
+          return {
+            id: d.id,
+            label: d.label,
+            meta: d.custom ? "自建" : "OSM",
+            names: OP.Dorm.names(d)
+          };
+        });
+      },
+      current: function () {
+        var d = dormTarget();
+        return d ? d.label : "";
+      },
+      empty: "没有匹配的宿舍。中英文、简体繁体、拼音首字母都认；" +
+        "实在没有就走到楼下按「用当前位置添加宿舍」。",
+      onPick: function (item) { chooseDorm(item.id); }
     });
 
     /* 输入框里可能是全名、中文别名或者半截名字，交给 resolveDorm 去挑 */
@@ -2049,20 +2217,9 @@
       $("#dormSuggest").hidden = true;
     });
 
-    /* 点候选：用 pointerdown 而不是 click。
-       等 click 的话，输入框会先失焦触发 change、把列表收掉，就点不着了。 */
-    $("#dormSuggest").addEventListener("pointerdown", function (ev) {
-      var btn = ev.target.closest("[data-dorm]");
-      if (!btn) return;
-      ev.preventDefault();
-      chooseDorm(btn.getAttribute("data-dorm"));
-    });
-
-    /* 键盘选中（Tab 到候选上按回车）走的是 click，补一个 */
-    $("#dormSuggest").addEventListener("click", function (ev) {
-      var btn = ev.target.closest("[data-dorm]");
-      if (!btn) return;
-      chooseDorm(btn.getAttribute("data-dorm"));
+    /* 点到别的地方就把所有候选收起来 */
+    document.addEventListener("click", function (ev) {
+      pickers.forEach(function (p) { p.hideIfOutside(ev.target); });
     });
 
     $("#btnDormAddHere").addEventListener("click", function () {

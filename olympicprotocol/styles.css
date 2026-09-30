@@ -659,9 +659,9 @@ body {
 
 .dorm-plan .empty, .custom-plan .empty { margin: 0; }
 
-/* 宿舍输入框下面的候选列表。
+/* 可搜索输入框下面的候选列表（宿舍、自定义路线的起点/终点都用它）。
    不用浏览器原生 <datalist>：它只认字面值，不认繁简和拼音首字母 */
-.dorm-suggest {
+.picker {
   margin: -4px 0 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -673,7 +673,7 @@ body {
   overflow-y: auto;
 }
 
-.dorm-suggest-item {
+.picker-item {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -690,12 +690,12 @@ body {
   cursor: pointer;
 }
 
-.dorm-suggest-item:last-of-type { border-bottom: 0; }
-.dorm-suggest-item:hover, .dorm-suggest-item:active { background: rgba(255, 95, 162, 0.14); }
+.picker-item:last-of-type { border-bottom: 0; }
+.picker-item:hover, .picker-item:active { background: rgba(255, 95, 162, 0.14); }
 
-.ds-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.picker-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 
-.dorm-suggest-note {
+.picker-note {
   margin: 0;
   padding: 10px 12px;
   font-size: 12px;

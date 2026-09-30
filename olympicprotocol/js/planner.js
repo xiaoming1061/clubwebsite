@@ -95,24 +95,24 @@ window.OP = window.OP || {};
 
   /**
    * 按关键词和"是否缺坐标"筛选楼栋。
-   * 关键词同时匹配名字和别名，所以搜中文、英文、简称都能搜到。
+   *
+   * 关键词同时匹配名字和别名，而且走的是和宿舍搜索同一条规则
+   * （js/zh.js 的 OP.Zh.matches）：**中文英文、简体繁体、拼音首字母都能搜**——
+   * 「教研楼」「教研樓」「jylyz」都能找到 Academic Building No.1。
    *
    * @param {Array} buildings
    * @param {string} query
    * @param {boolean} missingOnly 只看还没录坐标的
    */
   function filterBuildings(buildings, query, missingOnly) {
-    var word = String(query || "").trim().toLowerCase();
+    var word = String(query || "").trim();
 
     return (buildings || []).filter(function (b) {
       var hasCoords = typeof b.lat === "number" && typeof b.lng === "number";
       if (missingOnly && hasCoords) return false;
       if (!word) return true;
 
-      var names = [b.name].concat(b.alias || []);
-      return names.some(function (n) {
-        return String(n || "").toLowerCase().indexOf(word) >= 0;
-      });
+      return OP.Zh.matches(word, [b.name].concat(b.alias || []));
     });
   }
 
