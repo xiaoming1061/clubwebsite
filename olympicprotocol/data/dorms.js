@@ -3,7 +3,10 @@
  * 数据来自 OpenStreetMap（Overpass API），按关键词搜出来的：
  *   宿舍 / 舍堂 / 書院 / Hostel / Residence / Dormitory / Hall
  *   以及 building=dormitory、amenity=student_accommodation、tourism=hostel
- * 共 59 处（其中 59 处有中文名），
+ * 共 61 处（其中 61 处有中文名），
+ * 另有 2 处是手工补录的（书院本身就是宿舍，标签不是 dormitory，关键词也捞不到）：
+ *   晨興書院 Morningside College  way/230185998
+ *   伍宜孫書院 Wu Yee Sun College  way/194547401
  * 可能有缺漏或误判——发现不对就自己在页面上补一条。
  *
  * 每条两个名字：name 是英文（课表和地图上的写法），nameZh 是中文名。
@@ -16,7 +19,7 @@
 window.OP = window.OP || {};
 
 window.OP.DEFAULT_DORMS = {
-  version: 1,
+  version: 2,
   source: "OpenStreetMap (Overpass API)",
   dorms: [
     { id: "relation-2325105", name: "Adam Schall Residence", nameZh: "湯若望宿舍", nameEn: "Adam Schall Residence", alias: ["湯若望宿舍 Adam Schall Residence"], lat: 22.421787, lng: 114.205648, kind: "dormitory" },
@@ -51,6 +54,7 @@ window.OP.DEFAULT_DORMS = {
     { id: "way-135018848", name: "Ming Hua Tang", nameZh: "明華堂", nameEn: "Ming Hua Tang", alias: ["明華堂 Ming Hua Tang"], lat: 22.417416, lng: 114.210406, kind: "dormitory" },
     { id: "way-135190724", name: "Minor Staff Quarters 2", nameZh: "職工宿舍第二座", nameEn: "Minor Staff Quarters 2", alias: ["職工宿舍第二座 Minor Staff Quarters 2"], lat: 22.419708, lng: 114.209565, kind: "dormitory" },
     { id: "way-135190723", name: "Minor Staff Quarters 3", nameZh: "職工宿舍第三座", nameEn: "Minor Staff Quarters 3", alias: ["職工宿舍第三座 Minor Staff Quarters 3"], lat: 22.419788, lng: 114.209743, kind: "dormitory" },
+    { id: "way-230185998", name: "Morningside College", nameZh: "晨興書院", nameEn: "Morningside College", alias: ["晨興書院 Morningside College"], lat: 22.419081, lng: 114.210516, kind: "college" },
     { id: "way-194547400", name: "North Block, Lee Woo Sing College", nameZh: "和聲書院北座", nameEn: "North Block, Lee Woo Sing College", alias: ["和聲書院北座 North Block, Lee Woo Sing College"], lat: 22.422623, lng: 114.204425, kind: "dormitory" },
     { id: "way-135190722", name: "Panacea Lodge", nameZh: "芝苑", nameEn: "Panacea Lodge", alias: ["芝苑 Panacea Lodge"], lat: 22.420319, lng: 114.210265, kind: "dormitory" },
     { id: "way-107139028", name: "Pentecostal Mission Hall Complex (High Block)", nameZh: "五旬節會樓高座", nameEn: "Pentecostal Mission Hall Complex (High Block)", alias: ["五旬節會樓高座 Pentecostal Mission Hall Complex (High Block)","五高"], lat: 22.418543, lng: 114.209289, kind: "dormitory" },
@@ -74,6 +78,7 @@ window.OP.DEFAULT_DORMS = {
     { id: "way-136637847", name: "Vice-Chancellor Residence", nameZh: "漢園", nameEn: "Vice-Chancellor Residence", alias: ["漢園 Vice-Chancellor Residence"], lat: 22.416756, lng: 114.202814, kind: "dormitory" },
     { id: "way-135018845", name: "Wen Chih Tang", nameZh: "文質堂", nameEn: "Wen Chih Tang", alias: ["文質堂 Wen Chih Tang"], lat: 22.417443, lng: 114.211665, kind: "dormitory" },
     { id: "way-135313705", name: "Wen Lin Tang", nameZh: "文林堂", nameEn: "Wen Lin Tang", alias: ["文林堂 Wen Lin Tang"], lat: 22.413284, lng: 114.207765, kind: "dormitory" },
+    { id: "way-194547401", name: "Wu Yee Sun College", nameZh: "伍宜孫書院", nameEn: "Wu Yee Sun College", alias: ["伍宜孫書院 Wu Yee Sun College"], lat: 22.422205, lng: 114.202394, kind: "college" },
     { id: "way-174133712", name: "Xuesi Hall", nameZh: "學思樓", nameEn: "Xuesi Hall", alias: ["學思樓 Xuesi Hall"], lat: 22.421549, lng: 114.209597, kind: "dormitory" },
     { id: "way-545778814", name: "Ya Qun Lodge", nameZh: "雅群樓", nameEn: "Ya Qun Lodge", alias: ["雅群樓 Ya Qun Lodge"], lat: 22.422898, lng: 114.20193, kind: "dormitory" },
     { id: "way-135904004", name: "Yat Sen Hall", nameZh: "逸仙樓", nameEn: "Yat Sen Hall", alias: ["逸仙樓 Yat Sen Hall"], lat: 22.423252, lng: 114.201152, kind: "dormitory" },
