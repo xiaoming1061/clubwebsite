@@ -671,8 +671,9 @@
   /**
    * 输入框里那串字到底是哪个宿舍。
    *
-   * 先按名字和别名找完全一样的，再找"包含"的，最后用和课表地名同一套
-   * 模糊打分兜底——宿舍名里有不少缩写（C.C. / U.C.）和"第几苑"这类写法。
+   * 比较前统一成"小写 + 简体"，所以简繁两种写法互相都认得（知行楼 / 知行樓）。
+   * 顺序：完全一致 → 包含 / 中文首字母（zxl → 知行樓）→ 名字最像的 → 模糊打分兜底。
+   * 宿舍名里有不少缩写（C.C. / U.C.）和"第几苑"这类写法，最后一层专门兜这些。
    */
   function resolveDorm(text) {
     if (!OP.Dorm) return null;
@@ -680,20 +681,27 @@
     if (!q) return null;
 
     var list = OP.Dorm.all(data.settings);
-    var low = q.toLowerCase();
+    var low = OP.Dorm.normalize(q);
     /* 英文名、中文名、并排写法、别名，全都算 */
     var namesOf = function (d) {
-      return OP.Dorm.names(d).map(function (n) { return n.toLowerCase(); });
+      return OP.Dorm.names(d).map(function (n) { return OP.Dorm.normalize(n); });
     };
 
     var exact = list.filter(function (d) { return namesOf(d).indexOf(low) >= 0; })[0];
     if (exact) return exact;
 
-    var partial = list.filter(function (d) {
-      return namesOf(d).some(function (n) { return n.indexOf(low) >= 0; });
-    });
-    if (partial.length) return partial[0];
+    /* 包含、繁体简体、中文首字母，search 里都处理好了 */
+    var hits = OP.Dorm.search(data.settings, q);
+    if (hits.length === 1) return hits[0];
 
+    /* 命中好几条（比如 zxl 同时是知行樓和紫霞樓）：挑名字最像的那条 */
+    if (hits.length > 1 && OP.Places && OP.Places.bestNameMatch) {
+      var best = OP.Places.bestNameMatch(q, hits, 0);
+      if (best) return best;
+    }
+    if (hits.length) return hits[0];
+
+    /* 一条都没命中，才退回和课表地名同一套模糊打分 */
     if (OP.Places && OP.Places.bestNameMatch) {
       return OP.Places.bestNameMatch(q, list, 0.45);
     }
@@ -704,7 +712,9 @@
     var dorm = resolveDorm(text);
     data.settings.dormId = dorm ? dorm.id : "";
     if (!dorm && String(text || "").trim()) {
-      toast("没找到这个宿舍", "换个写法，或者走到楼下用「用当前位置添加宿舍」", "warn");
+      toast("没找到这个宿舍",
+        "中英文、简体繁体、中文首字母（zxl → 知行樓）都认；实在没有就走到楼下按「用当前位置添加宿舍」",
+        "warn");
     }
     saveAndRender();
   }
