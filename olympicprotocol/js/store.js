@@ -85,8 +85,8 @@ window.OP = window.OP || {};
 
   /* ---------- 默认楼栋的版本同步 ---------- */
 
-  /* 最近一次 load() 补了什么（新楼、别名），界面拿它提示一句 */
-  var lastSync = { added: [], aliased: [] };
+  /* 最近一次 load() 对楼栋做了什么（换版/新增/移除），界面拿它提示一句 */
+  var lastSync = { replaced: false, added: [], aliased: [], removed: [] };
 
   function shippedBuildings() {
     var shipped = OP.DEFAULT_BUILDINGS;
@@ -177,6 +177,47 @@ window.OP = window.OP || {};
     return { added: added, aliased: aliased };
   }
 
+  /**
+   * 版本号一变，就把本地楼栋**整份换成新版默认数据**。
+   *
+   * 以前这里是"只补不改"：本地已有的保留，只把默认里新加的补进来。
+   * 但用户清过一轮默认数据（把变电箱、村公所这类不需要的点删掉了），
+   * "只补不改"的话本地那份旧列表会一直留着——**删掉的那些根本删不掉**。
+   * 所以按用户要求改成强制采用：本地列表 = 新版默认数据。
+   *
+   * 代价是明确的：本地自己加过、改过的楼栋会被覆盖掉。
+   * 默认数据从此是楼栋的唯一来源；要自己加楼，加完导出、
+   * 再用 tools/make-buildings.js 重新生成默认数据。
+   *
+   * @returns { buildings, added, removed } added/removed 只用来提示
+   */
+  function replaceWithShipped(list, shipped) {
+    var before = {};
+    (list || []).forEach(function (b) {
+      if (b && b.name) before[buildingKey(b.name)] = b;
+    });
+
+    var after = {};
+    var added = [];
+    (shipped.buildings || []).forEach(function (b) {
+      if (!b || !b.name) return;
+      after[buildingKey(b.name)] = true;
+      if (!before[buildingKey(b.name)]) added.push(b);
+    });
+
+    var removed = [];
+    (list || []).forEach(function (b) {
+      if (!b || !b.name) return;
+      if (!after[buildingKey(b.name)]) removed.push(b);
+    });
+
+    return {
+      buildings: sortBuildings((shipped.buildings || []).map(clone)),
+      added: added,
+      removed: removed
+    };
+  }
+
   /* ---------- 三份数据各自的合并规则 ---------- */
 
   /**
@@ -249,14 +290,16 @@ window.OP = window.OP || {};
       }
     }
 
-    /* 默认楼栋有新版本就把缺的补进来。
-       本地楼栋是空的时候不补：那是用户自己清空的，别硬塞回去。 */
-    var sync = { added: [], aliased: [] };
+    /* 默认楼栋换了新版本就强制采用：把本地那份整份换成默认数据。
+       本地楼栋是空的时候不管：那是用户自己清空的，别硬塞回去。 */
+    var sync = { replaced: false, added: [], aliased: [], removed: [] };
     if (parts.buildings && Array.isArray(parts.buildings.buildings) &&
         parts.buildings.buildings.length &&
         shipped.version > (Number(parts.buildings.defaultVersion) || 0)) {
-      sync = mergeShippedBuildings(parts.buildings.buildings, shipped);
+      var swapped = replaceWithShipped(parts.buildings.buildings, shipped);
+      parts.buildings.buildings = swapped.buildings;
       parts.buildings.defaultVersion = shipped.version;
+      sync = { replaced: true, added: swapped.added, aliased: [], removed: swapped.removed };
     }
 
     var data = compose(parts.buildings, parts.courses, parts.settings);
@@ -267,7 +310,8 @@ window.OP = window.OP || {};
     if (fromLegacy) {
       save(data);
       LEGACY_BUNDLE_KEYS.forEach(removeKey);
-    } else if (sync.added.length || sync.aliased.length) {
+    } else if (sync.replaced) {
+      /* 换过版了，得落盘：不然下次打开又按旧版本再换一遍 */
       save(data);
     }
 
@@ -447,9 +491,14 @@ window.OP = window.OP || {};
     readFile: readFile,
     applyImport: applyImport,
     appendBuildings: appendBuildings,
-    /* 上一次 load() 补了什么：新增的楼栋、补上的别名（界面用来提示） */
+    /* 上一次 load() 对楼栋做了什么：是否整份换了版、新增/移除了哪些（界面用来提示） */
     lastSync: function () {
-      return { added: lastSync.added.slice(), aliased: lastSync.aliased.slice() };
+      return {
+        replaced: !!lastSync.replaced,
+        added: lastSync.added.slice(),
+        aliased: lastSync.aliased.slice(),
+        removed: (lastSync.removed || []).slice()
+      };
     },
     /* 默认楼栋当前的版本号 */
     defaultBuildingsVersion: function () { return shippedBuildings().version; },

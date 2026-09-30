@@ -2638,18 +2638,19 @@
 
     window.setInterval(tick, 1000);
 
-    /* 默认楼栋更新了，告诉用户补了什么 */
-    if (pendingBuildingSync.added.length || pendingBuildingSync.aliased.length) {
-      var synced = [];
+    /* 默认楼栋换了新版本：本地那份被整份替换掉了，得说清楚，不然
+       用户会发现"我自己加的楼怎么没了"却不知道为什么 */
+    if (pendingBuildingSync.replaced) {
+      var bits = [];
       if (pendingBuildingSync.added.length) {
-        var names = pendingBuildingSync.added.map(function (b) { return b.name; });
-        synced.push("新增 " + names.length + " 栋：" + names.slice(0, 4).join("、") +
-          (names.length > 4 ? " 等" : ""));
+        bits.push("新增 " + pendingBuildingSync.added.length + " 栋");
       }
-      if (pendingBuildingSync.aliased.length) {
-        synced.push("补了 " + pendingBuildingSync.aliased.length + " 个别名");
+      if (pendingBuildingSync.removed.length) {
+        bits.push("移除 " + pendingBuildingSync.removed.length + " 栋");
       }
-      toast("楼栋数据已更新", synced.join("；") + "（只补不加改）", "ok");
+      toast("楼栋数据已换成新版",
+        "共 " + ((data.campus && data.campus.buildings) || []).length + " 栋" +
+        (bits.length ? "（" + bits.join("、") + "）" : "") + "；以默认数据为准", "ok");
     }
 
     window.addEventListener("resize", function () {
