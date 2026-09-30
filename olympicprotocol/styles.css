@@ -496,14 +496,14 @@ body {
 
 .bld-time {
   fill: var(--text-dim);
-  font-size: 18px;
+  font-size: 13px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 .bld-flag {
   fill: var(--accent);
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 700;
   text-anchor: middle;
   font-family: inherit;
@@ -511,14 +511,14 @@ body {
 
 .map-note {
   fill: var(--text-dim);
-  font-size: 20px;
+  font-size: 15px;
   text-anchor: middle;
   font-family: inherit;
 }
 
 .bld-label {
   fill: var(--text);
-  font-size: 24px;
+  font-size: 17px;
   font-weight: 600;
   text-anchor: middle;
   font-family: inherit;
@@ -527,13 +527,23 @@ body {
 /* 地图上的文字都加一层描边光晕：楼名、时间和距离经常挨得很近，
    没有光晕时叠在一起就看不清了。
    opacity 写死 1：简图上的字要看得清，不能被别处的透明度影响。 */
+/* 白描边让字在任何底色上都能看清。这里**不统一指定透明度**：
+   地名要半透明（做底衬、少抢眼），圆点编号和「下一节」要实心。 */
 .bld-label, .bld-time, .bld-flag, .dist-label, .me-label, .map-note {
-  opacity: 1;
   paint-order: stroke;
   stroke: #fff6fa;
-  stroke-width: 5px;
+  stroke-width: 3.5px;
   stroke-linejoin: round;
 }
+
+/* 地名要"看得见但不抢戏"：字小一号、透明度压下去 */
+.bld-label { opacity: 0.72; }
+.bld-time { opacity: 0.6; }
+.bus-stop-label { opacity: 0.68; }
+.map-note { opacity: 0.55; }
+
+/* 下面这些是"要看清楚"的，保持不透明 */
+.bld-order, .bld-flag, .me-label { opacity: 1; }
 
 .bld-label.is-active { fill: #4a0f2b; font-weight: 800; }
 .bld-label.is-next { fill: var(--accent); font-weight: 700; }
@@ -565,7 +575,7 @@ body {
 
 .me-ring { fill: rgba(255, 95, 162, 0.18); animation: pulse 2s ease-out infinite; }
 .me-dot { fill: var(--accent); stroke: #4a0f2b; stroke-width: 3; }
-.me-label { fill: var(--accent); font-size: 23px; font-weight: 700; text-anchor: middle; font-family: inherit; }
+.me-label { fill: var(--accent); font-size: 19px; font-weight: 700; text-anchor: middle; font-family: inherit; }
 
 .dist-label {
   fill: var(--text);
@@ -583,11 +593,10 @@ body {
 
 .bus-stop-label {
   fill: #e0508a;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   text-anchor: middle;
   font-family: inherit;
-  opacity: 1;
   paint-order: stroke;
   stroke: #fff6fa;
   stroke-width: 5px;

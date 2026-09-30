@@ -22,6 +22,14 @@ window.OP = window.OP || {};
   var LAT_M = 110540;
   var LNG_M = 111320;
 
+  /* 简图上各种字的大小（单位跟 viewBox 一致，CSS 里也写了同样的值）。
+     地名故意小一号、半透明——它是底衬，不该比圆点和路线还抢眼。 */
+  var LABEL_FS = 17;   // 楼栋简写
+  var TIME_FS = 13;    // 上课时间
+  var FLAG_FS = 15;    // 「下一节」旗标
+  var STOP_FS = 12;    // 校巴站名
+  var ME_FS = 19;      // 我的位置
+
   function esc(text) {
     return String(text === undefined || text === null ? "" : text)
       .replace(/&/g, "&amp;")
@@ -66,6 +74,133 @@ window.OP = window.OP || {};
       out += '<line x1="' + x.toFixed(0) + '" y1="0" x2="' + x.toFixed(0) + '" y2="' + H + '"/>';
       out += '<line x1="0" y1="' + y.toFixed(0) + '" x2="' + W + '" y2="' + y.toFixed(0) + '"/>';
     }
+    return out + "</g>";
+  }
+
+  /* ---------- 地名简写 ---------- */
+
+  /* 取首字母拼代号时跳过的词 */
+  var SKIP_WORDS = ["the", "of", "and", "&", "at"];
+
+  /**
+   * 简图上的地名用简写。
+   *
+   * "Academic Building No.2" 这种全称在简图上又长又容易互相压住，
+   * 而完整名字在下面的行程列表里就有，简图这里只要能对上号。
+   * 规则：每个词取首字母、数字照抄（Academic Building No.2 → AB2）——
+   * 这跟学校自己用的楼宇代号也是一致的。本来就短的名字（12W、C3、LT2）原样留着。
+   * 全称没丢：每块字都带了 <title>，鼠标停上去 / 手机上长按能看全。
+   */
+  function shortLabel(name) {
+    var raw = String(name === undefined || name === null ? "" : name).trim();
+    if (!raw) return "";
+
+    /* 中文名本来就短，最多去掉括号里的补充 */
+    if (/[\u4e00-\u9fa5]/.test(raw)) {
+      var zh = raw.replace(/[（(][^)）]*[)）]/g, "").trim() || raw;
+      /* 中文一个字带的信息多，给到 8 个字；
+         再长才截（比如"香港中文大學賽馬會研究生宿舍二座"） */
+      return zh.length > 8 ? zh.slice(0, 8) + "…" : zh;
+    }
+
+    /* 12W / C3 / LT2 / AB1 这类已经够短了 */
+    if (raw.replace(/[^A-Za-z0-9]/g, "").length <= 4) return raw;
+
+    var code = raw.split(/[\s,]+/).filter(function (w) {
+      return w && SKIP_WORDS.indexOf(w.toLowerCase()) < 0;
+    }).map(function (w) {
+      var no = /^no\.?\s*(\d+)$/i.exec(w);
+      if (no) return no[1];
+      if (/^\d+$/.test(w)) return w;
+      /* C3 / L3 / 2W 这种带数字的短词整个留着 */
+      if (/\d/.test(w) && w.replace(/[^A-Za-z0-9]/g, "").length <= 3) {
+        return w.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+      }
+      var m = w.match(/[A-Za-z0-9]/);
+      return m ? m[0].toUpperCase() : "";
+    }).join("");
+
+    if (code.length < 2) return raw.slice(0, 8) + "…";
+    return code.length > 8 ? code.slice(0, 8) : code;
+  }
+
+  /* ---------- 摆地名：默认放下面，压住了就翻到上面 ---------- */
+
+  /* 量一段文字大概有多宽（单位跟 viewBox 一致）。
+     不需要精确，够判断"会不会压住"就行。 */
+  function textWidth(text, fs) {
+    var w = 0;
+    String(text === undefined || text === null ? "" : text).split("").forEach(function (ch) {
+      if (/[\u4e00-\u9fa5\u3000-\u303f\uff01-\uff60]/.test(ch)) w += fs;
+      else if (ch === " ") w += fs * 0.28;
+      else if (/[iljt.,:;'|!]/.test(ch)) w += fs * 0.34;
+      else w += fs * 0.58;
+    });
+    return w;
+  }
+
+  function overlapArea(a, b) {
+    var w = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+    var h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+    return (w > 0 && h > 0) ? w * h : 0;
+  }
+
+  /**
+   * 排地名：每块字先试着放在地点下面，跟已经排好的字（或别的圆点）压住了就翻到上面。
+   *
+   * 谁先排谁优先：先课程楼栋，再「下一节」旗标和我的位置，最后校巴站——
+   * 课程楼栋是这张图的主角，校巴站最密也最容易挤，让它先让步。
+   */
+  function placeLabels(labels, marks) {
+    var obstacles = marks.map(function (m) {
+      return { l: m.x - m.r, r: m.x + m.r, t: m.y - m.r, b: m.y + m.r };
+    });
+    var placed = [];
+
+    function cost(box) {
+      var c = 0;
+      placed.forEach(function (p) { c += overlapArea(box, p) * 2; });
+      obstacles.forEach(function (o) { c += overlapArea(box, o); });
+      /* 挤出画面要重罚：宁可压着别的字，也不能让地名跑出图外 */
+      if (box.l < 8 || box.r > W - 8) c += 5000;
+      if (box.t < 6 || box.b > H - 6) c += 5000;
+      return c;
+    }
+
+    labels.slice().sort(function (a, b) { return a.rank - b.rank; }).forEach(function (L) {
+      var w = 0, h = 0;
+      L.lines.forEach(function (line) {
+        w = Math.max(w, textWidth(line.text, line.fs));
+        h += line.fs * 1.3;
+      });
+
+      var belowTop = L.y + L.r + 12;
+      var aboveTop = L.y - L.r - 10 - h;
+      var below = { l: L.x - w / 2, r: L.x + w / 2, t: belowTop, b: belowTop + h };
+      var above = { l: L.x - w / 2, r: L.x + w / 2, t: aboveTop, b: aboveTop + h };
+
+      var costBelow = cost(below);
+      var costAbove = cost(above);
+      /* 一样贵的时候按各自习惯的一侧放（「下一节」旗标和「我的位置」习惯在上） */
+      var side = costAbove < costBelow ? "above"
+        : (costAbove > costBelow ? "below" : (L.prefer || "below"));
+
+      L.top = (side === "above" ? above : below).t;
+      L.width = w;
+      L.side = side;
+      placed.push(side === "above" ? above : below);
+    });
+  }
+
+  function labelSvg(L) {
+    var out = "<g>" + (L.title ? "<title>" + esc(L.title) + "</title>" : "");
+    var y = L.top;
+    L.lines.forEach(function (line) {
+      y += line.fs * 0.86;
+      out += '<text class="' + line.cls + '" x="' + L.x.toFixed(1) +
+        '" y="' + y.toFixed(1) + '">' + line.text + "</text>";
+      y += line.fs * 0.44;
+    });
     return out + "</g>";
   }
 
@@ -124,46 +259,60 @@ window.OP = window.OP || {};
         '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>');
     });
 
+    /* 记号先全画出来，文字统一到最后摆——要摆才知道谁压着谁 */
+    var marks = [];
+    var labels = [];
+
     /* ---- 校巴站：画在行程点下面，别盖住编号圈 ---- */
     (opts.busStops || []).forEach(function (s) {
       var st = s && s.stop;
       if (!st || typeof st.lat !== "number" || typeof st.lng !== "number") return;
       var p = project(st);
-      parts.push("<g>" +
-        '<rect class="bus-stop" x="' + (p.x - 6).toFixed(1) + '" y="' + (p.y - 6).toFixed(1) +
-          '" width="12" height="12" rx="3" transform="rotate(45 ' +
-          p.x.toFixed(1) + " " + p.y.toFixed(1) + ')"/>' +
-        /* 只写站名：它在哪条线是上车、哪条线是下车，路线列表里已经写了 */
-        '<text class="bus-stop-label" x="' + p.x.toFixed(1) + '" y="' + (p.y + 23).toFixed(1) + '">' +
-          esc(st.zh) + "</text>" +
-        "</g>");
+      parts.push('<rect class="bus-stop" x="' + (p.x - 6).toFixed(1) + '" y="' + (p.y - 6).toFixed(1) +
+        '" width="12" height="12" rx="3" transform="rotate(45 ' +
+        p.x.toFixed(1) + " " + p.y.toFixed(1) + ')"/>');
+      marks.push({ x: p.x, y: p.y, r: 9 });
+      /* 只写站名：它在哪条线是上车、哪条线是下车，路线列表里已经写了 */
+      labels.push({
+        x: p.x, y: p.y, r: 9, rank: 3, title: st.zh,
+        lines: [{ text: esc(st.zh), fs: STOP_FS, cls: "bus-stop-label" }]
+      });
     });
 
     /* ---- 今天要去的楼栋 ---- */
     stops.forEach(function (s) {
       var b = s.building;
       var p = project(b);
-      /* 简图是"一眼看清今天去哪几栋"，圈和字都要够大。
+      /* 圈保持够大（简图是"一眼看清今天去哪几栋"），
+         字改成简写 + 小一号 + 半透明，免得一堆全称糊在一起。
          真实街道图上那是另一回事——那边会压住地图细节，所以那边反过来缩小。 */
       var r = s.isNext ? 18 : 15;
 
-      parts.push("<g>" +
-        '<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
-          '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '"/>' +
+      parts.push('<circle class="bld' + (s.isNext ? " is-next" : " is-today") +
+        '" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '"/>' +
         '<text class="bld-order' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '">' +
-          esc(s.order || "") + "</text>" +
-        '<text class="bld-label' + (s.isNext ? " is-next" : "") +
-          '" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 26).toFixed(1) + '">' +
-          esc(b.name) + "</text>" +
-        (s.time
-          ? '<text class="bld-time" x="' + p.x.toFixed(1) + '" y="' + (p.y + r + 48).toFixed(1) + '">' +
-            esc(s.time) + "</text>"
-          : "") +
-        (s.isNext
-          ? '<text class="bld-flag" x="' + p.x.toFixed(1) + '" y="' + (p.y - r - 12).toFixed(1) + '">下一节</text>'
-          : "") +
-        "</g>");
+        '" x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '">' +
+        esc(s.order || "") + "</text>");
+
+      marks.push({ x: p.x, y: p.y, r: r });
+
+      /* 全称留在 <title> 里，简写只放在图上 */
+      var lines = [{
+        text: esc(shortLabel(b.name)),
+        fs: LABEL_FS,
+        cls: "bld-label" + (s.isNext ? " is-next" : "")
+      }];
+      if (s.time) lines.push({ text: esc(s.time), fs: TIME_FS, cls: "bld-time" });
+
+      labels.push({ x: p.x, y: p.y, r: r, rank: 1, title: b.name, lines: lines });
+
+      /* 「下一节」旗标先摆（rank 0），习惯放上面 */
+      if (s.isNext) {
+        labels.push({
+          x: p.x, y: p.y, r: r, rank: 0, prefer: "above", title: b.name,
+          lines: [{ text: "下一节", fs: FLAG_FS, cls: "bld-flag" }]
+        });
+      }
     });
 
     /* ---- 我的位置 ---- */
@@ -172,15 +321,28 @@ window.OP = window.OP || {};
       parts.push("<g>" +
         '<circle class="me-ring" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="13"/>' +
         '<circle class="me-dot" cx="' + me.x.toFixed(1) + '" cy="' + me.y.toFixed(1) + '" r="10"/>' +
-        '<text class="me-label" x="' + me.x.toFixed(1) + '" y="' + (me.y - 28).toFixed(1) + '">我的位置</text>' +
         "</g>");
+      marks.push({ x: me.x, y: me.y, r: 16 });
+      labels.push({
+        x: me.x, y: me.y, r: 16, rank: 2, prefer: "above", title: "我的位置",
+        lines: [{ text: "我的位置", fs: ME_FS, cls: "me-label" }]
+      });
     } else if (stops.length) {
       /* 没定位时在图上说一句，免得以为坏了 */
       parts.push('<text class="map-note" x="500" y="666">打开定位后会显示你的位置</text>');
     }
 
+    placeLabels(labels, marks);
+    labels.forEach(function (L) { parts.push(labelSvg(L)); });
+
     svg.innerHTML = parts.join("");
   }
 
-  OP.MapView = { render: render };
+  OP.MapView = {
+    render: render,
+    /* 这两个暴露出来是给自检用的：简写规则和"摆在哪一侧"都是纯计算，
+       能在不开浏览器的情况下验 */
+    shortLabel: shortLabel,
+    textWidth: textWidth
+  };
 })(window.OP);
