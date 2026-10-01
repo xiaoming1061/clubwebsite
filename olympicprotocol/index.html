@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#080c18" />
   <!-- 部署脚本会把这里换成这次的构建号；本地打开时是 dev，不做版本检查 -->
-  <meta name="build" content="mup5cryo" />
+  <meta name="build" content="mup5n26o" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
@@ -34,7 +34,7 @@
       }).catch(function () { /* 拿不到就算了，不影响页面 */ });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=mup5cryo" />
+  <link rel="stylesheet" href="styles.css?v=mup5n26o" />
 </head>
 <body>
   <!-- 背景层：一段 16 秒的视频循环（原片是个 4 分钟的长 mv，画面本身就是
@@ -117,7 +117,10 @@
       <section class="view" data-view="settings">
         <article class="card">
           <div class="card-head"><h3>定位</h3><span class="muted" id="locState">未开始</span></div>
-          <div class="hero-stats hero-stats-tight">
+          <!-- 这三格里「当前坐标」是一串长文本（22.41830, 114.20520），
+               手机上一行塞三格会把它硬折成好几行，所以窄屏改成两行：
+               坐标独占一行，精度和最近楼栋并排一行。 -->
+          <div class="hero-stats hero-stats-tight stats-lead-wide">
             <div class="stat"><span class="stat-label">当前坐标</span><span class="stat-value" id="locCoords">--</span></div>
             <div class="stat"><span class="stat-label">精度</span><span class="stat-value" id="locAccuracy">--</span></div>
             <div class="stat"><span class="stat-label">最近楼栋</span><span class="stat-value" id="locNearest">--</span></div>
@@ -545,22 +548,22 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=mup5cryo"></script>
-  <script src="data/dorms.js?v=mup5cryo"></script>
-  <script src="data/shuttle.js?v=mup5cryo"></script>
-  <script src="data/defaults.js?v=mup5cryo"></script>
-  <script src="js/store.js?v=mup5cryo"></script>
-  <script src="js/zh.js?v=mup5cryo"></script>
-  <script src="js/dorm.js?v=mup5cryo"></script>
-  <script src="js/geo.js?v=mup5cryo"></script>
-  <script src="js/shuttle.js?v=mup5cryo"></script>
-  <script src="js/elevation.js?v=mup5cryo"></script>
-  <script src="js/speech.js?v=mup5cryo"></script>
-  <script src="js/planner.js?v=mup5cryo"></script>
-  <script src="js/map.js?v=mup5cryo"></script>
-  <script src="js/realmaps.js?v=mup5cryo"></script>
-  <script src="js/places.js?v=mup5cryo"></script>
-  <script src="js/ocr.js?v=mup5cryo"></script>
-  <script src="js/app.js?v=mup5cryo"></script>
+  <script src="data/buildings.js?v=mup5n26o"></script>
+  <script src="data/dorms.js?v=mup5n26o"></script>
+  <script src="data/shuttle.js?v=mup5n26o"></script>
+  <script src="data/defaults.js?v=mup5n26o"></script>
+  <script src="js/store.js?v=mup5n26o"></script>
+  <script src="js/zh.js?v=mup5n26o"></script>
+  <script src="js/dorm.js?v=mup5n26o"></script>
+  <script src="js/geo.js?v=mup5n26o"></script>
+  <script src="js/shuttle.js?v=mup5n26o"></script>
+  <script src="js/elevation.js?v=mup5n26o"></script>
+  <script src="js/speech.js?v=mup5n26o"></script>
+  <script src="js/planner.js?v=mup5n26o"></script>
+  <script src="js/map.js?v=mup5n26o"></script>
+  <script src="js/realmaps.js?v=mup5n26o"></script>
+  <script src="js/places.js?v=mup5n26o"></script>
+  <script src="js/ocr.js?v=mup5n26o"></script>
+  <script src="js/app.js?v=mup5n26o"></script>
 </body>
 </html>

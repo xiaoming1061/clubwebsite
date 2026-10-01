@@ -476,6 +476,25 @@ body {
     padding-left: 0;
   }
   .hero-stats[data-cells="3"] .stat:last-child .stat-label { margin-bottom: 0; }
+
+  /* 定位卡片那三格（坐标 / 精度 / 最近楼栋）：坐标是一串长文本，
+     三格并排会把它硬折成几行，看着很挤。改成两行——
+     坐标独占第一行，下面两格并排。 */
+  .stats-lead-wide,
+  .stats-lead-wide[data-cells="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .stats-lead-wide .stat:first-child {
+    grid-column: 1 / -1;
+    border-left: 0;
+    padding-left: 0;
+  }
+  /* 第二行起补横线；行内第一格不画竖线、第二格画 */
+  .stats-lead-wide .stat:nth-child(n + 2) { border-top: 1px solid var(--line); }
+  .stats-lead-wide .stat:nth-child(2) { border-left: 0; padding-left: 0; }
+  .stats-lead-wide .stat:nth-child(3) {
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-sm);
+  }
 }
 
 .stat-label { display: block; font-size: var(--text-xs); color: var(--text-faint); margin-bottom: 4px; }
