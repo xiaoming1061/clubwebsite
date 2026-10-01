@@ -869,38 +869,40 @@
   /**
    * 回宿舍从哪儿出发。
    *
-   * "今天最后一节课下课就走"——学生的真实场景大多是上完课回宿舍，
-   * 而不是从当前这个位置出发。这个开关界面上已经拿掉了，行为固定成这样：
-   * 今天还有课就从那间教室出发，没有课就退回实时定位。
-   * （`settings.dormFromClass` 仍然会被读，老数据里关过它就还是关着的。）
+   * **以我的位置为起点**（用户指定）：人在哪儿就从哪儿算，
+   * 不再假设"你正坐在今天最后一节课的教室里"。
+   *
+   * 只有取不到定位时（没开权限、电脑上没有位置）才退回"今天最后一节课的教室"——
+   * 卡片上全空着比给个大概更糟。退回去时标题会写明起点是哪栋楼、
+   * 下面还有一句"没取到定位"，不会让人误以为是从当前位置算的。
    */
   function dormStart() {
     var now = state.now;
 
-    if (data.settings.dormFromClass !== false) {
-      var last = null;
-      P.todayCourses(data, now).forEach(function (c) {
-        /* todayCourses 已按开始时间排好，最后还有课的自然是最后一节 */
-        if (P.at(now, c.end).getTime() > now.getTime()) last = c;
-      });
+    var pos = effectivePosition();
+    if (pos) return { point: pos, name: "我的位置", note: "", at: now, fromClass: false };
 
-      if (last) {
-        var b = P.buildingById(data, last.buildingId);
-        if (b && typeof b.lat === "number" && typeof b.lng === "number") {
-          return {
-            point: { lat: b.lat, lng: b.lng, elevation: b.elevation },
-            name: b.name,
-            note: "今天最后一节 " + last.start + "–" + last.end + "（" + last.name + "）下课后就走",
-            at: P.at(now, last.end),
-            fromClass: true
-          };
-        }
+    var last = null;
+    P.todayCourses(data, now).forEach(function (c) {
+      /* todayCourses 已按开始时间排好，最后还有课的自然是最后一节 */
+      if (P.at(now, c.end).getTime() > now.getTime()) last = c;
+    });
+
+    if (last) {
+      var b = P.buildingById(data, last.buildingId);
+      if (b && typeof b.lat === "number" && typeof b.lng === "number") {
+        return {
+          point: { lat: b.lat, lng: b.lng, elevation: b.elevation },
+          name: b.name,
+          note: "没取到定位，先按今天最后一节课的教室算（" +
+            last.start + "–" + last.end + " " + last.name + "）",
+          at: P.at(now, last.end),
+          fromClass: true
+        };
       }
     }
 
-    var pos = effectivePosition();
-    if (!pos) return null;
-    return { point: pos, name: "我的位置", note: "", at: now, fromClass: false };
+    return null;
   }
 
   /**
@@ -1171,8 +1173,7 @@
 
     var stats = "";
     if (!start) {
-      stats = '<p class="plan-note">还没有位置信息：先到「设置 → 定位」开一下定位，' +
-        "或者在设置里填一个模拟位置。</p>";
+      stats = '<p class="plan-note">还没有位置信息：先到「设置 → 定位」开一下实时定位。</p>';
     } else if (metrics) {
       /* 回宿舍大多是下坡。爬升要折算成时间，下降不折算（下坡不省时间，
          这是 Naismith 那套经验规则的口径），所以分开写、并注明。 */

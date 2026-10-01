@@ -56,11 +56,11 @@ window.OP.DEFAULT_DATA = {
 
     /* 返回宿舍：
        dormId 指向 data/dorms.js 里的某一条（默认宿舍），或者 addedDorms 里的
-       一条（用户自己用「当前位置添加」补的）。addedDorms 是数组，
-       页面上的增删都改它，跟默认数据分开存。 */
+       一条（老版本用「当前位置添加」补的）。addedDorms 是数组，跟默认数据
+       分开存；页面上现在只剩「删除这个宿舍」，添加入口已经拆掉了。
+       起点固定用"我的位置"，所以没有 dormFromClass 这个开关了。 */
     dormId: "",
     addedDorms: [],
-    dormFromClass: true,    // 回宿舍的起点：true=今天最后一节课下课就走
 
     /* 自定义路线：上次选的起点/终点楼栋 id。空字符串表示起点用「我的位置」 */
     customFrom: "",
