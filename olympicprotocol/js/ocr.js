@@ -760,7 +760,53 @@ window.OP = window.OP || {};
     if (a === b) return true;
     var short = a.length <= b.length ? a : b;
     var long = short === a ? b : a;
-    return short.length >= 3 && long.indexOf(short) === 0;
+    if (short.length >= 3 && long.indexOf(short) === 0) return true;
+    return nearWord(short, long);
+  }
+
+  /**
+   * 差一个字母的词也算同一个（只对 5 个字母以上的词开口子）。
+   *
+   * OCR 最常犯的错就是这个量级：liang → liana、building → bullding、
+   * Yasumoto → Yasumoto… 一个字母之差，词还是那个词。
+   * 4 个字母以内不开这个口子——hall / hill、ho / hk 差一个字母就是两栋楼了。
+   * 长度差也只允许 1，免得拿 "centre" 去凑 "centenary"。
+   */
+  function nearWord(a, b) {
+    if (a.length < 5 || b.length < 5) return false;
+    if (Math.abs(a.length - b.length) > 1) return false;
+    return editSimilarity(a, b) >= 0.8;
+  }
+
+  /**
+   * 把连着出现的单个字母并成一个词。
+   *
+   * 缩写点名两种写法都常见：地图上是 "Y.C. Liang Hall"，课表上印成
+   * "YC. Liang Hall"——前者拆出 y / c / liang / hall 四个词，
+   * 后者只有 yc / liang / hall 三个，逐词比对就对不上。
+   * 只并"连续两个以上"的单字母（Building A 里孤零零那个 A 保持原样），
+   * 而且只并字母、不并数字，免得把 "Block B 1" 黏成 b1。
+   */
+  function collapseInitials(tokens) {
+    var out = [];
+    var run = [];
+
+    function flush() {
+      if (run.length >= 2) out.push(run.join(""));
+      else out = out.concat(run);
+      run = [];
+    }
+
+    tokens.forEach(function (token) {
+      if (token.length === 1 && /[a-z]/.test(token)) {
+        run.push(token);
+        return;
+      }
+      flush();
+      out.push(token);
+    });
+    flush();
+    return out;
   }
 
   /**
@@ -770,9 +816,9 @@ window.OP = window.OP || {};
   function nameForms(text) {
     var raw = String(text || "").toLowerCase().replace(/[\u2019']/g, "");
 
-    var latin = (raw.match(/[a-z0-9]+/g) || []).map(function (token) {
+    var latin = collapseInitials((raw.match(/[a-z0-9]+/g) || []).map(function (token) {
       return ABBREVIATIONS[token] || token;
-    });
+    }));
     var cjk = (raw.match(/[\u4e00-\u9fa5]+/g) || []).join("");
 
     return { latin: latin, cjk: cjk, compact: latin.join("") + cjk };
@@ -1292,6 +1338,8 @@ window.OP = window.OP || {};
     nameForms: nameForms,
     nameScore: nameScore,
     editSimilarity: editSimilarity,
+    sameWord: sameWord,
+    collapseInitials: collapseInitials,
     stripRoomSuffix: stripRoomSuffix,
     matchBuilding: matchBuilding,
     wordsFromTsv: wordsFromTsv,
