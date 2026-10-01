@@ -409,29 +409,49 @@ body {
 
 .hero-stats {
   display: grid;
-  /* auto-fit：多出「爬升」那一格时自动排开，不用改结构 */
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  /* 三宫格盒子 → 一行读数：靠竖直发丝线分栏，不再每个数一个盒子
-     （"盒子里套盒子"是这次要修的 critical 之一） */
+  /* 一行读数：靠竖直发丝线分栏，不再每个数一个盒子。
+   *
+   * 列数**显式写死**，不用 auto-fit 自动换列。原因：格子上的分隔线是
+   * "每格一条左边线、只豁免行首那一格"，这套规则只在列数固定时才成立。
+   * 用 auto-fit 自动换列时，窄屏换成 2 列、第 3 格变成行首却没被豁免，
+   * 就会在手机屏幕上看到一条条游离的竖线，而且行与行之间没有横线。
+   * 格数（3 格 / 4 格）由脚本写在 data-cells 上。 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin: 18px 0 6px;
+  margin: var(--space-md) 0 var(--space-2xs);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  position: relative;
 }
 
-.hero-stats-tight { margin: 10px 0 16px; }
+/* 有「爬升」那一格时是 4 格 */
+.hero-stats[data-cells="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.hero-stats-tight { margin: var(--space-sm) 0 var(--space-md); }
 
 .stat {
   background: none;
   border: 0;
   border-left: 1px solid var(--line);
   border-radius: 0;
-  padding: 12px 14px;
+  padding: var(--space-sm) var(--space-sm);
   min-width: 0;
 }
 
+/* 行首那一格不画左边线（宽屏 3 格 3 列、4 格 4 列，都是一行，
+   所以只要豁免第 1 格就够了；换行的情况全交给下面窄屏那套规则） */
 .stat:first-child { border-left: 0; padding-left: 0; }
+
+/* 窄屏（手机上）：两列排，竖线只留在"行内第二格"，行与行之间用横线分。
+   这套规则对 3 格和 4 格都成立，也不会再出现游离的竖线。 */
+@media (max-width: 620px) {
+  .hero-stats,
+  .hero-stats[data-cells="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .stat { padding: var(--space-sm) 0; }
+  .stat:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .stat:nth-child(even) { border-left: 1px solid var(--line); padding-left: var(--space-sm); }
+  .stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}
 
 .stat-label { display: block; font-size: var(--text-xs); color: var(--text-faint); margin-bottom: 4px; }
 .stat-value {

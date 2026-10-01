@@ -357,6 +357,13 @@
       }
     }
 
+    /* 读数行是 3 格还是 4 格，写进 data-cells：
+       列数按格数定（3 格 3 列、4 格 4 列），不再让浏览器 auto-fit 自动换列——
+       自动换列时"每格一条左竖线、只豁免第一格"的规则会在换行处错位，
+       手机上会看到一条条游离的竖线。 */
+    var stats = $("#nextStats");
+    if (stats) stats.dataset.cells = $("#nextClimbWrap").hidden ? "3" : "4";
+
     /* ---- 今日时间轴 ---- */
     var ol = $("#todayList");
     if (!list.length) {
