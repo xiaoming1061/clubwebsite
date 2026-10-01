@@ -456,6 +456,13 @@ body {
     border-left: 1px solid var(--line);
     padding-left: var(--space-sm);
   }
+  /* 4 格时第二行行首是「爬升」那格（第 3 个兄弟）。它 x=0 贴在容器左边缘，
+     再给它一条左竖线就成了游离在所有格子之外的"鬼线"——
+     竖线只该留在行内两格之间。 */
+  .hero-stats[data-cells="4"] .stat:nth-child(3) {
+    border-left: 0;
+    padding-left: 0;
+  }
   .hero-stats[data-cells="4"] .stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
 
   /* 3 格：第一行两格，最后那格横跨整行（否则右边空半格、横线只画一半，
