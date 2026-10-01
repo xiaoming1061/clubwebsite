@@ -101,8 +101,9 @@ window.OP = window.OP || {};
     var raw = String(name === undefined || name === null ? "" : name).trim();
     if (!raw) return "";
 
-    /* 中文名本来就短，最多去掉括号里的补充 */
-    if (/[\u4e00-\u9fa5]/.test(raw)) {
+    /* 纯中文的按字数截；中英并排的（宿舍那种 "Chih Hsing Hall 知行樓"）
+       走英文那套——不然会被切成 "Chih Hsi…" */
+    if (/[\u4e00-\u9fa5]/.test(raw) && !/[A-Za-z]/.test(raw)) {
       var zh = raw.replace(/[（(][^)）]*[)）]/g, "").trim() || raw;
       /* 中文一个字带的信息多，给到 8 个字；
          再长才截（比如"香港中文大學賽馬會研究生宿舍二座"） */
@@ -243,7 +244,10 @@ window.OP = window.OP || {};
     });
 
     if (!frame.length) {
-      svg.innerHTML = '<text x="500" y="350" class="bld-label">今天没有要去的地方</text>';
+      /* 这张地图现在是"跟着当前那张卡片走"的：路线规划/返回宿舍/自定义路线
+         各有各的起终点，所以没东西可画时的说法由调用方给。 */
+      svg.innerHTML = '<text x="500" y="350" class="bld-label">' +
+        esc(opts.empty || "今天没有要去的地方") + "</text>";
       return;
     }
 

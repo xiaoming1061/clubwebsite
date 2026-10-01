@@ -31,6 +31,16 @@
   function $(sel) { return document.querySelector(sel); }
   function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 
+  /**
+   * 设置页里「从地图读取附近楼栋」和「校区楼栋」两张卡片默认藏起来。
+   *
+   * 日常用不到（楼栋数据已经内置好了），但调试时很有用：补坐标、从 OSM 搜楼、
+   * 改别名、拉海拔都在这两张卡上。**代码和 DOM 全都留着**，只是想看时：
+   *   1. 把这里改成 true，或者
+   *   2. 直接去掉 index.html 里那两处 hidden 属性。
+   */
+  var SHOW_BUILDING_TOOLS = false;
+
   function esc(text) {
     return String(text === undefined || text === null ? "" : text)
       .replace(/&/g, "&amp;")
@@ -452,100 +462,28 @@
 
     /*
      * 先把每段行程的校巴方案算出来。
-     * 必须在地图之前算：地图要标出这些车站（在哪上车、在哪下车）。
+     * 行程列表下面要写这几条线，地图上也要标出用到的车站。
      */
-    var busStops = [];
-    var busSeen = {};
-    /* 地图上要画的两种连线：我去车站、车站去教室 */
-    var busLinks = [];
     var hasShuttle = !!(OP.Shuttle && (OP.SHUTTLE_ROUTES || []).length);
-
-    function rememberStop(entry, role) {
-      if (!entry || !entry.stop) return;
-      var key = entry.id;
-      if (!busSeen[key]) {
-        busSeen[key] = { id: entry.id, stop: entry.stop, roles: {} };
-        busStops.push(busSeen[key]);
-      }
-      busSeen[key].roles[role] = true;
-    }
+    var bus = { busStops: [], busLinks: [] };
 
     route.forEach(function (leg) {
       leg.busPlan = hasShuttle
         ? OP.Shuttle.plan(leg.fromPoint, leg.toPoint, leg.start,
           leg.metrics ? leg.metrics.minutes : null, data.settings)
         : null;
-      if (!leg.busPlan) return;
-
-      /* 实际用到的上下车站 */
-      (leg.busPlan.groups || []).forEach(function (g) {
-        rememberStop(g.board, "board");
-        rememberStop(g.alight, "alight");
-      });
-
-      /* 取第一条线（现在在开的排最前）的上下车站画连线 */
-      var best = (leg.busPlan.groups || [])[0];
-      if (best) {
-        if (leg.fromPoint && best.board.stop) {
-          busLinks.push({ from: leg.fromPoint, to: best.board.stop });
-        }
-        /* 上车站到下车站这一段：这是坐车，不是走路，画成另一种线 */
-        if (best.board.stop && best.alight.stop) {
-          busLinks.push({
-            from: best.board.stop,
-            to: best.alight.stop,
-            ride: true,
-            route: best.route.no
-          });
-        }
-        if (best.alight.stop && leg.toPoint) {
-          busLinks.push({ from: best.alight.stop, to: leg.toPoint });
-        }
-      }
+      collectBus(leg.busPlan, leg.fromPoint, leg.toPoint, bus);
     });
 
-    /* 三种底图：简图（离线 SVG）/ OSM 街道图 / 港中文校园地图 */
-    var mode = data.settings.mapMode || "schematic";
-    var svg = $("#mapSvg");
-    var realBox = $("#mapReal");
-
-    $$(".map-mode").forEach(function (btn) {
-      btn.classList.toggle("is-active", btn.dataset.mapmode === mode);
-    });
-
-    if (mode === "schematic") {
-      /* 注意：SVG 元素没有 hidden 这个 DOM 属性，
-         写 svg.hidden = true 只是挂了个没用的变量，属性根本不会设上。
-         所以这里直接控制 display。 */
-      svg.style.display = "";
-      realBox.style.display = "none";
-      OP.RealMap.dispose();
-
-      OP.MapView.render(svg, {
-        buildings: buildings,
-        position: info.position,
-        stops: stops,
-        busStops: busStops,
-        busLinks: busLinks,
-        detourFactor: data.settings.detourFactor
-      });
-    } else {
-      svg.style.display = "none";
-      realBox.style.display = "";
-
-      OP.RealMap.render(realBox, {
-        source: mode,
-        position: info.position,
-        stops: stops,
-        busStops: busStops,
-        busLinks: busLinks
-      }).catch(function (err) {
-        toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
-      });
-    }
-
-    /* 简图才需要图例；真实地图上的标记自带标签 */
-    $("#mapLegend").hidden = mode !== "schematic";
+    /* 「路线规划」这张卡片对应的地图数据（今天要去的教室） */
+    todayMap = {
+      stops: stops,
+      position: info.position,
+      busStops: bus.busStops,
+      busLinks: bus.busLinks,
+      empty: "今天没有要去的地方"
+    };
+    renderRouteMap();
 
     var box = $("#routeList");
 
@@ -604,6 +542,234 @@
     }).join("");
 
     box.innerHTML = html;
+  }
+
+  /* ================= 路线页：三张卡片 + 地图跟着卡片走 ================= */
+
+  /* 三张卡片（左右滑动切换，一次只显示一张） */
+  var SLIDES = ["plan", "dorm", "custom"];
+  /* 当前在看哪张。地图画什么，就看它 */
+  var routeSlide = "plan";
+  /* renderRoute 每次算好的「今天的教室」那份地图数据，plan 卡片用它 */
+  var todayMap = { stops: [], position: null, busStops: [], busLinks: [], empty: "" };
+
+  /**
+   * 把一段行程用到的车站和连线收进来。
+   *
+   * 地图上只画三截：走到上车站、上车站坐到下车站、下车走到终点。
+   * 「路线规划」和「返回宿舍 / 自定义路线」用的是同一套算法，所以抽出来共用：
+   * 去上课是每段行程各算一次累加，回宿舍/自定义路线整段的算一次。
+   */
+  function collectBus(plan, fromPoint, toPoint, into) {
+    var out = into || { busStops: [], busLinks: [] };
+    var seen = {};
+    out.busStops.forEach(function (s) { seen[s.id] = true; });
+
+    (plan && plan.groups || []).forEach(function (g) {
+      [g.board, g.alight].forEach(function (entry) {
+        if (!entry || !entry.stop) return;
+        if (seen[entry.id]) return;
+        seen[entry.id] = true;
+        out.busStops.push({ id: entry.id, stop: entry.stop });
+      });
+    });
+
+    /* 取第一条线（现在在开的排最前）的上下车站画连线 */
+    var best = (plan && plan.groups || [])[0];
+    if (best) {
+      if (fromPoint && best.board.stop) {
+        out.busLinks.push({ from: fromPoint, to: best.board.stop });
+      }
+      /* 上车站到下车站这一段：这是坐车，不是走路，画成另一种线 */
+      if (best.board.stop && best.alight.stop) {
+        out.busLinks.push({
+          from: best.board.stop,
+          to: best.alight.stop,
+          ride: true,
+          route: best.route.no
+        });
+      }
+      if (best.alight.stop && toPoint) {
+        out.busLinks.push({ from: best.alight.stop, to: toPoint });
+      }
+    }
+    return out;
+  }
+
+  /* 地图上的一个记号：圈里写 tag（今天的课写序号，起终点写「起」「终」） */
+  function markOf(point, name, tag, isNext) {
+    return {
+      building: {
+        id: "mark-" + tag + "-" + name,
+        name: name,
+        lat: point.lat,
+        lng: point.lng,
+        elevation: point.elevation
+      },
+      order: tag,
+      time: "",
+      isNext: !!isNext
+    };
+  }
+
+  /**
+   * 「返回宿舍」这张卡片的地图数据：起点 → 宿舍。
+   * 起点是「我的位置」时就画那个点（不重复画一个圈），是楼就画「起」。
+   */
+  function dormMapData() {
+    var dorm = dormTarget();
+    var start = dormStart();
+    var none = {
+      stops: [], position: effectivePosition(), busStops: [], busLinks: [],
+      empty: "先选一个宿舍，才有起终点可画"
+    };
+    if (!dorm || !start) return none;
+
+    var s = data.settings;
+    var target = { lat: dorm.lat, lng: dorm.lng, elevation: dorm.elevation };
+    var metrics = P.walkMetrics(start.point, target, s);
+    var plan = OP.Shuttle
+      ? OP.Shuttle.plan(start.point, target, start.at, metrics ? metrics.minutes : null, s)
+      : null;
+    var bus = collectBus(plan, start.point, target);
+
+    return {
+      stops: (start.fromClass ? [markOf(start.point, start.name, "起")] : [])
+        .concat([markOf(target, dorm.label, "终")]),
+      position: start.fromClass ? null : start.point,
+      busStops: bus.busStops,
+      busLinks: bus.busLinks,
+      empty: "先选一个宿舍，才有起终点可画"
+    };
+  }
+
+  /** 「自定义路线」这张卡片的地图数据：起点 → 终点 */
+  function customMapData() {
+    var none = {
+      stops: [], position: effectivePosition(), busStops: [], busLinks: [],
+      empty: "选好起点和终点，这里就会画出来"
+    };
+    var to = data.settings.customTo ? P.buildingById(data, data.settings.customTo) : null;
+    if (!to || typeof to.lat !== "number") return none;
+
+    var fromPoint = null;
+    var fromName = "我的位置";
+    var fromIsBuilding = false;
+    if (data.settings.customFrom) {
+      var fb = P.buildingById(data, data.settings.customFrom);
+      if (fb && typeof fb.lat === "number") {
+        fromPoint = { lat: fb.lat, lng: fb.lng, elevation: fb.elevation };
+        fromName = fb.name;
+        fromIsBuilding = true;
+      }
+    } else {
+      fromPoint = effectivePosition();
+    }
+    if (!fromPoint) {
+      return {
+        stops: [markOf({ lat: to.lat, lng: to.lng, elevation: to.elevation }, to.name, "终")],
+        position: null, busStops: [], busLinks: [],
+        empty: "还没定位，起点先选一栋楼"
+      };
+    }
+
+    var s = data.settings;
+    var target = { lat: to.lat, lng: to.lng, elevation: to.elevation };
+    var metrics = P.walkMetrics(fromPoint, target, s);
+    var plan = OP.Shuttle
+      ? OP.Shuttle.plan(fromPoint, target, state.now, metrics ? metrics.minutes : null, s)
+      : null;
+    var bus = collectBus(plan, fromPoint, target);
+
+    return {
+      stops: (fromIsBuilding ? [markOf(fromPoint, fromName, "起")] : [])
+        .concat([markOf(target, to.name, "终")]),
+      position: fromIsBuilding ? null : fromPoint,
+      busStops: bus.busStops,
+      busLinks: bus.busLinks,
+      empty: "选好起点和终点，这里就会画出来"
+    };
+  }
+
+  function slideMapData(kind) {
+    if (kind === "dorm") return dormMapData();
+    if (kind === "custom") return customMapData();
+    return todayMap;
+  }
+
+  /**
+   * 画地图。
+   *
+   * **画哪一段取决于当前在看哪张卡片**：路线规划 → 今天要去的教室；
+   * 返回宿舍 → 起点到宿舍；自定义路线 → 起点到终点。
+   * 车站和那三截连线也跟着这张卡片走，不会永远显示今日课表那一套。
+   */
+  function renderRouteMap() {
+    var d = slideMapData(routeSlide);
+    var mode = data.settings.mapMode || "schematic";
+    var svg = $("#mapSvg");
+    var realBox = $("#mapReal");
+    if (!svg || !realBox) return;
+
+    $$(".map-mode").forEach(function (btn) {
+      btn.classList.toggle("is-active", btn.dataset.mapmode === mode);
+    });
+
+    if (mode === "schematic") {
+      /* 注意：SVG 元素没有 hidden 这个 DOM 属性，
+         写 svg.hidden = true 只是挂了个没用的变量，属性根本不会设上。
+         所以这里直接控制 display。 */
+      svg.style.display = "";
+      realBox.style.display = "none";
+      OP.RealMap.dispose();
+
+      OP.MapView.render(svg, {
+        buildings: (data.campus && data.campus.buildings) || [],
+        position: d.position,
+        stops: d.stops,
+        busStops: d.busStops,
+        busLinks: d.busLinks,
+        empty: d.empty,
+        detourFactor: data.settings.detourFactor
+      });
+    } else {
+      svg.style.display = "none";
+      realBox.style.display = "";
+
+      OP.RealMap.render(realBox, {
+        source: mode,
+        position: d.position,
+        stops: d.stops,
+        busStops: d.busStops,
+        busLinks: d.busLinks
+      }).catch(function (err) {
+        toast("地图加载失败", err.message + "。可以先切回「简图」。", "err");
+      });
+    }
+
+    /* 简图才需要图例；真实地图上的标记自带标签 */
+    $("#mapLegend").hidden = mode !== "schematic";
+  }
+
+  function renderSlideTabs() {
+    $$(".route-tab").forEach(function (btn) {
+      btn.classList.toggle("is-active", btn.dataset.slide === routeSlide);
+    });
+  }
+
+  /* 把某张卡片滑到眼前（点上面的切换条时用） */
+  function snapToSlide(kind) {
+    var scroller = $("#routeSlides");
+    var idx = SLIDES.indexOf(kind);
+    if (!scroller || idx < 0) return;
+    routeSlide = kind;
+    renderSlideTabs();
+    if (scroller.scrollTo) {
+      scroller.scrollTo({ left: idx * scroller.clientWidth, behavior: "smooth" });
+    } else {
+      scroller.scrollLeft = idx * scroller.clientWidth;
+    }
+    renderRouteMap();
   }
 
   /* ================= 渲染：返回宿舍 ================= */
@@ -1314,7 +1480,7 @@
   function render() {
     renderTop();
     if (state.view === "today") renderToday();
-    else if (state.view === "route") { renderRoute(); renderDorm(); renderCustom(); }
+    else if (state.view === "route") { renderRoute(); renderDorm(); renderCustom(); renderSlideTabs(); }
     else if (state.view === "course") renderCourse();
     else if (state.view === "settings") renderSettings();
     /* 内容变了，页尾留白要重新核对 */
@@ -2127,6 +2293,34 @@
       });
     });
 
+    /* --- 路线页：三张卡片左右滑动 --- */
+    /* 点上面的切换条 = 滑到那张（对鼠标/键盘更顺手） */
+    $$(".route-tab").forEach(function (btn) {
+      btn.addEventListener("click", function () { snapToSlide(btn.dataset.slide); });
+    });
+
+    /* 手指划完，按停在哪一张决定地图画什么。
+       用 scroll-snap 让浏览器自己吸附，这里只负责"读结果"，
+       不自己算手势——省事也不容易跟惯性打架。 */
+    var slidesBox = $("#routeSlides");
+    if (slidesBox) {
+      var slideTimer = null;
+      slidesBox.addEventListener("scroll", function () {
+        window.clearTimeout(slideTimer);
+        slideTimer = window.setTimeout(function () {
+          var width = slidesBox.clientWidth || 1;
+          var idx = Math.round(slidesBox.scrollLeft / width);
+          idx = Math.max(0, Math.min(SLIDES.length - 1, idx));
+          var kind = SLIDES[idx];
+          if (kind === routeSlide) return;
+          routeSlide = kind;
+          renderSlideTabs();
+          /* 只重画地图：三张卡片的内容本身不受影响 */
+          renderRouteMap();
+        }, 90);
+      });
+    }
+
     /* --- 自定义路线（选完就自动算） --- */
     /* 起点：候选里第一项是「我的位置」（id 为空字符串） */
     attachPicker({
@@ -2791,6 +2985,15 @@
     bindEvents();
     fillVoiceOptions();
     measureBottomSpace();
+
+    /* 调试开关：把「地图取楼栋 / 校区楼栋」两张卡片放出来，见 SHOW_BUILDING_TOOLS */
+    if (SHOW_BUILDING_TOOLS) {
+      ["#placesCard", "#buildingsCard"].forEach(function (sel) {
+        var el = $(sel);
+        if (el) el.hidden = false;
+      });
+    }
+
     render();
 
     window.setInterval(tick, 1000);
@@ -2813,6 +3016,12 @@
     window.addEventListener("resize", function () {
       measureBottomSpace();
       scheduleClearanceCheck();
+      /* 宽度一变，三张卡片的"页宽"也变了，得重新对齐到当前那张 */
+      var scroller = $("#routeSlides");
+      if (scroller && state.view === "route") {
+        var idx = SLIDES.indexOf(routeSlide);
+        if (idx > 0) scroller.scrollLeft = idx * scroller.clientWidth;
+      }
     });
     window.addEventListener("orientationchange", function () {
       window.setTimeout(function () {

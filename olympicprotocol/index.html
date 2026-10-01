@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#080c18" />
   <!-- 部署脚本会把这里换成这次的构建号；本地打开时是 dev，不做版本检查 -->
-  <meta name="build" content="muo9upop" />
+  <meta name="build" content="mup2aqa4" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
@@ -34,7 +34,7 @@
       }).catch(function () { /* 拿不到就算了，不影响页面 */ });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=muo9upop" />
+  <link rel="stylesheet" href="styles.css?v=mup2aqa4" />
 </head>
 <body>
   <!-- 背景层：一段 16 秒的视频循环（原片是个 4 分钟的长 mv，画面本身就是
@@ -184,7 +184,10 @@
           </div>
         </article>
 
-        <article class="card">
+        <!-- 调试用：这张卡片（以及下面「校区楼栋」那张）默认藏起来。
+             属性和代码都还在：去掉下面的 hidden 就又能看到，
+             也可以把代码里那个 SHOW_BUILDING_TOOLS 开关改成 true。 -->
+        <article class="card" id="placesCard" hidden>
           <div class="card-head">
             <h3>从地图读取附近楼栋</h3>
             <span class="muted" id="plStatus">未搜索</span>
@@ -221,7 +224,7 @@
           <div class="places-list" id="placesList"></div>
         </article>
 
-        <article class="card">
+        <article class="card" id="buildingsCard" hidden>
           <div class="card-head">
             <h3>校区楼栋</h3>
             <div class="card-head-actions">
@@ -318,6 +321,17 @@
           </div>
         </article>
 
+        <!-- 三张卡片做成左右滑动、一次只显示一张：显示哪张，上面的地图就画哪张的起终点 -->
+        <div class="route-nav" id="routeNav">
+          <button type="button" class="route-tab is-active" data-slide="plan">路线规划</button>
+          <button type="button" class="route-tab" data-slide="dorm">返回宿舍</button>
+          <button type="button" class="route-tab" data-slide="custom">自定义路线</button>
+        </div>
+
+        <div class="route-slides" id="routeSlides">
+          <div class="route-track" id="routeTrack">
+
+        <section class="route-slide" data-slide="plan">
         <article class="card">
           <div class="card-head">
             <h3>路线规划</h3>
@@ -325,7 +339,9 @@
           </div>
           <div class="route-list" id="routeList"></div>
         </article>
+        </section>
 
+        <section class="route-slide" data-slide="dorm">
         <article class="card">
           <div class="card-head">
             <h3>返回宿舍</h3>
@@ -359,7 +375,9 @@
           </form>
           <div class="dorm-plan" id="dormPlan"></div>
         </article>
+        </section>
 
+        <section class="route-slide" data-slide="custom">
         <article class="card">
           <div class="card-head">
             <h3>自定义路线</h3>
@@ -384,6 +402,10 @@
           </div>
           <div class="custom-plan" id="customPlan"></div>
         </article>
+        </section>
+
+          </div>
+        </div>
       </section>
 
       <section class="view" data-view="course">
@@ -515,22 +537,22 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=muo9upop"></script>
-  <script src="data/dorms.js?v=muo9upop"></script>
-  <script src="data/shuttle.js?v=muo9upop"></script>
-  <script src="data/defaults.js?v=muo9upop"></script>
-  <script src="js/store.js?v=muo9upop"></script>
-  <script src="js/zh.js?v=muo9upop"></script>
-  <script src="js/dorm.js?v=muo9upop"></script>
-  <script src="js/geo.js?v=muo9upop"></script>
-  <script src="js/shuttle.js?v=muo9upop"></script>
-  <script src="js/elevation.js?v=muo9upop"></script>
-  <script src="js/speech.js?v=muo9upop"></script>
-  <script src="js/planner.js?v=muo9upop"></script>
-  <script src="js/map.js?v=muo9upop"></script>
-  <script src="js/realmaps.js?v=muo9upop"></script>
-  <script src="js/places.js?v=muo9upop"></script>
-  <script src="js/ocr.js?v=muo9upop"></script>
-  <script src="js/app.js?v=muo9upop"></script>
+  <script src="data/buildings.js?v=mup2aqa4"></script>
+  <script src="data/dorms.js?v=mup2aqa4"></script>
+  <script src="data/shuttle.js?v=mup2aqa4"></script>
+  <script src="data/defaults.js?v=mup2aqa4"></script>
+  <script src="js/store.js?v=mup2aqa4"></script>
+  <script src="js/zh.js?v=mup2aqa4"></script>
+  <script src="js/dorm.js?v=mup2aqa4"></script>
+  <script src="js/geo.js?v=mup2aqa4"></script>
+  <script src="js/shuttle.js?v=mup2aqa4"></script>
+  <script src="js/elevation.js?v=mup2aqa4"></script>
+  <script src="js/speech.js?v=mup2aqa4"></script>
+  <script src="js/planner.js?v=mup2aqa4"></script>
+  <script src="js/map.js?v=mup2aqa4"></script>
+  <script src="js/realmaps.js?v=mup2aqa4"></script>
+  <script src="js/places.js?v=mup2aqa4"></script>
+  <script src="js/ocr.js?v=mup2aqa4"></script>
+  <script src="js/app.js?v=mup2aqa4"></script>
 </body>
 </html>

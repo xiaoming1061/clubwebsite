@@ -714,6 +714,56 @@ body {
 .dorm-leg .idx { background: rgba(185, 140, 255, 0.18); color: var(--accent-2); }
 .custom-leg .idx { background: rgba(255, 95, 162, 0.16); color: var(--accent); }
 
+/* ---------- 路线页：三张卡片左右滑动 ---------- */
+
+/* 上面那条切换条（也是"当前在看哪张"的指示） */
+.route-nav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.route-tab {
+  flex: 1;
+  appearance: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 9px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.route-tab.is-active {
+  background: linear-gradient(135deg, var(--accent), #ff8ab8);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* 滑动容器：靠 scroll-snap，手指一划就翻页，不用写手势代码 */
+.route-slides {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.route-slides::-webkit-scrollbar { display: none; }
+
+.route-track { display: flex; align-items: flex-start; }
+
+.route-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
 /* ---------- 校巴方案 ---------- */
 
 .leg-bus {
