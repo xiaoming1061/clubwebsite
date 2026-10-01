@@ -441,16 +441,41 @@ body {
    所以只要豁免第 1 格就够了；换行的情况全交给下面窄屏那套规则） */
 .stat:first-child { border-left: 0; padding-left: 0; }
 
-/* 窄屏（手机上）：两列排，竖线只留在"行内第二格"，行与行之间用横线分。
-   这套规则对 3 格和 4 格都成立，也不会再出现游离的竖线。 */
+/* 窄屏（手机上）：两列排。
+ *
+ * 这里**不能靠 :nth-child(odd/even) 判断**——「爬升」那一格没有数据时是 `hidden`，
+ * 但它仍然是 DOM 里的兄弟节点，奇偶位就整体错开了（"最后一个可见格"实际是
+ * 第 4 个兄弟，偶数）。所以两套排法按 data-cells 分开写，条件都是确定的：
+ *   4 格 → 完整 2×2；3 格 → 第一行两格 + 第二行整行。 */
 @media (max-width: 620px) {
-  .hero-stats,
-  .hero-stats[data-cells="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
   .stat { padding: var(--space-sm) 0; }
-  .stat:nth-child(odd) { border-left: 0; padding-left: 0; }
-  .stat:nth-child(even) { border-left: 1px solid var(--line); padding-left: var(--space-sm); }
-  .stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
+
+  /* 4 格：2×2，竖线只留在行内第二格，第 2 行起补横线 */
+  .hero-stats[data-cells="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-stats[data-cells="4"] .stat:nth-child(even) {
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-sm);
+  }
+  .hero-stats[data-cells="4"] .stat:nth-child(n + 3) { border-top: 1px solid var(--line); }
+
+  /* 3 格：第一行两格，最后那格横跨整行（否则右边空半格、横线只画一半，
+     网格"缺一块"就是手机上看着诡异的根源）。 */
+  .hero-stats[data-cells="3"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-stats[data-cells="3"] .stat:nth-child(2) {
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-sm);
+  }
+  .hero-stats[data-cells="3"] .stat:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+  }
+  .hero-stats[data-cells="3"] .stat:last-child .stat-label { margin-bottom: 0; }
 }
 
 .stat-label { display: block; font-size: var(--text-xs); color: var(--text-faint); margin-bottom: 4px; }
@@ -1600,8 +1625,9 @@ body {
 @media (max-width: 430px) {
   .hero-title { font-size: 22px; }
   .countdown { font-size: 19px; }
-  .hero-stats { grid-template-columns: 1fr 1fr; }
-  .hero-stats .stat:last-child { grid-column: 1 / -1; }
+  /* 读数行的列数与分隔线在 620px 那一段里按 data-cells 精确处理了，
+     这里不要再插手——两套规则同时存在时，4 格也会被拉成"最后一行整行"，
+     手机上就出现"半格空着 + 横线只画一半"的错位。 */
   .field-row { grid-template-columns: 1fr; }
   .tl-item { grid-template-columns: 56px 1fr; }
   .tl-item .tl-badge { grid-column: 2; justify-self: start; margin-top: 6px; }
