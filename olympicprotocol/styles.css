@@ -1,3 +1,10 @@
+/* Hallmark · macrostructure: Workbench（app 界面，不是落地页）· tone: soft-cute · anchor hue: 350（粉）
+ * Hallmark · pre-emit critique: P4 H4 E5 S4 R5 V3
+ * 这次是「只改 critical」的一轮：卡片里套卡片 · 提示条的单边竖条 · hero 装饰光斑 · 整页只有一个字体。
+ * 改掉的两条轴：分隔语言（带色块盒子 → 发丝线）· 字体（单级 → display + body 两级）。
+ * 没动的：文案、四视图结构、交互与数据、粉色品牌色、背景视频。
+ */
+
 /* Olympic Protocol — 校园通行指挥台 */
 
 :root {
@@ -16,6 +23,26 @@
   --text-faint: #a98b9a;
   --accent: #ff5fa2;
   --accent-2: #b98cff;
+
+  /* ---- 字体：两级，不再"一个字体走天下" ----
+   * display 面给**数字读数**用（时钟、倒计时、距离、时间、班次号）——
+   * 等宽数字让成列的数字对齐，也正好对上这个产品"通行指挥台"的身份：
+   * 柔和的外壳 + 精确的仪表读数。
+   * body 面给中文正文用，走系统黑体（中文本来就得靠系统字体，引外链字体不划算）。
+   * 等宽面没有汉字字形，中英混排时汉字会自动回落到 body 面。 */
+  --font-display: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  /* 字号阶梯：以前最大 26px、其余全挤在 11–15px，没有 display 这一档 */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-display: clamp(26px, 7vw, 34px);
   --ok: #2fae76;
   --warn: #e08a00;
   --err: #ef4a63;
@@ -59,8 +86,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
-    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
 }
@@ -204,30 +230,22 @@ body {
   margin-bottom: 14px;
 }
 
-.card-head h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
+.card-head h3 { margin: 0; font-size: var(--text-lg); font-weight: 600; letter-spacing: 0; }
 .card-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.muted { color: var(--text-dim); font-size: 12px; }
+.muted { color: var(--text-dim); font-size: var(--text-sm); }
 
 /* ---------- 主卡 ---------- */
 
+/* 这里原本有一个 320×320 的粉色径向光斑（.hero::after），纯装饰、没有语义，
+   是典型"AI 生成的 hero"痕迹，删掉。主卡靠字重和留白立住。
+   紧急状态那层琥珀色光斑同理删掉，只留一条边框色做状态提示。 */
 .hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(150deg, rgba(255, 227, 239, 0.58) 0%, rgba(255, 233, 243, 0.52) 52%, rgba(255, 255, 255, 0.48) 100%);
+  background: var(--card);
 }
 
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: -40% -20% auto auto;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(255, 95, 162, 0.22), transparent 66%);
-  pointer-events: none;
-}
-
-.hero.is-imminent { border-color: rgba(255, 176, 32, 0.55); }
-.hero.is-imminent::after { background: radial-gradient(circle, rgba(255, 176, 32, 0.28), transparent 66%); }
+.hero.is-imminent { border-color: var(--warn-line); }
 
 .hero-head {
   display: flex;
@@ -256,46 +274,64 @@ body {
 
 .countdown {
   font-variant-numeric: tabular-nums;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  /* 倒计时是页面上最重要的一个数：走 display 面（等宽）+ 负字距，
+     不再靠 800 字重硬撑 */
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
 .hero-title {
   margin: 16px 0 6px;
-  font-size: 26px;
-  line-height: 1.25;
-  font-weight: 800;
-  position: relative;
+  /* display 这一档以前不存在（最大 26px、其余 11–15px）；
+     用 clamp 让它跟着屏宽走，字重从 800 降到 650——层级靠"大"和"松"，
+     不靠加粗 */
+  font-size: var(--text-display);
+  line-height: 1.18;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
-.hero-sub { margin: 0; color: var(--text-dim); font-size: 13.5px; position: relative; }
+.hero-sub { margin: 0; color: var(--text-dim); font-size: var(--text-md); }
 
 .hero-stats {
   display: grid;
   /* auto-fit：多出「爬升」那一格时自动排开，不用改结构 */
   grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 10px;
-  margin: 18px 0 4px;
+  /* 三宫格盒子 → 一行读数：靠竖直发丝线分栏，不再每个数一个盒子
+     （"盒子里套盒子"是这次要修的 critical 之一） */
+  gap: 0;
+  margin: 18px 0 6px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   position: relative;
 }
 
-.hero-stats-tight { margin: 6px 0 14px; }
+.hero-stats-tight { margin: 10px 0 16px; }
 
 .stat {
-  background: rgba(255, 95, 162, 0.06);
-  border: 1px solid rgba(255, 95, 162, 0.12);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding: 12px 14px;
   min-width: 0;
 }
 
-.stat-label { display: block; font-size: 11px; color: var(--text-faint); margin-bottom: 5px; }
+.stat:first-child { border-left: 0; padding-left: 0; }
+
+.stat-label { display: block; font-size: var(--text-xs); color: var(--text-faint); margin-bottom: 4px; }
 .stat-value {
   display: block;
-  font-size: 15px;
-  font-weight: 700;
+  /* 读数字用 display 面（等宽）：成列的数字才对得齐 */
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -372,8 +408,8 @@ body {
 
 .tl-time small { display: block; font-weight: 500; font-size: 11px; color: var(--text-faint); }
 
-.tl-name { font-size: 14.5px; font-weight: 650; margin-bottom: 3px; }
-.tl-meta { font-size: 12px; color: var(--text-dim); }
+.tl-name { font-size: var(--text-lg); font-weight: 600; margin-bottom: 3px; }
+.tl-meta { font-size: var(--text-sm); color: var(--text-dim); }
 .tl-badge {
   font-size: 11px;
   padding: 3px 9px;
@@ -624,17 +660,23 @@ body {
 
 /* ---------- 路线 ---------- */
 
-.route-list { display: flex; flex-direction: column; gap: 10px; }
+.route-list { display: flex; flex-direction: column; }
 
+/* 行程块以前是"卡片里再放一个带边框的盒子"，校巴块又是盒子里第三个盒子。
+   现在只保留卡片这一层容器，块与块之间用一条发丝线分隔（分隔语言：
+   色块盒子 → 细线），层级靠留白和字重表达。 */
 .leg {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 13px 14px;
-  background: rgba(255, 255, 255, 0.024);
+  border: 0;
+  border-radius: 0;
+  padding: 16px 0;
 }
 
+.leg + .leg { border-top: 1px solid var(--line); }
+.leg:first-child { padding-top: 0; }
+.leg:last-child { padding-bottom: 0; }
+
 .leg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.leg-title { font-size: 14px; font-weight: 650; }
+.leg-title { font-size: var(--text-lg); font-weight: 600; }
 .leg-title .idx {
   display: inline-grid;
   place-items: center;
@@ -646,7 +688,7 @@ body {
   color: var(--accent);
 }
 
-.leg-time { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.leg-time { font-family: var(--font-display); font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .leg-meta { margin-top: 8px; font-size: 12.5px; color: var(--text-dim); display: flex; gap: 12px; flex-wrap: wrap; }
 .leg-meta b { color: var(--text); font-weight: 650; }
 .leg-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
@@ -767,25 +809,28 @@ body {
 /* ---------- 校巴方案 ---------- */
 
 .leg-bus {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 95, 162, 0.28);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 95, 162, 0.05);
+  /* 校巴这块原来是行程块里的第二个盒子（带底色的框），现在只是一条
+     发丝线 + 留白分出来的段落 */
+  margin-top: 14px;
+  padding-top: 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
 .leg-bus-head {
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  font-weight: 700;
-  color: var(--accent);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-dim);
 }
 
 .bus-group { display: flex; flex-direction: column; gap: 4px; }
-.bus-group + .bus-group { border-top: 1px solid rgba(255, 184, 214, 0.7); padding-top: 10px; }
+.bus-group + .bus-group { border-top: 1px solid var(--line); padding-top: 10px; }
 
 .bus-where {
   display: flex;
@@ -809,9 +854,11 @@ body {
   font-weight: 800;
 }
 
-.bus-stops { font-size: 12.5px; font-weight: 500; color: var(--text-dim); }
+.bus-stops { font-size: var(--text-sm); font-weight: 500; color: var(--text-dim); }
 
 .bus-ride {
+  /* 班次时长是成列的数字，走 display（等宽）面 */
+  font-family: var(--font-display);
   font-size: 12.5px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
@@ -828,16 +875,16 @@ body {
 
 /* 没有方案 / 模块没加载：说清楚是哪种情况 */
 .bus-none { font-size: 12.5px; color: var(--text-dim); line-height: 1.7; }
-.leg-bus.is-none { border-color: var(--line); background: rgba(255, 95, 162, 0.05); }
+/* 没有方案 / 模块没加载：只换那条分隔线和标签颜色，不再铺一层底色盒子 */
 .leg-bus.is-none .leg-bus-head { color: var(--text-dim); }
-.leg-bus.is-missing { border-color: rgba(255, 176, 32, 0.45); background: rgba(255, 176, 32, 0.06); }
+.leg-bus.is-missing { border-top-color: var(--warn-line); }
 .leg-bus.is-missing .leg-bus-head { color: var(--warn); }
 .leg-bus.is-missing .bus-none { color: var(--warn); }
 
 /* 「现在停运的线路」折叠块 */
 .bus-off {
   margin-top: 2px;
-  border-top: 1px solid rgba(255, 184, 214, 0.7);
+  border-top: 1px solid var(--line);
   padding-top: 8px;
 }
 
@@ -1282,8 +1329,8 @@ body {
 .toast {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid var(--line);
-  border-left: 4px solid var(--accent);
-  border-radius: 12px;
+  /* 圆角走 token，不再另写一个 12px */
+  border-radius: var(--radius);
   padding: 12px 14px;
   font-size: 13px;
   line-height: 1.55;
@@ -1294,15 +1341,25 @@ body {
   animation: toast-in 0.24s ease;
 }
 
-/* 语气：左边那条竖线 + 标题颜色，底色统一（不然绿底黄底跟粉色主题打架） */
-.toast.is-ok { border-left-color: var(--ok); }
-.toast.is-warn { border-left-color: var(--warn); }
-.toast.is-err { border-left-color: var(--err); }
-
-.toast strong { display: block; margin-bottom: 3px; font-size: 13.5px; color: var(--accent-ink); }
+/* 语气：**不再用左边那条 4px 竖条**（单边粗竖条是最典型的 AI 卡片签名），
+   改成"标题色 + 标题前一个小圆点"——底色全部统一，一圈发丝线。 */
 .toast.is-ok strong { color: var(--ok-ink); }
 .toast.is-warn strong { color: var(--warn-ink); }
 .toast.is-err strong { color: var(--err-ink); }
+
+.toast strong { display: block; margin-bottom: 3px; font-size: 13.5px; color: var(--accent-ink); }
+
+/* 小圆点继承标题色（currentColor），六种语气都不用手写颜色 */
+.toast strong::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 2px;
+}
 
 /* ---------- 页面内确认弹窗 ----------
    不用 window.confirm()：内置浏览器 / WebView 常把它静默屏蔽掉，
