@@ -869,8 +869,10 @@
   /**
    * 回宿舍从哪儿出发。
    *
-   * 默认"今天最后一节课下课就走"——学生的真实场景大多是上完课回宿舍，
-   * 而不是从当前这个位置出发。没有课（或者关了那个开关）就用当前定位。
+   * "今天最后一节课下课就走"——学生的真实场景大多是上完课回宿舍，
+   * 而不是从当前这个位置出发。这个开关界面上已经拿掉了，行为固定成这样：
+   * 今天还有课就从那间教室出发，没有课就退回实时定位。
+   * （`settings.dormFromClass` 仍然会被读，老数据里关过它就还是关着的。）
    */
   function dormStart() {
     var now = state.now;
@@ -946,8 +948,7 @@
     data.settings.dormId = dorm ? dorm.id : "";
     if (!dorm && String(text || "").trim()) {
       toast("没找到这个宿舍",
-        "中英文、简体繁体、中文首字母（zxl → 知行樓）都认；实在没有就走到楼下按「用当前位置添加宿舍」",
-        "warn");
+        "中英文、简体繁体、中文首字母（zxl → 知行樓）都认，试试只打前两个字", "warn");
     }
     saveAndRender();
   }
@@ -1140,12 +1141,11 @@
     if (document.activeElement !== search) search.value = dorm ? dorm.label : "";
 
     $("#dormState").textContent = list.length + " 处可选";
-    $("#btnDormRemove").hidden = !(dorm && dorm.custom);
-    $("#dormFromClass").checked = data.settings.dormFromClass !== false;
+    /* 只有自己加的宿舍能删；没有可删的就把整行收起来 */
+    $("#dormActions").hidden = !(dorm && dorm.custom);
 
     if (!dorm) {
-      box.innerHTML = '<p class="empty">上面选一个宿舍。列表里没有的话，' +
-        "走到那栋楼按「用当前位置添加宿舍」。</p>";
+      box.innerHTML = '<p class="empty">上面搜一个宿舍（中英文、简体繁体、拼音首字母都认）。</p>';
       return;
     }
 
@@ -2440,10 +2440,6 @@
     });
 
     /* --- 返回宿舍 --- */
-    $("#dormFromClass").addEventListener("change", function () {
-      data.settings.dormFromClass = $("#dormFromClass").checked;
-      saveAndRender();
-    });
 
     /* 宿舍：候选列表自己渲染，跟搜索走同一套规则（简繁 + 拼音首字母） */
     attachPicker({
@@ -2463,8 +2459,7 @@
         var d = dormTarget();
         return d ? d.label : "";
       },
-      empty: "没有匹配的宿舍。中英文、简体繁体、拼音首字母都认；" +
-        "实在没有就走到楼下按「用当前位置添加宿舍」。",
+      empty: "没有匹配的宿舍。中英文、简体繁体、拼音首字母都认，试试只打前两个字。",
       onPick: function (item) { chooseDorm(item.id); }
     });
 
@@ -2477,41 +2472,6 @@
     /* 点到别的地方就把所有候选收起来 */
     document.addEventListener("click", function (ev) {
       pickers.forEach(function (p) { p.hideIfOutside(ev.target); });
-    });
-
-    $("#btnDormAddHere").addEventListener("click", function () {
-      var pos = effectivePosition();
-      if (!pos) {
-        toast("还没有位置", "先到「设置 → 定位」开一下定位，或者填一个模拟位置", "warn");
-        return;
-      }
-      /* 站在楼下时，最近的楼栋通常就是这栋楼，先把名字填上省得打字 */
-      var nearest = P.nearestBuilding(pos, (data.campus && data.campus.buildings) || []);
-      $("#dfName").value = (nearest && nearest.distance < 120) ? nearest.building.name : "";
-      $("#dfCoords").textContent = "当前位置 " + pos.lat.toFixed(5) + ", " + pos.lng.toFixed(5);
-      $("#dormForm").hidden = false;
-      $("#dfName").focus();
-    });
-
-    $("#dfCancel").addEventListener("click", function () {
-      $("#dormForm").hidden = true;
-    });
-
-    $("#dormForm").addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      var pos = effectivePosition();
-      if (!pos) return;
-
-      var entry = OP.Dorm.add(data.settings, $("#dfName").value, pos);
-      if (!entry) {
-        toast("名字不能空着", "写一个你自己认得出的名字就行", "warn");
-        return;
-      }
-      data.settings.dormId = entry.id;
-      $("#dormForm").hidden = true;
-      /* 添加完列表里立刻能看到，不用再弹一条"已完成"（Hallmark 微交互纪律：
-         结果看得见的就别弹成功提示） */
-      saveAndRender();
     });
 
     $("#btnDormRemove").addEventListener("click", function () {
@@ -2537,22 +2497,6 @@
       });
     });
 
-    $("#btnDormGo").addEventListener("click", function () {
-      var dorm = dormTarget();
-      if (!dorm) {
-        toast("还没选宿舍", "先在「返回宿舍」里选一个", "warn");
-        return;
-      }
-      var links = Geo.navLinks(dorm.name, dorm.lat, dorm.lng);
-      var pick = links.filter(function (l) { return l.primary && l.url; })[0] ||
-        links.filter(function (l) { return l.url; })[0];
-      if (!pick) {
-        toast("这个宿舍没有坐标", "换个宿舍，或者重新添加一次", "warn");
-        return;
-      }
-      window.open(pick.url, "_blank", "noopener");
-    });
-
     /* --- 卡片里的「复制坐标」（行程 / 返回宿舍 / 自定义路线都走这里） --- */
     document.addEventListener("click", function (ev) {
       var btn = ev.target.closest("[data-copy]");
@@ -2568,24 +2512,6 @@
 
     $("#btnBrief").addEventListener("click", function () {
       say(P.briefingText(data, state.now, effectivePosition()), "今日课表");
-    });
-
-    $("#btnStartNow").addEventListener("click", function () {
-      var info = nextInfo();
-      if (!info.leg || !info.leg.building) {
-        toast("暂时没有要去的教室", "");
-        return;
-      }
-      if (info.leg.metrics) say(P.leaveText(info.leg, state.now), "出发提醒");
-      var links = Geo.navLinks(info.leg.building.name, info.leg.building.lat, info.leg.building.lng);
-      /* 默认用 Google 地图（links 里标了 primary 的那条） */
-      var pick = links.filter(function (l) { return l.primary && l.url; })[0] ||
-        links.filter(function (l) { return l.url; })[0];
-      if (!pick) {
-        toast("这个地点没有坐标", "先去「设置 → 校区楼栋」补一下", "warn");
-        return;
-      }
-      window.open(pick.url, "_blank", "noopener");
     });
 
     /* --- 定位 --- */

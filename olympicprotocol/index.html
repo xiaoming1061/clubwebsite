@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#080c18" />
   <!-- 部署脚本会把这里换成这次的构建号；本地打开时是 dev，不做版本检查 -->
-  <meta name="build" content="mup81mka" />
+  <meta name="build" content="mupa20bz" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Olympic Protocol · 校园通行指挥台</title>
@@ -34,7 +34,7 @@
       }).catch(function () { /* 拿不到就算了，不影响页面 */ });
     })();
   </script>
-  <link rel="stylesheet" href="styles.css?v=mup81mka" />
+  <link rel="stylesheet" href="styles.css?v=mupa20bz" />
 </head>
 <body>
   <!-- 背景层：一段 16 秒的视频循环（原片是个 4 分钟的长 mv，画面本身就是
@@ -101,7 +101,6 @@
           <div class="hero-actions">
             <button class="btn btn-primary" id="btnSpeakNext">播报下一节</button>
             <button class="btn" id="btnBrief">今日课表播报</button>
-            <button class="btn btn-ghost" id="btnStartNow">现在出发</button>
           </div>
         </article>
 
@@ -364,26 +363,11 @@
               placeholder="例如：汤 / 知行楼 / zxl / Chih Hsing" />
           </label>
           <div class="picker" id="dormSuggest" hidden></div>
-          <label class="switch">
-            <input type="checkbox" id="dormFromClass" />
-            <span>从今天最后一节课的教室出发</span>
-          </label>
-          <div class="hero-actions">
-            <button class="btn btn-primary" id="btnDormGo">现在回宿舍</button>
-            <button class="btn" id="btnDormAddHere">用当前位置添加宿舍</button>
+          <!-- 只剩「删除这个宿舍」这一颗（只有自己加的宿舍才显示），
+               整行在没得删时一起收起来，免得留一段空行 -->
+          <div class="hero-actions" id="dormActions" hidden>
             <button class="btn btn-ghost" id="btnDormRemove" hidden>删除这个宿舍</button>
           </div>
-          <form id="dormForm" class="form" hidden>
-            <label class="field">
-              <span>宿舍名称</span>
-              <input type="text" id="dfName" required placeholder="例如：知行樓 Chih Hsing Hall" />
-            </label>
-            <p class="count-line" id="dfCoords">--</p>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">保存</button>
-              <button type="button" class="btn btn-ghost" id="dfCancel">取消</button>
-            </div>
-          </form>
           <div class="dorm-plan" id="dormPlan"></div>
         </article>
         </section>
@@ -548,23 +532,23 @@
     </div>
   </div>
 
-  <script src="data/buildings.js?v=mup81mka"></script>
-  <script src="data/dorms.js?v=mup81mka"></script>
-  <script src="data/shuttle.js?v=mup81mka"></script>
-  <script src="data/holidays.js?v=mup81mka"></script>
-  <script src="data/defaults.js?v=mup81mka"></script>
-  <script src="js/store.js?v=mup81mka"></script>
-  <script src="js/zh.js?v=mup81mka"></script>
-  <script src="js/dorm.js?v=mup81mka"></script>
-  <script src="js/geo.js?v=mup81mka"></script>
-  <script src="js/shuttle.js?v=mup81mka"></script>
-  <script src="js/elevation.js?v=mup81mka"></script>
-  <script src="js/speech.js?v=mup81mka"></script>
-  <script src="js/planner.js?v=mup81mka"></script>
-  <script src="js/map.js?v=mup81mka"></script>
-  <script src="js/realmaps.js?v=mup81mka"></script>
-  <script src="js/places.js?v=mup81mka"></script>
-  <script src="js/ocr.js?v=mup81mka"></script>
-  <script src="js/app.js?v=mup81mka"></script>
+  <script src="data/buildings.js?v=mupa20bz"></script>
+  <script src="data/dorms.js?v=mupa20bz"></script>
+  <script src="data/shuttle.js?v=mupa20bz"></script>
+  <script src="data/holidays.js?v=mupa20bz"></script>
+  <script src="data/defaults.js?v=mupa20bz"></script>
+  <script src="js/store.js?v=mupa20bz"></script>
+  <script src="js/zh.js?v=mupa20bz"></script>
+  <script src="js/dorm.js?v=mupa20bz"></script>
+  <script src="js/geo.js?v=mupa20bz"></script>
+  <script src="js/shuttle.js?v=mupa20bz"></script>
+  <script src="js/elevation.js?v=mupa20bz"></script>
+  <script src="js/speech.js?v=mupa20bz"></script>
+  <script src="js/planner.js?v=mupa20bz"></script>
+  <script src="js/map.js?v=mupa20bz"></script>
+  <script src="js/realmaps.js?v=mupa20bz"></script>
+  <script src="js/places.js?v=mupa20bz"></script>
+  <script src="js/ocr.js?v=mupa20bz"></script>
+  <script src="js/app.js?v=mupa20bz"></script>
 </body>
 </html>
