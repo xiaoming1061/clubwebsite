@@ -170,19 +170,47 @@
 
   /* ================= 提示条 ================= */
 
-  function toast(title, body, kind) {
+  /**
+   * 提示条。
+   *
+   * 用法上有一条纪律（Hallmark 的微交互规范）：**结果用户看得见的事，别弹成功提示**
+   * ——保存完列表就变了、清空完列表就空了，再弹一条"已完成"只是噪音。
+   * 提示条留给三类：失败、异步且结果不可见（比如"已复制"）、以及**可撤销**的操作。
+   *
+   * @param action { label, onAction } 可选：给提示条挂一个按钮（撤销用）
+   */
+  function toast(title, body, kind, action) {
     var wrap = $("#toasts");
     var el = document.createElement("div");
     el.className = "toast" + (kind ? " is-" + kind : "");
     el.innerHTML = "<strong>" + esc(title) + "</strong>" + (body ? esc(body) : "");
+
+    var life = 6500;
+    if (action && action.label && typeof action.onAction === "function") {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "toast-action";
+      btn.textContent = action.label;
+      btn.addEventListener("click", function () {
+        action.onAction();
+        remove();
+      });
+      el.appendChild(btn);
+      /* 撤销的窗口给足一点：技能建议 5–10 秒 */
+      life = 9000;
+    }
+
     wrap.appendChild(el);
-    window.setTimeout(function () {
-      el.style.transition = "opacity .3s ease";
+
+    var timer = window.setTimeout(remove, life);
+    function remove() {
+      window.clearTimeout(timer);
+      el.style.transition = "opacity var(--dur-hover) var(--ease-out)";
       el.style.opacity = "0";
       window.setTimeout(function () {
         if (el.parentNode) el.parentNode.removeChild(el);
-      }, 320);
-    }, 6500);
+      }, 200);
+    }
   }
 
   /* ================= 页面内确认弹窗 =================
@@ -191,15 +219,24 @@
 
   var pendingConfirm = null;
 
+  /* 确认框打开前谁在焦点上：关掉之后要还回去，键盘用户不会"掉到页面顶部" */
+  var confirmReturnFocus = null;
+
   function askConfirm(message, onOk) {
     pendingConfirm = onOk || null;
     $("#confirmText").textContent = message;
     $("#confirmBox").hidden = false;
+    confirmReturnFocus = document.activeElement;
+    /* 焦点进到确认框里（第一个可交互元素），Esc 能关 */
+    var ok = $("#confirmOk");
+    if (ok) ok.focus();
   }
 
   function closeConfirm() {
     $("#confirmBox").hidden = true;
     pendingConfirm = null;
+    if (confirmReturnFocus && confirmReturnFocus.focus) confirmReturnFocus.focus();
+    confirmReturnFocus = null;
   }
 
   /* ================= 播报 ================= */
@@ -1639,7 +1676,6 @@
 
     closeCourseForm();
     saveAndRender();
-    toast(id ? "已更新课程" : "已添加课程", payload.name, "ok");
   }
 
   /* ================= 楼栋表单 ================= */
@@ -1712,7 +1748,6 @@
 
     saveAndRender();
     renderPlaces();
-    toast("已补充 " + added + " 个名字", "「" + target.name + "」以后课表里出现这些名字都能匹配上", "ok");
   }
 
   function searchPlaces() {
@@ -1875,7 +1910,6 @@
 
     saveAndRender();
     renderPlaces();
-    toast("已加入 " + added + " 栋楼", "可以在下面的「校区楼栋」里改名和加别名", "ok");
   }
 
   /* ================= 从截图导入课表 ================= */
@@ -1978,7 +2012,8 @@
     }
     box.hidden = false;
     label.hidden = false;
-    bar.style.width = Math.max(2, Math.round((ratio || 0) * 100)) + "%";
+    /* 用 transform 而不是 width：动布局属性的动画会一直触发重排 */
+    bar.style.transform = "scaleX(" + Math.max(0.02, ratio || 0).toFixed(3) + ")";
     label.textContent = text + (ratio ? "  " + Math.round(ratio * 100) + "%" : "");
   }
 
@@ -2270,7 +2305,6 @@
 
     $("#buildingForm").hidden = true;
     saveAndRender();
-    toast(id ? "已更新楼栋" : "已添加楼栋", payload.name, "ok");
   }
 
   /* ================= 事件绑定 ================= */
@@ -2446,17 +2480,31 @@
       }
       data.settings.dormId = entry.id;
       $("#dormForm").hidden = true;
+      /* 添加完列表里立刻能看到，不用再弹一条"已完成"（Hallmark 微交互纪律：
+         结果看得见的就别弹成功提示） */
       saveAndRender();
-      toast("宿舍已添加", entry.name + "（用当前位置）", "ok");
     });
 
     $("#btnDormRemove").addEventListener("click", function () {
       var dorm = dormTarget();
       if (!dorm || !dorm.custom) return;
-      askConfirm("删掉宿舍「" + dorm.label + "」？", function () {
-        OP.Dorm.remove(data.settings, dorm.id);
-        data.settings.dormId = "";
-        saveAndRender();
+      /* 删一个宿舍是可撤销的：直接删 + 给一条带「撤销」的提示条，
+         不再弹确认框（技能：可撤销的操作，撤销优先于确认）。 */
+      var list = data.settings.addedDorms || [];
+      var entry = list.filter(function (d) { return d.id === dorm.id; })[0];
+      var at = list.indexOf(entry);
+      OP.Dorm.remove(data.settings, dorm.id);
+      data.settings.dormId = "";
+      saveAndRender();
+      toast("已删除宿舍", dorm.label, "", {
+        label: "撤销",
+        onAction: function () {
+          if (!entry) return;
+          data.settings.addedDorms = data.settings.addedDorms || [];
+          data.settings.addedDorms.splice(at < 0 ? 0 : at, 0, entry);
+          data.settings.dormId = entry.id;
+          saveAndRender();
+        }
       });
     });
 
@@ -2578,14 +2626,22 @@
     /* 提醒与步行参数一键回到默认值。
        只重置这一张卡片里的项，不动语音、地图、楼栋和课表 */
     $("#btnResetWalk").addEventListener("click", function () {
-      askConfirm("提醒与步行参数会变回默认值，确定吗？", function () {
-        var base = OP.Store.defaults().settings;
-        ["leadMinutes", "bufferMinutes", "walkingSpeed", "busSpeed",
-          "detourFactor", "climbFactor", "termStart"].forEach(function (key) {
-          data.settings[key] = base[key];
-        });
-        saveAndRender();
-        toast("已恢复默认配置", "", "ok");
+      /* 这一张卡片的值都能改回来，所以是可撤销的：直接改 + 撤销提示条 */
+      var keys = ["leadMinutes", "bufferMinutes", "walkingSpeed", "busSpeed",
+        "detourFactor", "climbFactor", "termStart"];
+      var before = {};
+      keys.forEach(function (key) { before[key] = data.settings[key]; });
+
+      var base = OP.Store.defaults().settings;
+      keys.forEach(function (key) { data.settings[key] = base[key]; });
+      saveAndRender();
+
+      toast("已恢复默认配置", "提醒、缓冲、速度这些回到默认值", "", {
+        label: "撤销",
+        onAction: function () {
+          Object.keys(before).forEach(function (key) { data.settings[key] = before[key]; });
+          saveAndRender();
+        }
       });
     });
 
@@ -2661,6 +2717,14 @@
       if (ev.target === this) closeConfirm();
     });
 
+    /* Esc 关掉确认框（技能：模态必须能用 Esc 关，不能只有鼠标一条路） */
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && !$("#confirmBox").hidden) {
+        ev.preventDefault();
+        closeConfirm();
+      }
+    });
+
     $("#btnClearBuildings").addEventListener("click", function () {
       var list = (data.campus && data.campus.buildings) || [];
       if (!list.length) {
@@ -2684,8 +2748,7 @@
         data.campus.buildings = [];
         $("#buildingForm").hidden = true;
         saveAndRender();
-        toast("已清空全部楼栋", "可以重新搜一次导入，这次会带上英文名", "ok");
-      });
+        });
     });
 
     /* --- 从地图读取楼栋 --- */
@@ -2854,9 +2917,18 @@
         var id = del.getAttribute("data-del-course");
         var course = P.courseById(data, id);
         if (!course) return;
-        askConfirm("确定删除「" + course.name + "」吗？", function () {
-          data.courses = data.courses.filter(function (x) { return x.id !== id; });
-          saveAndRender();
+        /* 删一门课也是可撤销的：直接删，给一条「撤销」提示条 */
+        var at = data.courses.map(function (x) { return x.id; }).indexOf(id);
+        var removed = data.courses[at];
+        data.courses = data.courses.filter(function (x) { return x.id !== id; });
+        saveAndRender();
+        toast("已删除课程", course.name, "", {
+          label: "撤销",
+          onAction: function () {
+            if (!removed) return;
+            data.courses.splice(at < 0 ? 0 : at, 0, removed);
+            saveAndRender();
+          }
         });
       }
     });
