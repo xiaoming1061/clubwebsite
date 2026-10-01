@@ -21,8 +21,10 @@
  *    比如 3 号线从"逸夫书院（下行）"坐不到"科学馆"，因为科学馆在这条线的前段，
  *    而车开到终点（大学站广场）就清客了。
  *    要往回走只能换乘另一条线，或者走路。
- * 6. 公众假期和教学日算不出来（没有校历），只按星期几判断；
- *    受影响的站点会在结果里标出来。
+ * 6. **公众假期按校历算**（data/holidays.js，来自教务处 2026-27 校历）：
+ *    假期那天星期一至六的线全停，只剩假日线 H。停课日（入学资讯日、大会）
+ *    不是假期，校巴照常开。教学日 / 非教学日仍然算不出来，受影响的站点
+ *    会在结果里标出来，让人自己确认。
  */
 
 window.OP = window.OP || {};
@@ -148,9 +150,24 @@ window.OP = window.OP || {};
     return total;
   }
 
+  /**
+   * 这一天算星期几。
+   *
+   * 校历里的公众假期 / 大学假期要换成 "holiday" 这个键：那些天星期一至六的线
+   * 一律停开（数据里写的是"公眾假期停開"），只有假日线 H 开——它的服务时段
+   * 本来就是 { days: ["sun","holiday"] }。
+   * 停课日（入学资讯日、大会）不算假期，校巴照常，所以还是按星期几算。
+   */
+  function dayKeyFor(date) {
+    var planner = OP.Planner;
+    var day = planner && planner.holidayOn ? planner.holidayOn(date) : null;
+    if (day && day.kind === "holiday") return "holiday";
+    return DAY_KEYS[date.getDay()];
+  }
+
   /* 这条路线今天开不开 */
   function sessionFor(route, date) {
-    var key = DAY_KEYS[date.getDay()];
+    var key = dayKeyFor(date);
     return (route.sessions || []).filter(function (s) {
       return (s.days || []).indexOf(key) >= 0;
     })[0] || null;
@@ -379,6 +396,7 @@ window.OP = window.OP || {};
     routesOn: routesOn,
     runsOn: runsOn,
     sessionFor: sessionFor,
+    dayKeyFor: dayKeyFor,
     nextDepartures: nextDepartures,
     rideMinutes: rideMinutes,
     runsNow: runsNow,

@@ -78,6 +78,37 @@ window.OP = window.OP || {};
 
   /* ---------- 数据查询 ---------- */
 
+  /**
+   * 这一天在校历里是什么日子（data/holidays.js）。
+   *
+   * 返回 null 表示普通日子；否则返回那一条：
+   *   kind "holiday"  公众假期 / 大学假期 → 不上课，校巴只开假日线（H）
+   *   kind "noClass"  停课日（入学资讯日、大会）→ 不上课，校巴照常
+   *   kind "partial"  只停一部分时段，`until` 之前不上课
+   *
+   * 校历只做到 2026-27 学年，出了这个范围就查不到，按普通日子处理——
+   * 宁可多显示几节课，也不要在没数据的时候把整天的课吞掉。
+   */
+  var holidayIndex = null;
+
+  function holidayOn(date) {
+    var table = OP.HOLIDAYS && OP.HOLIDAYS.days;
+    if (!table || !table.length || !date) return null;
+
+    if (!holidayIndex) {
+      holidayIndex = {};
+      table.forEach(function (day) { holidayIndex[day.date] = day; });
+    }
+    return holidayIndex[dateKey(date)] || null;
+  }
+
+  /* 这节课今天上不上（假期 / 停课日整天不上；部分停课看开始时间） */
+  function cancelledOn(day, course) {
+    if (!day) return false;
+    if (day.kind === "partial") return hm(course.start) < hm(day.until || "00:00");
+    return true;
+  }
+
   function buildingById(data, id) {
     var list = (data.campus && data.campus.buildings) || [];
     for (var i = 0; i < list.length; i++) {
@@ -129,9 +160,30 @@ window.OP = window.OP || {};
 
   function todayCourses(data, date) {
     var termStart = data.settings ? data.settings.termStart : null;
+    /* 放假 / 停课就不排课。部分停课（开学礼）只砍掉停课时段里的课。 */
+    var day = holidayOn(date);
+    if (day && day.kind !== "partial") return [];
+
     return (data.courses || [])
-      .filter(function (c) { return courseOnDay(c, date, termStart); })
+      .filter(function (c) {
+        return courseOnDay(c, date, termStart) && !cancelledOn(day, c);
+      })
       .sort(function (a, b) { return hm(a.start) - hm(b.start); });
+  }
+
+  /**
+   * 今天因为假期 / 停课被砍掉的课。
+   *
+   * 用来跟用户解释"课不是丢了"——尤其是部分停课那天（开学礼停到 13:30），
+   * 上午的课会凭空消失，不说一句用户会以为程序坏了。
+   */
+  function cancelledCourses(data, date) {
+    var day = holidayOn(date);
+    if (!day) return [];
+    var termStart = data.settings ? data.settings.termStart : null;
+    return (data.courses || []).filter(function (c) {
+      return courseOnDay(c, date, termStart) && cancelledOn(day, c);
+    });
   }
 
   function statusOf(course, date) {
@@ -468,7 +520,7 @@ window.OP = window.OP || {};
   function weekText(course) {
     var days = (course.weekdays || []).slice().sort(function (a, b) { return a - b; })
       .map(function (d) { return WEEKDAYS_SHORT[d]; }).join("、");
-    var weeks = course.weeks || [1, 16];
+    var weeks = course.weeks || [1, 17];
     return days + " · " + weeks[0] + "-" + weeks[1] + " 周";
   }
 
@@ -482,6 +534,7 @@ window.OP = window.OP || {};
     weekNumber: weekNumber,
     dateKey: dateKey,
     dateLabel: dateLabel,
+    holidayOn: holidayOn,
     cnTime: cnTime,
     minutesBetween: minutesBetween,
     humanGap: humanGap,
@@ -489,6 +542,7 @@ window.OP = window.OP || {};
     filterBuildings: filterBuildings,
     courseById: courseById,
     todayCourses: todayCourses,
+    cancelledCourses: cancelledCourses,
     statusOf: statusOf,
     nextCourse: nextCourse,
     nearestBuilding: nearestBuilding,

@@ -922,18 +922,31 @@ window.OP = window.OP || {};
    * @returns {object|null} { id, name, score, exact }，分数低于阈值就当匹配不上
    */
   function bestMatch(query, buildings, min) {
-    var best = null;
+    var list = rankMatch(query, buildings, min);
+    return list.length ? list[0] : null;
+  }
+
+  /**
+   * 所有够像的楼栋，分数高的在前（一格都没有时返回空数组）。
+   *
+   * 同一栋楼的正式名和别名取最高的那个分，所以一栋楼最多出现一次。
+   * 分数相同就保持楼栋原来的顺序（数组排序是稳定的）。
+   */
+  function rankMatch(query, buildings, min) {
+    var out = [];
+    var floor = (min === undefined) ? 0.62 : min;
 
     (buildings || []).forEach(function (b) {
+      var score = 0;
       [b.name].concat(b.alias || []).forEach(function (candidate) {
-        var score = nameScore(query, nameForms(candidate));
-        if (!best || score > best.score) {
-          best = { id: b.id, name: b.name, score: score, exact: score >= 1 };
-        }
+        var s = nameScore(query, nameForms(candidate));
+        if (s > score) score = s;
       });
+      if (score >= floor) out.push({ id: b.id, name: b.name, score: score, exact: score >= 1 });
     });
 
-    return (best && best.score >= min) ? best : null;
+    out.sort(function (a, b) { return b.score - a.score; });
+    return out;
   }
 
   /* 去掉结尾的教室号 / 门牌号："Science Centre L3" → "Science Centre" */
@@ -956,18 +969,107 @@ window.OP = window.OP || {};
    * 万一有教室号残留在楼名里也能对上。
    */
   function matchBuilding(name, buildings, threshold) {
+    var list = rankBuildings(name, buildings, threshold);
+    return list.length ? list[0] : null;
+  }
+
+  /**
+   * 所有够像的楼栋，最像的在第一个——导入界面拿它排下拉框。
+   *
+   * 课表上写 "Science Centre" 时，东座、西座、大学科学馆可能都过阈值；
+   * 只给"最像的那一栋"等于把选择藏起来了，用户还得自己去翻 150 栋找另一栋。
+   * 所以这里把够像的全部按分数列出来，最像的排第一（界面里默认选中它），
+   * 其余紧跟其后，一眼就能看到"还有哪几栋也说得通"。
+   */
+  function rankBuildings(name, buildings, threshold) {
     var min = threshold === undefined ? 0.62 : threshold;
     var query = nameForms(name);
-    if (!query.compact) return null;
+    if (!query.compact) return [];
 
-    var direct = bestMatch(query, buildings, min);
-    if (direct) return direct;
+    var direct = rankMatch(query, buildings, min);
 
+    /* 楼名后面可能还粘着教室号，去掉再试一次 */
     var stripped = stripRoomSuffix(name);
-    if (stripped !== String(name || "").trim()) {
-      return bestMatch(nameForms(stripped), buildings, min);
+    if (stripped === String(name || "").trim()) return direct;
+
+    var loose = rankMatch(nameForms(stripped), buildings, min);
+    if (!loose.length) return direct;
+    /* 两次都比的时候直接那次一个都没中，就用去掉教室号那次 */
+    if (!direct.length) return loose;
+
+    /* 两次的名单并起来，**但直接那次的第一名钉在最前面**——
+       matchBuilding 选的就是它，不能让 "Building 10" 被削成 "Building" 反超。
+       去掉教室号后新冒出来的那些排在后面（往往是用户真正想选的，
+       比如 "Science Centre L3" 去掉 L3 之后，东座、大学科学馆才一起浮出来）。 */
+    var seen = {};
+    var head = direct[0];
+    seen[head.id] = true;
+
+    var tail = direct.slice(1).concat(loose).filter(function (r) {
+      if (seen[r.id]) return false;
+      seen[r.id] = true;
+      return true;
+    });
+    tail.sort(function (a, b) { return b.score - a.score; });
+
+    return [head].concat(tail);
+  }
+
+  /**
+   * 导入界面那个"楼栋"下拉框的选项 HTML。
+   *
+   * 课表上的名字可能同时像好几栋楼（"Science Centre" 就同时像东座、大学科学馆、
+   * 科学馆北座/南座），所以够像的全部排在**最上面一组**、带上把握度，
+   * 最像的那个默认选中；其余楼栋放在第二组，不跟候选混在一起。
+   * 一个候选都没有时才退回成一张平铺的全表（外加"新建楼栋"那一项由调用方补）。
+   *
+   * 逻辑写在 ocr.js 而不是 app.js：app.js 那层全是 DOM 闭包，自检跑不到，
+   * 放这里就能直接断言"哪几个候选、什么顺序、谁被选中"。
+   *
+   * @param name      课表上写的楼名
+   * @param buildings 已录入的楼栋
+   * @param opts      { noRoom, escape } —— escape 传 app.js 的转义函数
+   * @returns { html, ranked }
+   */
+  function matchOptions(name, buildings, opts) {
+    var options = opts || {};
+    var escape = options.escape || function (s) { return String(s); };
+    var list = buildings || [];
+    var ranked = rankBuildings(name, list);
+    var alternates = ranked.slice(1);
+
+    var html = '<option value="">' + (options.noRoom ? "（不需要教室）" : "（未指定）") + "</option>";
+
+    if (!alternates.length) {
+      /* 只有一个候选（或一个都没有）：平铺全表，命中的那栋选中 */
+      return {
+        ranked: ranked,
+        html: html + list.map(function (b) {
+          return '<option value="' + escape(b.id) + '"' +
+            (ranked.length && ranked[0].id === b.id ? " selected" : "") + ">" +
+            escape(b.name) + "</option>";
+        }).join("")
+      };
     }
-    return null;
+
+    var used = {};
+    ranked.forEach(function (r) { used[r.id] = true; });
+
+    return {
+      ranked: ranked,
+      html: html +
+        '<optgroup label="都够像（按把握度，选中的是第 1 个）">' +
+        ranked.map(function (r, k) {
+          return '<option value="' + escape(r.id) + '"' + (k === 0 ? " selected" : "") + ">" +
+            escape(r.name) + "　" + Math.round(r.score * 100) + "%</option>";
+        }).join("") +
+        "</optgroup>" +
+        '<optgroup label="其他楼栋">' +
+        list.filter(function (b) { return !used[b.id]; }).map(function (b) {
+          return '<option value="' + escape(b.id) + '">' + escape(b.name) + "</option>";
+        }).join("") +
+        "</optgroup>"
+    };
   }
 
   /* ================= 7. 浏览器驱动层 ================= */
@@ -1342,6 +1444,8 @@ window.OP = window.OP || {};
     collapseInitials: collapseInitials,
     stripRoomSuffix: stripRoomSuffix,
     matchBuilding: matchBuilding,
+    rankBuildings: rankBuildings,
+    matchOptions: matchOptions,
     wordsFromTsv: wordsFromTsv,
     extractWords: extractWords,
     preprocess: preprocess,

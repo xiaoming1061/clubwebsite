@@ -305,16 +305,33 @@
     hero.classList.remove("is-imminent");
 
     if (!info.found) {
-      $("#nextTag").textContent = "今日结束";
+      /* 校历上今天放假 / 停课：直说原因，别让人以为课程丢了。
+         "partial"（开学礼停到 13:30 那种）不算整天放假，只在没课可上时提一句。
+         放假那天校巴只剩假日线（H），也一并说清楚。 */
+      var rest = P.holidayOn(state.now);
+      var closed = rest && rest.kind !== "partial" ? rest : null;
+      var restLabel = closed ? (closed.kind === "holiday" ? "今天放假" : "今天停课") : "";
+      var lost = rest ? P.cancelledCourses(data, state.now).length : 0;
+
+      $("#nextTag").textContent = closed ? (closed.kind === "holiday" ? "放假" : "停课") : "今日结束";
       $("#nextCountdown").textContent = "--:--";
-      $("#nextName").textContent = list.length ? "今天的课都上完了" : "今天没有课";
-      $("#nextMeta").textContent = list.length
-        ? "共 " + list.length + " 节课，已经全部结束"
-        : "好好安排自己的时间";
+      $("#nextName").textContent = restLabel || (list.length ? "今天的课都上完了" : "今天没有课");
+      $("#nextMeta").textContent = closed
+        ? closed.name + (closed.kind === "holiday" ? " · 校巴只有假日线（H）" : "") +
+          (closed.note ? " · " + closed.note : "")
+        : (list.length
+          ? "共 " + list.length + " 节课，已经全部结束"
+          : (lost ? "今天有 " + lost + " 节课因" + rest.name + "停课" : "好好安排自己的时间"));
       $("#nextDistance").textContent = "--";
       $("#nextWalk").textContent = "--";
       $("#nextLeave").textContent = "--";
+      /* 放假那天"距离/步行/建议出发"全是空话，倒计时也没有意义——
+         整行收起来，别让一排放假的破折号陪着"今天放假"。 */
+      $("#nextStats").hidden = !!closed;
+      $("#nextCountdown").hidden = !!closed;
     } else {
+      $("#nextStats").hidden = false;
+      $("#nextCountdown").hidden = false;
       var c = info.found.course;
       var b = P.buildingById(data, c.buildingId);
       var ongoing = info.found.status === "ongoing";
@@ -367,7 +384,13 @@
     /* ---- 今日时间轴 ---- */
     var ol = $("#todayList");
     if (!list.length) {
-      ol.innerHTML = '<li class="empty">今天没有课程安排</li>';
+      /* 放假 / 停课的日子说清楚是哪一天，别只留一句"没有课程安排" */
+      var off = P.holidayOn(state.now);
+      ol.innerHTML = '<li class="empty">' + (
+        off && off.kind !== "partial"
+          ? (off.kind === "holiday" ? "放假：" : "停课：") + esc(off.name)
+          : "今天没有课程安排"
+      ) + "</li>";
     } else {
       var nextId = info.found ? info.found.course.id : null;
       ol.innerHTML = list.map(function (c) {
@@ -1630,7 +1653,7 @@
     $("#cfTeacher").value = course ? (course.teacher || "") : "";
     $("#cfStart").value = course ? course.start : "08:00";
     $("#cfEnd").value = course ? course.end : "09:40";
-    var weeks = (course && course.weeks) || [1, 16];
+    var weeks = (course && course.weeks) || [1, 17];
     $("#cfWeeksFrom").value = weeks[0];
     $("#cfWeeksTo").value = weeks[1];
 
@@ -1670,7 +1693,7 @@
       start: $("#cfStart").value,
       end: $("#cfEnd").value,
       weekdays: days.sort(function (a, b) { return a - b; }),
-      weeks: [Number($("#cfWeeksFrom").value) || 1, Number($("#cfWeeksTo").value) || 16]
+      weeks: [Number($("#cfWeeksFrom").value) || 1, Number($("#cfWeeksTo").value) || 17]
     };
 
     if (id) {
@@ -2138,13 +2161,12 @@
     var html = '<div class="ocr-list">';
 
     list.forEach(function (c, i) {
-      var match = OP.Ocr.matchBuilding(c.buildingName, buildings);
-      /* 「不需要教室」的课没有地点，下拉里说清楚，别让人以为漏读了 */
-      var options = '<option value="">' + (c.noRoom ? "（不需要教室）" : "（未指定）") + "</option>" +
-        buildings.map(function (b) {
-          return '<option value="' + esc(b.id) + '"' + (match && match.id === b.id ? " selected" : "") + ">" +
-            esc(b.name) + "</option>";
-        }).join("");
+      /* 下拉框的选项由 ocr.js 排好：够像的楼栋全在最上面那一组（最像的选中），
+         课表写 "Science Centre" 时东座、大学科学馆都能一眼看到，
+         不用自己去 150 栋里翻。 */
+      var picker = OP.Ocr.matchOptions(c.buildingName, buildings, { noRoom: c.noRoom, escape: esc });
+      var options = picker.html;
+      var match = picker.ranked.length ? picker.ranked[0] : null;
 
       if (c.buildingName && !match) {
         options += '<option value="__new__" selected>＋ 新建楼栋：' + esc(c.buildingName) + "</option>";
@@ -2199,7 +2221,7 @@
     if (!rows.length) return;
 
     var weekFrom = Number($("#ocrWeekFrom").value) || 1;
-    var weekTo = Number($("#ocrWeekTo").value) || 30;
+    var weekTo = Number($("#ocrWeekTo").value) || 17;
     var clearFirst = $("#ocrReplace").checked;
 
     if (clearFirst && !skipConfirm) {
