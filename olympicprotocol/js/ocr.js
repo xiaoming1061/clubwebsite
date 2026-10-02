@@ -779,6 +779,28 @@ window.OP = window.OP || {};
   }
 
   /**
+   * 两个**缩写组**之间容忍一个字母之差。
+   *
+   * 缩写只有两个字母，`nearWord` 那条"5 个字母以上"的门槛够不着，
+   * 于是 "Y.C. Liang Hall" 被 OCR 读成 "V.C. Liang Hall" 就整条匹配不上
+   * （Y→V 是最常见的混淆之一，实测确实挂了）。
+   *
+   * 只对"由连续单字母并起来的组"开口子，普通单词不在此列——
+   * `hall` / `hill` 差一个字母仍然是两栋楼，这条底线不能松。
+   */
+  function looseInitials(a, b) {
+    if (a.length < 2 || b.length < 2) return false;
+    if (Math.abs(a.length - b.length) > 1) return false;
+    var diff = 0;
+    var len = Math.min(a.length, b.length);
+    for (var i = 0; i < len; i++) {
+      if (a.charAt(i) !== b.charAt(i)) diff++;
+      if (diff > 1) return false;
+    }
+    return true;
+  }
+
+  /**
    * 把连着出现的单个字母并成一个词。
    *
    * 缩写点名两种写法都常见：地图上是 "Y.C. Liang Hall"，课表上印成
@@ -790,10 +812,24 @@ window.OP = window.OP || {};
   function collapseInitials(tokens) {
     var out = [];
     var run = [];
+    var short = {};
+
+    /* 除了"并起来的缩写组"，还有一种是**本来就写在一起**的缩写：
+       课表/OCR 常把 "Y.C." 写成 "VC"（点号丢了、Y 看成 V），这时它是单独一个词，
+       不会被并起来，但仍然是缩写。判据：2–4 个字母、**全是辅音**——
+       普通单词（hall / ho / wu）都带元音，不会被卷进来。 */
+    function looksInitial(token) {
+      return token.length >= 2 && token.length <= 4 && /^[bcdfghjklmnpqrstvwxyz]+$/.test(token);
+    }
 
     function flush() {
-      if (run.length >= 2) out.push(run.join(""));
-      else out = out.concat(run);
+      if (run.length >= 2) {
+        var merged = run.join("");
+        short[merged] = true;       /* 记下哪些词是"并起来的缩写组" */
+        out.push(merged);
+      } else {
+        out = out.concat(run);
+      }
       run = [];
     }
 
@@ -803,10 +839,11 @@ window.OP = window.OP || {};
         return;
       }
       flush();
+      if (looksInitial(token)) short[token] = true;
       out.push(token);
     });
     flush();
-    return out;
+    return { list: out, short: short };
   }
 
   /**
@@ -816,12 +853,13 @@ window.OP = window.OP || {};
   function nameForms(text) {
     var raw = String(text || "").toLowerCase().replace(/[\u2019']/g, "");
 
-    var latin = collapseInitials((raw.match(/[a-z0-9]+/g) || []).map(function (token) {
+    var collapsed = collapseInitials((raw.match(/[a-z0-9]+/g) || []).map(function (token) {
       return ABBREVIATIONS[token] || token;
     }));
+    var latin = collapsed.list;
     var cjk = (raw.match(/[\u4e00-\u9fa5]+/g) || []).join("");
 
-    return { latin: latin, cjk: cjk, compact: latin.join("") + cjk };
+    return { latin: latin, cjk: cjk, compact: latin.join("") + cjk, short: collapsed.short };
   }
 
   /* 编辑距离换算成 0–1 的相似度，用来容忍拼写差异 */
@@ -880,7 +918,11 @@ window.OP = window.OP || {};
       keysA.forEach(function (ta) {
         for (var i = 0; i < keysB.length; i++) {
           if (usedB[keysB[i]]) continue;
-          if (sameWord(ta, keysB[i])) {
+          var tb = keysB[i];
+          /* 普通单词照旧；缩写组额外容忍一个字母之差（Y.C. 被读成 V.C.） */
+          var hit = sameWord(ta, tb) ||
+            (a.short[ta] && b.short[tb] && looseInitials(ta, tb));
+          if (hit) {
             usedB[keysB[i]] = true;
             shared++;
             return;
@@ -1476,6 +1518,7 @@ window.OP = window.OP || {};
     applyVariant: applyVariant,
     flattenColorBackgrounds: flattenColorBackgrounds,
     localBinarize: localBinarize,
+    looseInitials: looseInitials,
     toGrayscale: toGrayscale,
     stretchContrast: stretchContrast,
     weekdayOf: weekdayOf,
