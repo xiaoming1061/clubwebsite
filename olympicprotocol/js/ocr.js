@@ -1138,10 +1138,70 @@ window.OP = window.OP || {};
 
   /* 像素处理方案。顺序就是尝试顺序：最可能对的那个放前面。 */
   var VARIANTS = [
+    { id: "local", label: "局部二值化" },
     { id: "chroma", label: "抹掉彩色底" },
     { id: "gray", label: "只转灰度" },
     { id: "contrast", label: "增强对比" }
   ];
+
+  /* 判定"比周围背景暗多少才算文字"（0–255）。取 32 是为了顺手把表格框线
+     （白底上的浅灰线，反差约 25）也去掉，只留字。 */
+  var LOCAL_MARGIN = 32;
+
+  /**
+   * 局部二值化（自适应阈值）：拿"周围一圈的平均亮度"当背景，比它暗一截的算文字。
+   *
+   * 为什么需要它——原来那套是"又亮又彩色就整片抹白"（见 flattenColorBackgrounds），
+   * 对浅色底的大字没问题，但**彩色底上的小字会被误抹**：反锯齿的笔画本来就被底色
+   * 染成浅色，一亮就被当成背景抹掉，笔画断成几截。
+   * 实测（CUSIS 课表截图）：抹彩色底那遍把绿格子里的课名读出来了，却把星期表头
+   * 读成 "Tire Koray TUesdsEy"；灰度那遍反过来，表头清清楚楚、绿格子里一个字没有。
+   * 两遍都缺一半，最后一条课也拼不出来。
+   *
+   * 局部二值化两件都能干：浅绿底（亮度约 194）上的黑字照样是"比背景暗"，
+   * 彩底上的反锯齿小字只要比周围暗一截也能保住。
+   * 用积分图算邻域均值，2000×2000 也就几十毫秒。
+   */
+  function localBinarize(data, width, height, radius, margin) {
+    var r = radius || 10;
+    var floor = margin === undefined ? LOCAL_MARGIN : margin;
+    var n = width * height;
+
+    var lum = new Float32Array(n);
+    for (var i = 0; i < n; i++) {
+      var o = i * 4;
+      lum[i] = 0.299 * data[o] + 0.587 * data[o + 1] + 0.114 * data[o + 2];
+    }
+
+    /* 积分图：前缀和之后任意矩形求和都是 O(1) */
+    var stride = width + 1;
+    var sum = new Float64Array(stride * (height + 1));
+    for (var y = 0; y < height; y++) {
+      var rowSum = 0;
+      for (var x = 0; x < width; x++) {
+        rowSum += lum[y * width + x];
+        sum[(y + 1) * stride + (x + 1)] = sum[y * stride + (x + 1)] + rowSum;
+      }
+    }
+
+    for (var yy = 0; yy < height; yy++) {
+      var y0 = Math.max(0, yy - r);
+      var y1 = Math.min(height - 1, yy + r);
+      for (var xx = 0; xx < width; xx++) {
+        var x0 = Math.max(0, xx - r);
+        var x1 = Math.min(width - 1, xx + r);
+        var area = (x1 - x0 + 1) * (y1 - y0 + 1);
+        var s = sum[(y1 + 1) * stride + (x1 + 1)] - sum[y0 * stride + (x1 + 1)] -
+          sum[(y1 + 1) * stride + x0] + sum[y0 * stride + x0];
+        var bg = s / area;
+        var idx = yy * width + xx;
+        var value = (lum[idx] < bg - floor) ? 0 : 255;
+        var p = idx * 4;
+        data[p] = data[p + 1] = data[p + 2] = value;
+        data[p + 3] = 255;
+      }
+    }
+  }
 
   /**
    * 按指定方案处理像素。
@@ -1160,7 +1220,8 @@ window.OP = window.OP || {};
 
     try {
       var image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      if (variant === "chroma") flattenColorBackgrounds(image.data);
+      if (variant === "local") localBinarize(image.data, canvas.width, canvas.height);
+      else if (variant === "chroma") flattenColorBackgrounds(image.data);
       else if (variant === "contrast") stretchContrast(image.data);
       else toGrayscale(image.data);
       ctx.putImageData(image, 0, 0);
@@ -1414,6 +1475,7 @@ window.OP = window.OP || {};
     VARIANTS: VARIANTS,
     applyVariant: applyVariant,
     flattenColorBackgrounds: flattenColorBackgrounds,
+    localBinarize: localBinarize,
     toGrayscale: toGrayscale,
     stretchContrast: stretchContrast,
     weekdayOf: weekdayOf,
