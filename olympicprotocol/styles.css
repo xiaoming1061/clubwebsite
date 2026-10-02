@@ -1706,7 +1706,8 @@ body {
   display: block;
   width: 100%;
   height: auto;
-  margin: 0 0 16px;
+  /* 上边距是给"图片比例"那个下拉框留的——原来贴在一起，看着挤 */
+  margin: var(--space-md) 0 var(--space-sm);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-input);
