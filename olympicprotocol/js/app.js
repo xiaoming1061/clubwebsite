@@ -1643,21 +1643,26 @@
   /* 生成好的那张图（canvas 和 blob）留在这里，给「保存」和「分享」两处用 */
   var shot = { canvas: null, blob: null, url: "" };
 
-  /* 导出比例：fit = 按内容（默认）；其余三个是壁纸尺寸。
-     比例决定排版：竖的比例用"分天排列"，横的用网格（见 exportimage.js 的 plan）。 */
+  /* 导出比例：三档壁纸尺寸，"自适应"按用户要求撤掉了（都要按比例铺满画布）。
+     不管哪一档都用同一套网格，只是纵向拉长的幅度不同（见 exportimage.js 的 plan）。 */
   var SHOT_RATIOS = {
-    fit: 0,
     phone: 9 / 19.5,
     tabletPortrait: 3 / 4,
     tabletLandscape: 4 / 3
   };
 
   var SHOT_RATIO_LABELS = {
-    fit: "按内容自适应",
     phone: "手机壁纸 9 : 19.5",
     tabletPortrait: "平板竖屏 3 : 4",
     tabletLandscape: "平板横屏 4 : 3"
   };
+
+  var SHOT_RATIO_DEFAULT = "phone";
+
+  function shotRatioKey() {
+    var key = $("#imageRatio").value;
+    return SHOT_RATIOS[key] ? key : SHOT_RATIO_DEFAULT;
+  }
 
   /* 主色跟着页面主题走，别的地方用导出图自己的干净配色 */
   function accentToken() {
@@ -1696,7 +1701,7 @@
 
   function openTimetableImage() {
     var courses = data.courses || [];
-    var ratioKey = $("#imageRatio").value || "fit";
+    var ratioKey = shotRatioKey();
     var built = OP.ExportImage.render(courses, {
       title: "Olympic Protocol · 课表",
       subtitle: shotSubtitle(courses.length),
@@ -1707,7 +1712,7 @@
       placeOf: shotPlace,
       shortPlaceOf: shotShortPlace,
       palette: { accent: accentToken() },
-      ratio: SHOT_RATIOS[ratioKey] || 0
+      ratio: SHOT_RATIOS[ratioKey]
     });
 
     if (!built) {
@@ -1766,7 +1771,7 @@
 
   /* 文件名带上比例，导两张不同比例的不会互相覆盖 */
   function shotFileName() {
-    var ratioKey = $("#imageRatio").value || "fit";
+    var ratioKey = shotRatioKey();
     var names = {
       phone: "-手机壁纸",
       tabletPortrait: "-平板竖屏",

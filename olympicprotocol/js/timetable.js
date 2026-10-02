@@ -118,14 +118,33 @@ window.OP = window.OP || {};
 
   /* ---------- 值的归一化 ---------- */
 
-  /* "2026-09-07"、"2026-09-07 00:00:00.0"、"2026/9/7" 都收 */
+  /**
+   * 日期解析。**两种写法都要收**：
+   *
+   *   20260907             ← CUSIS / Scientia 真数据就是这种八位数字
+   *   2026-09-07 / 2026/9/7 / 2026.09.07   ← 带分隔符的，日期框里存的就是这种
+   *
+   * 第一版只写了带分隔符那种，结果真实数据一个日期都没解析出来：
+   * 课表里"星期后面那截起止日期"整段消失（用户截图为证）。
+   */
   function normDate(text) {
     var raw = String(text || "").trim();
     if (!raw) return null;
-    var m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(raw);
+
+    var m = /^(\d{4})[-/.]?(\d{1,2})[-/.]?(\d{1,2})/.exec(raw);
     if (!m) return null;
-    var date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    return isNaN(date.getTime()) ? null : date;
+
+    var year = Number(m[1]);
+    var month = Number(m[2]);
+    var day = Number(m[3]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    /* 后面还跟着数字说明这不是一个完整日期（比如 7 位的 "2026090"） */
+    if (/^\d/.test(raw.slice(m[0].length))) return null;
+
+    var date = new Date(year, month - 1, day);
+    /* 别让 Date 把 2 月 30 日悄悄归一成 3 月 2 日 */
+    if (date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return date;
   }
 
   /* "9:30"、"09:30:00" 都收成 "09:30" */

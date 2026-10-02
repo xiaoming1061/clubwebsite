@@ -40,9 +40,10 @@ window.OP = window.OP || {};
     colW6: 124,          // 6 天以上时列窄一点，别让图太宽
     minGridH: 420,
     pxPerMin: 0.85,
-    /* 纵向拉长的上限（120px/小时）。手机壁纸那档按画布算能拉到 220px/小时，
-       格子空得吓人——拉到这里就够，剩下的高度留成上下空白。 */
-    maxPxPerMin: 2,
+    /* 纵向拉长的上限（144px/小时）。手机壁纸那档按画布算能拉到 220px/小时，
+       格子空得吓人——拉到这里就够，剩下的高度留成上下空白。
+       这个数越大、上下留白越少（2 → 各留 21%，2.4 → 各留 16%）。 */
+    maxPxPerMin: 2.4,
     radius: 10,
     gap: 4,
     scale: 2
@@ -295,21 +296,49 @@ window.OP = window.OP || {};
     return kept;
   }
 
-  /* 一节课那个方块里写什么：课名（最多两行）、时间、地点。
-     格子太窄（跟别人并排时）就改用**简写**地点、字号小一号；只有又窄又矮才真的不写。 */
-  var PLACE_MIN_W = 88;
-  var PLACE_TIGHT_W = 66;
-  var PLACE_TIGHT_H = 72;
+  /* 一节课那个方块里写什么：课名、时间、**上课地点**。
 
-  function blockLines(event, place, shortPlace, blockWidth, blockHeight) {
+     地点**一律要写**（用户要求"无论什么比例都完整显示上课地点"）：
+     格子窄（跟别人并排）就用简写地名 + 小一号字；行数按格子还剩多少高度来给
+     （最多 6 行），竖版把表格拉长之后通常一行不缺地写得下。
+     地方实在不够时先压课名的行数，把高度让给地点。 */
+  var PLACE_MIN_W = 88;
+  var PLACE_MAX_LINES = 6;
+
+  function blockLines(ctx, event, place, shortPlace, blockWidth, blockHeight) {
     var course = event.course;
-    var out = [{ text: course.name || "（没有课名）", weight: 600, size: 13, lines: 2 }];
-    out.push({ text: course.start + "–" + course.end, weight: 400, size: 11, color: "textDim", lines: 1 });
-    if (place && blockWidth >= PLACE_MIN_W) {
-      out.push({ text: place, weight: 400, size: 11, color: "textDim", lines: 2 });
-    } else if (shortPlace && blockWidth >= PLACE_TIGHT_W && blockHeight >= PLACE_TIGHT_H) {
-      /* 竖版把表格拉长之后，格子窄但高——这时候用简写也能把地点写上 */
-      out.push({ text: shortPlace, weight: 400, size: 10, color: "textDim", lines: 2 });
+    var narrow = blockWidth < PLACE_MIN_W;
+    var nameSize = 13;
+    var timeSize = 11;
+    var placeSize = narrow ? 10 : 11;
+    var textW = blockWidth - 16;
+
+    var placeText = narrow ? (shortPlace || place) : place;
+    /* 窄格子（跟别人并排）里，长地名会被从词中间断开成 "Internationa / l"。
+       按最长的那个词把字号往下收（最小 8px），保证词是整的。 */
+    if (placeText && narrow) {
+      var longest = placeText.split(/\s+/).reduce(function (a, b) { return b.length > a.length ? b : a; }, "");
+      while (placeSize > 8) {
+        ctx.font = "400 " + placeSize + "px " + FONT;
+        if (ctx.measureText(longest).width <= textW) break;
+        placeSize -= 1;
+      }
+    }
+
+    /* 上下留 16px，扣掉时间那一行 */
+    var room = Math.max(20, blockHeight - timeSize - 26);
+    /* 课名先占两行；地方紧张（放不下地点两行）就压成一行 */
+    var nameLines = room >= nameSize * 2 + 5 + (placeSize + 4) * 2 ? 2 : 1;
+    var placeRoom = room - (nameLines * (nameSize + 5));
+    var placeLines = Math.max(2, Math.min(PLACE_MAX_LINES, Math.floor(placeRoom / (placeSize + 4))));
+
+    var out = [{ text: course.name || "（没有课名）", weight: 600, size: nameSize, lines: nameLines }];
+    out.push({ text: course.start + "–" + course.end, weight: 400, size: timeSize, color: "textDim", lines: 1 });
+    if (place) {
+      out.push({
+        text: placeText,
+        weight: 400, size: placeSize, color: "textDim", lines: placeLines
+      });
     }
     return out;
   }
@@ -441,7 +470,7 @@ window.OP = window.OP || {};
       var textW = w - 16;
       var place = placeOf(event.course);
       var shortPlace = (options.shortPlaceOf || placeOf)(event.course);
-      var parts = blockLines(event, place, shortPlace, w, h);
+      var parts = blockLines(ctx, event, place, shortPlace, w, h);
 
       /* 先把每一段折好行：既用来量文字块总高，也省得下面重复折 */
       var laid = parts.map(function (part) {
