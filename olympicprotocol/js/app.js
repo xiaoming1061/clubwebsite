@@ -1674,6 +1674,20 @@
     return name + (course.room ? " · " + course.room : "");
   }
 
+  /**
+   * 窄格子（跟别人并排时）用的简写地点：把 Building / Centre 这类通用词去掉，
+   * 例如 "Academic Building No.1 · L3" → "Academic No.1 · L3"。
+   * 但至少得留下两个词——"Science Centre" 变成 "Science" 就没意义了。
+   */
+  function shotShortPlace(course) {
+    var full = shotPlace(course);
+    var cut = full.replace(/\b(Building|Bldg|Centre|Center|Hall|Block|Complex|Institute)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\s*·\s*/g, " · ")
+      .trim();
+    return cut.split(/\s+/).filter(Boolean).length >= 2 ? cut : full;
+  }
+
   function shotSubtitle(count) {
     var now = state.now;
     /* 周次写在右上角那个小标签上，这里不重复 */
@@ -1691,6 +1705,7 @@
         return (wk !== null && wk >= 1) ? "第 " + wk + " 周" : "";
       })(),
       placeOf: shotPlace,
+      shortPlaceOf: shotShortPlace,
       palette: { accent: accentToken() },
       ratio: SHOT_RATIOS[ratioKey] || 0
     });
