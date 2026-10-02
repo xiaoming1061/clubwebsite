@@ -1322,12 +1322,265 @@
 
   /* ================= 渲染：课表 ================= */
 
+  /* ================= 从学校接口拉课表 ================= */
+
+  /* 拉回来的结果只放在内存里，关掉页面就没了（课表本身会存进课程列表） */
+  var pull = { busy: false, courses: [], report: null, raw: null };
+
+  var PULL_ERRORS = {
+    missing_credentials: "学号或密码是空的",
+    bad_json: "代理收到的请求不完整——检查一下代理地址是不是填错了",
+    not_found: "这个地址上没有代理：口令那一段可能写错了",
+    method_not_allowed: "代理只收 POST 请求",
+    body_too_large: "请求体太大（不该发生，报给开发者）",
+    too_many_requests: "调得太频繁了，等一分钟再试",
+    unknown_mode: "接口写法（mode）填错了",
+    upstream_status: "学校那边返回了错误",
+    upstream_unparseable: "学校返回的不是课表——接口可能变了，看下面「原始字段」",
+    upstream_timeout: "学校那边 20 秒没回话",
+    upstream_unreachable: "代理连不上学校（机房 IP 可能被拦了）",
+    bad_response: "代理返回的不是 JSON（地址填对了吗？）"
+  };
+
+  function pullProxyUrl() {
+    return String((data.settings && data.settings.pullProxy) || "").trim();
+  }
+
+  function renderPull() {
+    var proxy = $("#pullProxy");
+    var sid = $("#pullSid");
+    /* 正在打字的那一格别覆盖（跟宿舍搜索框一个道理） */
+    if (document.activeElement !== proxy) proxy.value = pullProxyUrl();
+    if (document.activeElement !== sid) sid.value = (data.settings && data.settings.pullSid) || "";
+    var mode = $("#pullMode");
+    var want = (data.settings && data.settings.pullMode) || "auto";
+    /* 选中项跟设置不一致才改（免得把用户正在选的覆盖掉） */
+    if (mode.value !== want) mode.value = want;
+
+    $("#pullState").textContent = pull.busy
+      ? "拉取中…"
+      : (pullProxyUrl() ? "已配置" : "未配置");
+
+    var hasResult = pull.courses.length > 0;
+    $("#btnPullImport").hidden = !hasResult;
+    $("#btnPullClear").hidden = !hasResult && !pull.raw;
+  }
+
+  function pullError(data) {
+    var key = (data && data.error) || "bad_response";
+    var text = PULL_ERRORS[key] || ("代理报错：" + key);
+    if (data && data.status) text += "（上游状态 " + data.status + "）";
+    return text;
+  }
+
+  function renderPullResult() {
+    var box = $("#pullResult");
+    var list = pull.courses;
+    var report = pull.report || { rows: 0, kept: 0, skipped: 0, keys: [] };
+
+    var tba = list.filter(function (c) { return c.tba; }).length;
+    var fresh = list.filter(function (c) { return !c.buildingId && c.buildingName; }).length;
+    var dunno = list.filter(function (c) { return !c.tba && !c.buildingName; }).length;
+
+    var notes = ["上游 " + report.rows + " 行，解析出 " + report.kept + " 条"];
+    if (report.skipped) notes.push("跳过 " + report.skipped + " 行（缺时间/缺代号）");
+    if (tba) notes.push(tba + " 条地点待定");
+    if (fresh) notes.push(fresh + " 条要新建楼栋");
+    if (dunno) notes.push(dunno + " 条没写地点");
+
+    box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" +
+      '<div class="pull-list">' + list.map(function (c) {
+        var place = c.tba
+          ? "地点待定"
+          : (c.buildingId ? "" : "新楼栋：") + (c.buildingName || "（没写地点）") + (c.room ? " · " + c.room : "");
+        return '<div class="pull-item">' +
+          '<div class="pull-head">' +
+            '<span class="pull-day">' + esc(P.WEEKDAYS_SHORT[c.weekdays[0]] || "") + "</span>" +
+            '<span class="pull-time">' + esc(c.start + "–" + c.end) + "</span>" +
+            "</div>" +
+          '<div class="pull-name">' + esc(c.name) + "</div>" +
+          '<div class="pull-place">' + esc(place) + "</div>" +
+          '<div class="pull-weeks">第 ' + c.weeks[0] + "–" + c.weeks[1] + " 周</div>" +
+        "</div>";
+      }).join("") + "</div>";
+
+    /* 「原始字段」面板：字段名清单 + 前两行原文。联调时靠它对齐映射。 */
+    $("#pullDebugSummary").textContent =
+      "字段名（" + report.keys.length + " 个）：" + report.keys.join("、");
+    $("#pullDebugText").textContent = JSON.stringify((pull.raw || []).slice(0, 2), null, 1);
+    $("#pullDebug").hidden = false;
+  }
+
+  function clearPull() {
+    pull.courses = [];
+    pull.report = null;
+    pull.raw = null;
+    $("#pullResult").innerHTML = "";
+    $("#pullDebug").hidden = true;
+    $("#pullDebugSummary").textContent = "";
+    $("#pullDebugText").textContent = "";
+    $("#pullStatus").hidden = true;
+  }
+
+  function pullTimetable() {
+    if (pull.busy) return;
+
+    var url = pullProxyUrl();
+    var sid = $("#pullSid").value.trim();
+    var pwd = $("#pullPwd").value;
+
+    if (!url) {
+      toast("还没填代理地址", "填你自己那台 Worker 的地址（形如 …/t/口令）", "warn");
+      $("#pullProxy").focus();
+      return;
+    }
+    if (!/^https:\/\//i.test(url)) {
+      toast("代理地址要以 https:// 开头", "页面本身是 https，明文地址会被浏览器直接拦掉", "warn");
+      return;
+    }
+    if (!sid || !pwd) {
+      toast("学号和密码都要填", "密码只用于这一次请求，不保存", "warn");
+      return;
+    }
+
+    /* 只记住地址和学号；密码不进 localStorage */
+    data.settings.pullProxy = url;
+    data.settings.pullSid = sid;
+    save();
+
+    pull.busy = true;
+    clearPull();
+    $("#pullStatus").hidden = false;
+    $("#pullStatus").textContent = "正在向学校要课表…（一般一两秒）";
+    renderPull();
+
+    var body = { sid: sid, pwd: pwd };
+    var mode = (data.settings && data.settings.pullMode) || "";
+    if (mode && mode !== "auto") body.mode = mode;
+
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      return res.json().catch(function () {
+        return { ok: false, error: "bad_response" };
+      });
+    }).then(function (json) {
+      if (!json || !json.ok) {
+        $("#pullStatus").textContent = "没拉到：" + pullError(json);
+        toast("没拉到课表", pullError(json), "warn");
+        return;
+      }
+
+      var rows = json.courses || [];
+      var built = OP.Timetable.toCourses(rows, {
+        termStart: (data.settings && data.settings.termStart) || "2026-09-07",
+        buildings: (data.campus && data.campus.buildings) || []
+      });
+
+      pull.raw = rows;
+      pull.courses = OP.Timetable.mergeCourses(built.courses);
+      pull.report = built.report;
+
+      if (!pull.courses.length) {
+        $("#pullStatus").textContent = rows.length
+          ? "读到 " + rows.length + " 行，但一行都没解析出来"
+          : "上游返回 0 条——密码错和这学期没选课，学校给的结果是一样的";
+        $("#pullDebugSummary").textContent =
+          "字段名（" + built.report.keys.length + " 个）：" + built.report.keys.join("、");
+        $("#pullDebugText").textContent = JSON.stringify(rows.slice(0, 2), null, 1);
+        $("#pullDebug").hidden = false;
+        return;
+      }
+
+      $("#pullStatus").textContent = "读到了，确认一下再导入";
+      renderPullResult();
+      renderPull();
+    }).catch(function (err) {
+      $("#pullStatus").textContent = "连不上代理：" + (err && err.message ? err.message : err);
+      toast("连不上代理", "检查代理地址、以及页面是不是 https", "err");
+    }).then(function () {
+      pull.busy = false;
+      /* 用完就把密码清掉，不留在一个已经打开的页面上 */
+      $("#pullPwd").value = "";
+      renderPull();
+    });
+  }
+
+  function importPulled() {
+    var list = pull.courses || [];
+    if (!list.length) return;
+
+    var courses = data.courses || (data.courses = []);
+    var existing = {};
+    courses.forEach(function (c) {
+      existing[[c.name, (c.weekdays || []).join("+"), c.start, c.end, c.room].join("|")] = true;
+    });
+
+    var added = 0;
+    var dup = 0;
+    var created = 0;
+    var filled = 0;
+
+    list.forEach(function (c) {
+      var key = [c.name, c.weekdays.join("+"), c.start, c.end, c.room].join("|");
+      if (existing[key]) { dup++; return; }
+
+      var buildingId = c.buildingId;
+      if (!buildingId && c.buildingName) {
+        /* 上游自带经纬度，建出来的楼栋直接就是能算路线的 */
+        var made = {
+          id: Store.uid("b"), name: c.buildingName, alias: [],
+          lat: c.lat, lng: c.lng
+        };
+        (data.campus && data.campus.buildings || []).push(made);
+        buildingId = made.id;
+        created++;
+      } else if (buildingId && typeof c.lat === "number") {
+        /* 已有楼栋但没坐标：顺手补上，以后路线就能算了 */
+        var b = P.buildingById(data, buildingId);
+        if (b && (typeof b.lat !== "number" || typeof b.lng !== "number")) {
+          b.lat = c.lat;
+          b.lng = c.lng;
+          filled++;
+        }
+      }
+
+      courses.push({
+        id: Store.uid("c"),
+        name: c.name,
+        teacher: c.teacher || "",
+        buildingId: buildingId || "",
+        room: c.room || "",
+        weekdays: c.weekdays.slice(),
+        start: c.start,
+        end: c.end,
+        weeks: c.weeks.slice()
+      });
+      existing[key] = true;
+      added++;
+    });
+
+    saveAndRender();
+    clearPull();
+    $("#pullState").textContent = "已导入 " + added + " 条";
+
+    var detail = [];
+    if (dup) detail.push("跳过 " + dup + " 条已经有了的");
+    if (created) detail.push("新建 " + created + " 栋楼（带坐标）");
+    if (filled) detail.push("给 " + filled + " 栋楼补上了坐标");
+    toast("已导入 " + added + " 条课程", detail.join("；"), "ok");
+  }
+
   function renderCourse() {
     var box = $("#courseList");
     var courses = (data.courses || []).slice();
 
     /* 已经有课的时候才显示「导入前清空」那个选项 */
     $("#ocrReplaceWrap").hidden = !courses.length;
+
+    renderPull(courses.length);
 
     if (!courses.length) {
       box.innerHTML = '<p class="empty">还没有课程，点右上角「新增课程」开始</p>';
@@ -2860,6 +3113,38 @@
 
     $("#btnOcrImport").addEventListener("click", importOcrCourses);
     $("#btnOcrCancel").addEventListener("click", function () { clearOcr(false); });
+
+    /* --- 从学校接口拉课表 --- */
+    $("#btnPull").addEventListener("click", pullTimetable);
+    $("#btnPullImport").addEventListener("click", importPulled);
+    $("#btnPullClear").addEventListener("click", function () {
+      clearPull();
+      renderPull();
+    });
+
+    $("#pullProxy").addEventListener("change", function () {
+      data.settings.pullProxy = $("#pullProxy").value.trim();
+      save();
+      renderPull();
+    });
+    $("#pullSid").addEventListener("change", function () {
+      data.settings.pullSid = $("#pullSid").value.trim();
+      save();
+    });
+    $("#pullMode").addEventListener("change", function () {
+      data.settings.pullMode = $("#pullMode").value;
+      save();
+    });
+
+    /* 输入框里按回车直接拉（填完密码顺手敲回车最自然） */
+    ["#pullSid", "#pullPwd", "#pullProxy"].forEach(function (sel) {
+      $(sel).addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          pullTimetable();
+        }
+      });
+    });
 
     $("#courseList").addEventListener("click", function (ev) {
       var edit = ev.target.closest("[data-edit-course]");

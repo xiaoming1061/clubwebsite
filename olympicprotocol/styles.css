@@ -1155,6 +1155,47 @@ body {
   font-weight: 700;
 }
 
+/* ---------- 从学校接口拉课表：结果预览 ---------- */
+
+/* 一节课一个小格子，跟「全部课程」那边同一套视觉（发丝线 + 圆角 + 淡底） */
+.pull-list {
+  display: grid;
+  gap: 8px;
+  margin-top: var(--space-sm);
+}
+
+.pull-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  min-width: 0;
+}
+
+.pull-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.pull-day { font-weight: 700; color: var(--accent); }
+.pull-time { font-variant-numeric: tabular-nums; }
+
+.pull-name {
+  margin-top: 2px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.pull-place,
+.pull-weeks {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
 /* ---------- 表单 ---------- */
 
 .form { display: flex; flex-direction: column; gap: 14px; }
@@ -1171,6 +1212,7 @@ body {
 .field input[type="number"],
 .field input[type="time"],
 .field input[type="date"],
+.field input[type="password"],
 .field select {
   width: 100%;
   font-family: inherit;
