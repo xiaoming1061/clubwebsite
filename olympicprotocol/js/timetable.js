@@ -34,6 +34,8 @@ window.OP = window.OP || {};
     startTime: ["MEETING_TIME_START", "START_TIME", "MEETING_START_TIME"],
     endTime: ["MEETING_TIME_END", "END_TIME", "MEETING_END_TIME"],
     weekDay: ["MEETING_DAY", "DAY_OF_WEEK", "WEEKDAY", "MEETDAY"],
+    strm: ["STRM", "TERM", "TERM_CODE"],
+    strmDescr: ["STRM_DESCR", "TERM_DESCR", "TERM_DESCRIPTION"],
     classNbr: ["CLASS_NBR"],
     meetingNbr: ["CLASS_MTG_NBR"],
     courseId: ["CRSE_ID"],
@@ -79,6 +81,36 @@ window.OP = window.OP || {};
       if (key !== undefined && isYes(row[key])) days.push(pair[0]);
     });
     return days;
+  }
+
+  function addDays(date, n) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
+  }
+
+  /**
+   * 这套安排里**第一/最后一次真的上课**的那天。
+   *
+   * `START_DT` / `END_DT` 是整个上课安排的起止日期，不一定落在有课的那一天：
+   * 比如课只在周二上、但 END_DT 写的是 12 月 7 日（周一），
+   * 那最后一次上课其实是 12 月 1 日——按 END_DT 算周次就会多算一周。
+   * 所以从那个日期往前/往后找最近一个有课的日子（最多找 7 天）。
+   */
+  function firstMeetingOnOrAfter(date, weekdays) {
+    if (!date || !weekdays.length) return null;
+    for (var i = 0; i < 7; i++) {
+      var day = addDays(date, i);
+      if (weekdays.indexOf(OP.Planner.isoDow(day)) >= 0) return day;
+    }
+    return null;
+  }
+
+  function lastMeetingOnOrBefore(date, weekdays) {
+    if (!date || !weekdays.length) return null;
+    for (var i = 0; i < 7; i++) {
+      var day = addDays(date, -i);
+      if (weekdays.indexOf(OP.Planner.isoDow(day)) >= 0) return day;
+    }
+    return null;
   }
 
   /* 默认学期第一周的周一（和页面设置里的 termStart 同一个口径） */
@@ -186,6 +218,7 @@ window.OP = window.OP || {};
     var courses = [];
     var keys = [];
     var seenKey = {};
+    var terms = {};
     var skipped = 0;
 
     (rows || []).forEach(function (row) {
@@ -222,18 +255,32 @@ window.OP = window.OP || {};
       }
       if (!weekdays.length) { skipped++; return; }
 
-      /* 周次：从开始/结束日期换算成教学周。换算不出来（没设学期开始日）就用默认区间 */
+      /* 周次：**上游没有这个字段**，只能从 START_DT / END_DT 换算成教学周。
+         先把两个日期挪到"真的上课的那天"，再除以 7——换算全靠设置里的学期开始日。 */
       var from = minWeek;
       var to = maxWeek;
       var first = normDate(startDate);
       var last = normDate(endDate);
       if (first) {
-        var wk = OP.Planner.weekNumber(first, termStart);
+        var wk = OP.Planner.weekNumber(firstMeetingOnOrAfter(first, weekdays) || first, termStart);
         if (wk !== null) from = Math.max(minWeek, wk);
       }
       if (last) {
-        var wk2 = OP.Planner.weekNumber(last, termStart);
-        if (wk2 !== null) to = Math.min(maxWeek, Math.max(from, wk2));
+        var wk2 = OP.Planner.weekNumber(lastMeetingOnOrBefore(last, weekdays) || last, termStart);
+        /* 注意**不要**在这里夹到 maxWeek：那是"没有日期信息时的默认区间"，
+           不是硬上限。夹了会出现 from=19、to=17 这种倒过来的怪数字
+           （跨学期的课：第二学期从第 19 周算起，一夹就倒挂了）。 */
+        if (wk2 !== null) to = Math.max(from, wk2);
+      }
+
+      /* 顺便记下这批数据属于哪个学期（STRM）。跨学期时周次会按同一个学期开始日算，
+         第二学期就是偏的——界面要提示，见 app.js 的 renderPullResult。 */
+      var strm = pick(index, row, NAMES.strm);
+      var strmDescr = pick(index, row, NAMES.strmDescr);
+      var termKey = strm || strmDescr;
+      if (termKey) {
+        if (!terms[termKey]) terms[termKey] = { strm: strm, descr: strmDescr, count: 0 };
+        terms[termKey].count++;
       }
 
       var venueText = pick(index, row, NAMES.venue);
@@ -291,7 +338,14 @@ window.OP = window.OP || {};
 
     return {
       courses: courses,
-      report: { rows: (rows || []).length, kept: courses.length, skipped: skipped, keys: keys }
+      report: {
+        rows: (rows || []).length,
+        kept: courses.length,
+        skipped: skipped,
+        keys: keys,
+        terms: Object.keys(terms).map(function (k) { return terms[k]; })
+          .sort(function (a, b) { return b.count - a.count; })
+      }
     };
   }
 
@@ -334,6 +388,8 @@ window.OP = window.OP || {};
     weekdaysFromFlags: weekdaysFromFlags,
     DAY_FLAGS: DAY_FLAGS,
     samePlace: samePlace,
+    firstMeetingOnOrAfter: firstMeetingOnOrAfter,
+    lastMeetingOnOrBefore: lastMeetingOnOrBefore,
     splitVenue: splitVenue,
     toCourses: toCourses,
     mergeCourses: mergeCourses

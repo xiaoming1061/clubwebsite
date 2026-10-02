@@ -1399,7 +1399,19 @@
     if (fresh) notes.push(fresh + " 条要新建楼栋");
     if (dunno) notes.push(dunno + " 条没写地点");
 
-    box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" +
+    /* 上游没有"周次"字段，周次是从 START_DT/END_DT 按学期开始日算的。
+       如果这批数据跨了学期，第二学期的周次就是偏的——必须说清楚，不能悄悄算错。 */
+    var terms = report.terms || [];
+    var termWarn = "";
+    if (terms.length > 1) {
+      notes.push("跨 " + terms.length + " 个学期（" +
+        terms.map(function (t) { return (t.descr || t.strm) + " " + t.count + " 条"; }).join("、") + "）");
+      termWarn = '<p class="plan-note">注意：上游给的是日期不是周次，"第几周"是按设置里' +
+        "那个学期开始日算的。这批跨了 " + terms.length + " 个学期，不属于那个学期的课周次会偏。" +
+        "想算准的话，把另一个学期的开始日告诉我——我加上「每学期一个开始日」。</p>";
+    }
+
+    box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" + termWarn +
       '<div class="pull-list">' + list.map(function (c) {
         var place = c.tba
           ? "地点待定"
