@@ -69,9 +69,10 @@ window.OP.DEFAULT_DATA = {
     /* 从学校接口拉课表（可选功能，默认关着）：
        pullProxy 指向自己那台 Worker 代理（形如 https://xxx.workers.dev/t/口令），
        pullSid 是记住的学号——**密码从来不存**，每次拉取时手动输入。
-       pullMode 是上游写法，默认 auto（跟代理里的 UPSTREAM_MODE 一致）。 */
+       pullMode 是上游写法，默认 soap-aes：2026-10 实测明文那两种读回来是空的，
+       只有加密的两种能读到课（另外三种留着，万一 ITSC 又改回去）。 */
     pullProxy: "",
     pullSid: "",
-    pullMode: "auto"
+    pullMode: "soap-aes"
   }
 };

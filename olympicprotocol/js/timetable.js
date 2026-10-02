@@ -26,7 +26,7 @@ window.OP = window.OP || {};
     catalog: ["CATALOG_NBR", "CATALOG", "CATALOG_NUMBER", "CATALOGNO", "COURSE_NBR"],
     section: ["CLASS_SECTION", "SECTION", "CLASS_NBR", "SECTION_CODE"],
     descr: ["DESCR", "DESCRIPTION", "COURSE_TITLE", "TITLE", "COURSE_DESCR"],
-    type: ["COMDESC", "COMPONENT", "COMPONENT_DESCR", "CLASS_TYPE", "COMPONENT_CODE"],
+    type: ["COMDESC", "SSR_COMPONENT", "COMPONENT", "COMPONENT_DESCR", "CLASS_TYPE"],
     venue: ["FDESCR", "FACILITY_DESCR", "ROOM_DESCR", "LOCATION", "FACILITY", "VENUE"],
     roomField: ["ROOM", "ROOM_NBR", "FACILITY_ID"],
     startDate: ["START_DT", "START_DATE", "MEETING_START_DT"],
@@ -34,10 +34,52 @@ window.OP = window.OP || {};
     startTime: ["MEETING_TIME_START", "START_TIME", "MEETING_START_TIME"],
     endTime: ["MEETING_TIME_END", "END_TIME", "MEETING_END_TIME"],
     weekDay: ["MEETING_DAY", "DAY_OF_WEEK", "WEEKDAY", "MEETDAY"],
+    classNbr: ["CLASS_NBR"],
+    meetingNbr: ["CLASS_MTG_NBR"],
+    courseId: ["CRSE_ID"],
+    buildingCode: ["BLDG_CD"],
     teacher: ["INSTRUCTORS", "INSTRUCTOR", "TEACHER", "STAFF"],
     lat: ["LAT", "LATITUDE"],
     lng: ["LNG", "LON", "LONG", "LONGITUDE"]
   };
+
+  /**
+   * 上游把星期做成了七列开关（真数据里的字段名就是这几个）：
+   *
+   *   MON  TUES  WED  THURS  FRI  SAT  SUN
+   *   Y    N     Y    N      N    N    N     ← 这行表示周一和周三都上
+   *
+   * 所以一门课一周上几天是能直接读出来的，**不要**从 START_DT 去猜
+   * （START_DT 是这套上课安排的起止日期，不等于"第一节课那天"）。
+   */
+  var DAY_FLAGS = [
+    [1, "MON"], [2, "TUES"], [3, "WED"], [4, "THURS"],
+    [5, "FRI"], [6, "SAT"], [7, "SUN"]
+  ];
+
+  function isYes(value) {
+    var text = String(value === null || value === undefined ? "" : value).trim().toLowerCase();
+    return text === "y" || text === "yes" || text === "true" || text === "1";
+  }
+
+  /* 两个地名是不是同一个（大小写、空格、点、撇号、连字符都不计较）。
+     用来判断"整串地名就是楼名"还是"末尾还挂着教室号"。 */
+  function samePlace(a, b) {
+    var clean = function (text) {
+      return String(text || "").toLowerCase().replace(/[\s.,'’\u2019-]/g, "");
+    };
+    return !!clean(a) && clean(a) === clean(b);
+  }
+
+  /* 七个开关里打了勾的那几天；一个都没打勾才退回"从开始日期推" */
+  function weekdaysFromFlags(index, row) {
+    var days = [];
+    DAY_FLAGS.forEach(function (pair) {
+      var key = index[bare(pair[1])];
+      if (key !== undefined && isYes(row[key])) days.push(pair[0]);
+    });
+    return days;
+  }
 
   /* 默认学期第一周的周一（和页面设置里的 termStart 同一个口径） */
   var DEFAULT_TERM_START = "2026-09-07";
@@ -172,8 +214,13 @@ window.OP = window.OP || {};
 
       var startDate = pick(index, row, NAMES.startDate);
       var endDate = pick(index, row, NAMES.endDate);
-      var weekday = weekdayOf(startDate, pick(index, row, NAMES.weekDay));
-      if (!weekday) { skipped++; return; }
+      /* 星期优先看那七个开关；一个都没勾才退回从日期/星期字段推 */
+      var weekdays = weekdaysFromFlags(index, row);
+      if (!weekdays.length) {
+        var guess = weekdayOf(startDate, pick(index, row, NAMES.weekDay));
+        if (guess) weekdays = [guess];
+      }
+      if (!weekdays.length) { skipped++; return; }
 
       /* 周次：从开始/结束日期换算成教学周。换算不出来（没设学期开始日）就用默认区间 */
       var from = minWeek;
@@ -189,7 +236,8 @@ window.OP = window.OP || {};
         if (wk2 !== null) to = Math.min(maxWeek, Math.max(from, wk2));
       }
 
-      var venue = splitVenue(pick(index, row, NAMES.venue));
+      var venueText = pick(index, row, NAMES.venue);
+      var venue = splitVenue(venueText);
       var directRoom = pick(index, row, NAMES.roomField);
 
       var lat = Number(pick(index, row, NAMES.lat));
@@ -197,10 +245,26 @@ window.OP = window.OP || {};
       var hasCoords = isFinite(lat) && isFinite(lng) && lat !== 0 && lng !== 0;
 
       var buildingId = "";
-      if (venue.building && OP.Ocr && OP.Ocr.matchBuilding) {
-        var hit = OP.Ocr.matchBuilding(venue.building, buildings);
-        if (hit) buildingId = hit.id;
+      var matchedName = "";
+      if (!venue.tba && OP.Ocr && OP.Ocr.matchBuilding) {
+        /* 先用**完整地名**匹配（"Lady Shaw Building LT2" 这种整体就是像一个楼栋名），
+           匹配不上再退回削掉教室号的版本。
+           顺序反过来会出事：楼名本身以数字结尾时（"…Building 7"）会被削成
+           "…Building"，于是拿一个残缺的名字去匹配。 */
+        [venueText, venue.building].forEach(function (candidate) {
+          if (buildingId || !candidate) return;
+          var hit = OP.Ocr.matchBuilding(candidate, buildings);
+          if (hit) {
+            buildingId = hit.id;
+            matchedName = hit.name;
+          }
+        });
       }
+
+      /* 万一命中的那栋楼名字**就是整串地名**（说明末尾那个数字是楼名的一部分，
+         不是教室号），就别再把它当教室显示 */
+      var room = venue.room || directRoom;
+      if (room && matchedName && samePlace(matchedName, venueText)) room = "";
 
       courses.push({
         name: name,
@@ -208,10 +272,13 @@ window.OP = window.OP || {};
         code: code,
         type: type,
         descr: descr,
+        classNbr: pick(index, row, NAMES.classNbr),
+        courseId: pick(index, row, NAMES.courseId),
+        buildingCode: pick(index, row, NAMES.buildingCode),
         buildingId: buildingId,
         buildingName: venue.building,
-        room: venue.room || directRoom,
-        weekdays: [weekday],
+        room: room,
+        weekdays: weekdays,
         start: start,
         end: end,
         weeks: [from, to],
@@ -264,6 +331,9 @@ window.OP = window.OP || {};
     normDate: normDate,
     normTime: normTime,
     weekdayOf: weekdayOf,
+    weekdaysFromFlags: weekdaysFromFlags,
+    DAY_FLAGS: DAY_FLAGS,
+    samePlace: samePlace,
     splitVenue: splitVenue,
     toCourses: toCourses,
     mergeCourses: mergeCourses

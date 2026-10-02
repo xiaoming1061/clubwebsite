@@ -1342,6 +1342,17 @@
     bad_response: "代理返回的不是 JSON（地址填对了吗？）"
   };
 
+  /* 上游写法。**默认 soap-aes**：2026-10 实测四种都通，但明文那两种读回来是空的
+     （加密那两种才有课），所以默认就用加密的；另外三种留着，万一 ITSC 又改回去。 */
+  var PULL_MODES = ["soap-aes", "form-aes", "soap-plain", "form-plain"];
+  var PULL_MODE_DEFAULT = PULL_MODES[0];
+
+  function pullMode() {
+    var saved = (data.settings && data.settings.pullMode) || "";
+    /* 老存档里可能是 "auto"（那时候还不知道哪种能读）——一并当成默认值 */
+    return PULL_MODES.indexOf(saved) >= 0 ? saved : PULL_MODE_DEFAULT;
+  }
+
   function pullProxyUrl() {
     return String((data.settings && data.settings.pullProxy) || "").trim();
   }
@@ -1353,7 +1364,7 @@
     if (document.activeElement !== proxy) proxy.value = pullProxyUrl();
     if (document.activeElement !== sid) sid.value = (data.settings && data.settings.pullSid) || "";
     var mode = $("#pullMode");
-    var want = (data.settings && data.settings.pullMode) || "auto";
+    var want = pullMode();
     /* 选中项跟设置不一致才改（免得把用户正在选的覆盖掉） */
     if (mode.value !== want) mode.value = want;
 
@@ -1454,9 +1465,8 @@
     $("#pullStatus").textContent = "正在向学校要课表…（一般一两秒）";
     renderPull();
 
-    var body = { sid: sid, pwd: pwd };
-    var mode = (data.settings && data.settings.pullMode) || "";
-    if (mode && mode !== "auto") body.mode = mode;
+    /* 每次都明确告诉代理用哪种写法——不依赖代理那台的默认值 */
+    var body = { sid: sid, pwd: pwd, mode: pullMode() };
 
     fetch(url, {
       method: "POST",
