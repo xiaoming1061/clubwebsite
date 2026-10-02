@@ -40,6 +40,9 @@ window.OP = window.OP || {};
     colW6: 124,          // 6 天以上时列窄一点，别让图太宽
     minGridH: 420,
     pxPerMin: 0.85,
+    /* 纵向拉长的上限（120px/小时）。手机壁纸那档按画布算能拉到 220px/小时，
+       格子空得吓人——拉到这里就够，剩下的高度留成上下空白。 */
+    maxPxPerMin: 2,
     radius: 10,
     gap: 4,
     scale: 2
@@ -176,13 +179,19 @@ window.OP = window.OP || {};
     for (var m = startMin; m <= endMin; m += 60) marks.push({ min: m, label: minToHM(m) });
 
     /* 定画布尺寸。给了 surfaceHeight 就**用那个高度把网格纵向摊满**
-       （比例是竖版时不会走这条；4:3 这类横向比例会略微拉高每一行）。 */
+       （4:3 这类横向比例会略微拉高每一行），但**拉到上限为止**：
+       再往上就是格子空得吓人，多出来的高度留给 draw() 当上下留白。 */
     var metrics = Object.assign({}, METRICS, (opts || {}).metrics || {});
     var colW = days.length >= 6 ? metrics.colW6 : metrics.colW;
     var fixed = metrics.pad * 2 + metrics.titleH + metrics.headH;
-    var natural = Math.max(metrics.minGridH, Math.round((endMin - startMin) * metrics.pxPerMin));
+    var span = endMin - startMin;
+    var natural = Math.max(metrics.minGridH, Math.round(span * metrics.pxPerMin));
     var width = metrics.pad * 2 + metrics.labelW + colW * days.length;
-    var height = (opts && opts.surfaceHeight) ? Math.max(fixed + 120, Math.round(opts.surfaceHeight)) : fixed + natural;
+    var height = fixed + natural;
+    if (opts && opts.surfaceHeight) {
+      var room = Math.max(fixed + 120, Math.round(opts.surfaceHeight)) - fixed;
+      height = fixed + Math.min(room, Math.round(span * metrics.maxPxPerMin));
+    }
 
     return {
       mode: "grid",
