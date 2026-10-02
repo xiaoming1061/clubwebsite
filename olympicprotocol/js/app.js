@@ -1619,6 +1619,117 @@
     toast("已导入 " + added + " 条课程", detail.join("；"), "ok");
   }
 
+  /* ================= 课表导出成图片 ================= */
+
+  /* 生成好的那张图（canvas 和 blob）留在这里，给「保存」和「分享」两处用 */
+  var shot = { canvas: null, blob: null, url: "" };
+
+  /* 主色跟着页面主题走，别的地方用导出图自己的干净配色 */
+  function accentToken() {
+    var root = getComputedStyle(document.documentElement);
+    var value = String(root.getPropertyValue("--accent") || "").trim();
+    return value || OP.ExportImage.PALETTE.accent;
+  }
+
+  /* 图片里那行地点：楼栋名 + 教室（没有楼栋就说"地点待定"） */
+  function shotPlace(course) {
+    var b = P.buildingById(data, course.buildingId);
+    var name = b ? b.name : "";
+    if (!name) return course.room ? "教室 " + course.room : "地点待定";
+    return name + (course.room ? " · " + course.room : "");
+  }
+
+  function shotSubtitle(count) {
+    var now = state.now;
+    /* 周次写在右上角那个小标签上，这里不重复 */
+    return P.dateLabel(now) + " · 共 " + count + " 门课";
+  }
+
+  function openTimetableImage() {
+    var courses = data.courses || [];
+    var built = OP.ExportImage.render(courses, {
+      title: "Olympic Protocol · 课表",
+      subtitle: shotSubtitle(courses.length),
+      badge: (function () {
+        var wk = P.weekNumber(state.now, data.settings.termStart);
+        return (wk !== null && wk >= 1) ? "第 " + wk + " 周" : "";
+      })(),
+      placeOf: shotPlace,
+      palette: { accent: accentToken() }
+    });
+
+    if (!built) {
+      toast("还没有能画的课", "先导入或新增课程，再来导出图片", "warn");
+      return;
+    }
+
+    shot.canvas = built.canvas;
+    shot.url = built.canvas.toDataURL("image/png");
+    shot.blob = null;
+
+    $("#imagePreview").src = shot.url;
+    $("#imageHint").textContent =
+      "课表图片 " + built.canvas.width + "×" + built.canvas.height + " 像素。" +
+      "手机上看不清就长按图片保存到相册。";
+
+    /* 能分享文件就显示「分享」——iOS 上它可以直接存进相册，比下载可靠 */
+    var share = $("#imageShare");
+    share.hidden = !(navigator.canShare && window.File && navigator.share);
+
+    $("#imageBox").hidden = false;
+  }
+
+  function closeTimetableImage() {
+    $("#imageBox").hidden = true;
+    $("#imagePreview").removeAttribute("src");
+    shot.canvas = null;
+    shot.blob = null;
+    shot.url = "";
+  }
+
+  function shotBlob(done) {
+    if (shot.blob) { done(shot.blob); return; }
+    if (!shot.canvas) { done(null); return; }
+    if (shot.canvas.toBlob) {
+      shot.canvas.toBlob(function (blob) {
+        shot.blob = blob;
+        done(blob);
+      }, "image/png");
+      return;
+    }
+    done(null);
+  }
+
+  function saveTimetableImage() {
+    if (!shot.url) return;
+    var name = "课表-" + P.dateKey(state.now) + ".png";
+
+    /* 用 <a download> 下载。iOS Safari 对 download 支持不全，
+       所以弹窗里那张图也能长按保存，两条路都留着。 */
+    var link = document.createElement("a");
+    link.href = shot.url;
+    link.download = name;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function shareTimetableImage() {
+    shotBlob(function (blob) {
+      if (!blob) { saveTimetableImage(); return; }
+      var name = "课表-" + P.dateKey(state.now) + ".png";
+      var file = new File([blob], name, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: "我的课表" }).catch(function () {
+          /* 用户取消分享不算错，什么都不做 */
+        });
+        return;
+      }
+      saveTimetableImage();
+    });
+  }
+
   function renderCourse() {
     var box = $("#courseList");
     var courses = (data.courses || []).slice();
@@ -3155,6 +3266,16 @@
     $("#btnPullClear").addEventListener("click", function () {
       clearPull();
       renderPull();
+    });
+
+    /* --- 课表导出成图片 --- */
+    $("#btnExportImage").addEventListener("click", openTimetableImage);
+    $("#imageClose").addEventListener("click", closeTimetableImage);
+    $("#imageSave").addEventListener("click", saveTimetableImage);
+    $("#imageShare").addEventListener("click", shareTimetableImage);
+    /* 点遮罩空白处也能关（跟确认框一个习惯） */
+    $("#imageBox").addEventListener("click", function (ev) {
+      if (ev.target === this) closeTimetableImage();
     });
 
     $("#pullSid").addEventListener("change", function () {
