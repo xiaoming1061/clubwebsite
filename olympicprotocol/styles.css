@@ -1198,7 +1198,9 @@ body {
 
 /* 隐私说明那行小字：跟着输入框/虚线框走 */
 .field-note {
-  margin: calc(var(--space-xs) * -1) 0 var(--space-sm);
+  /* 正的上边距。**不能给负值**——上面那行是 .field-row（输入框），
+     负 margin 会把这行字压到输入框上（用户报的"重叠"就是这个）。 */
+  margin: var(--space-xs) 0 var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-dim);
 }

@@ -42,6 +42,9 @@ window.OP = window.OP || {};
     pxPerMin: 0.85,
     radius: 10,
     gap: 4,
+    dayW: 62,            // 竖版左边那列"周一/周二…"的宽度
+    dayHeadH: 30,        // 竖版每一段开头那行的高度
+    cardW: 700,          // 竖版卡片的自然宽度
     scale: 2
   };
 
@@ -175,10 +178,249 @@ window.OP = window.OP || {};
     var marks = [];
     for (var m = startMin; m <= endMin; m += 60) marks.push({ min: m, label: minToHM(m) });
 
+    /* 定画布尺寸。给了 surfaceHeight 就**用那个高度把网格纵向摊满**
+       （比例是竖版时不会走这条；4:3 这类横向比例会略微拉高每一行）。 */
+    var metrics = Object.assign({}, METRICS, (opts || {}).metrics || {});
+    var colW = days.length >= 6 ? metrics.colW6 : metrics.colW;
+    var fixed = metrics.pad * 2 + metrics.titleH + metrics.headH;
+    var natural = Math.max(metrics.minGridH, Math.round((endMin - startMin) * metrics.pxPerMin));
+    var width = metrics.pad * 2 + metrics.labelW + colW * days.length;
+    var height = (opts && opts.surfaceHeight) ? Math.max(fixed + 120, Math.round(opts.surfaceHeight)) : fixed + natural;
+
     return {
+      mode: "grid",
       empty: false, days: days, events: events, startMin: startMin, endMin: endMin,
-      marks: marks, count: list.length
+      marks: marks, count: list.length,
+      width: (opts && opts.surfaceWidth) ? Math.round(opts.surfaceWidth) : width,
+      height: height,
+      geo: { colW: colW, width: width, height: height, gridH: height - fixed }
     };
+  }
+
+  /**
+   * 竖向（手机壁纸 / 平板竖屏）用的**分天排列**：一天一段，课一节一行。
+   *
+   * 为什么竖版要换一套排版而不是"把横版居中留白"（用户明确要求改掉那种做法）：
+   * 横版是"列=星期、行=时间"的网格，天然是扁的（5 天 × 8 小时 ≈ 1.3:1）。
+   * 塞进 9:19.5 的画布只能上下留一大片空白，字还是那么小。
+   * 竖版就顺过来：星期竖着排、每节课一行，字能放大、信息也更清楚。
+   *
+   * 高度是**按画布摊开**的：先算"自然高度"，如果给了更长的画布，
+   * 多出来的空间按权重分给每一天（天多的分得多），段内的课再等分——
+   * 于是竖长的壁纸会被填满，而不是底下空一块。
+   */
+  function layoutSections(courses, opts) {
+    var options = opts || {};
+    var base = layout(courses, options);
+    if (base.empty) return base;
+
+    var m = Object.assign({}, METRICS, options.metrics || {});
+    var dayW = m.dayW;
+    var cardW = options.cardWidth || m.cardW;
+    var gap = 10;
+
+    var pad = m.pad;
+    var fixed = pad * 2 + m.titleH;
+    var width = (options.surfaceWidth || (pad * 2 + dayW + cardW));
+    cardW = width - pad * 2 - dayW;
+
+    var sections = base.days.map(function (day) {
+      var list = base.events
+        .filter(function (e) { return e.day === day; })
+        .sort(function (a, b) { return a.startMin - b.startMin; });
+      return { day: day, events: list, weight: 1 + Math.max(1, list.length) * 1.6 };
+    }).filter(function (section) { return section.events.length; });
+
+    /* 自然高度：一天一段，段里每节课 62 高 */
+    var NATURAL_CARD = 62;
+    var MAX_CARD = 118;      // 卡片最高长到这（再高就是一整块粉，不好看）
+    var natural = sections.reduce(function (sum, section) {
+      return sum + m.dayHeadH + section.events.length * NATURAL_CARD + gap;
+    }, 0);
+    var height = options.surfaceHeight
+      ? Math.max(Math.round(options.surfaceHeight), fixed + natural)
+      : fixed + natural;
+
+    /* 多出来的纵向空间怎么摊：
+       先让卡片长（每张最多长到 MAX_CARD），**剩下的一律给段与段之间的间距**——
+       竖长的壁纸上，宁可是"一天一段、段间留白"，也不要一格卡片半屏高。 */
+    var extra = Math.max(0, (height - fixed) - natural);
+    var cardRoom = sections.reduce(function (sum, section) {
+      return sum + section.events.length * (MAX_CARD - NATURAL_CARD);
+    }, 0);
+    var cardGrow = Math.min(extra, cardRoom);
+    var leftForGaps = Math.max(0, extra - cardGrow);
+    var gaps = sections.length || 1;
+
+    var y = pad + m.titleH;
+    sections.forEach(function (section) {
+      var count = section.events.length;
+      var grow = cardRoom ? cardGrow * (count * (MAX_CARD - NATURAL_CARD) / cardRoom) : 0;
+      var cardH = NATURAL_CARD + grow / count;
+      var avail = m.dayHeadH + count * cardH + gap + leftForGaps / gaps;
+      section.y = y;
+      section.height = avail;
+
+      var head = m.dayHeadH;
+      section.cards = section.events.map(function (event, i) {
+        return {
+          event: event,
+          x: pad + dayW,
+          y: y + head + i * cardH,
+          w: cardW,
+          h: Math.max(34, cardH - 6)
+        };
+      });
+      y += avail;
+    });
+
+    return {
+      mode: "sections",
+      empty: false,
+      days: base.days,
+      sections: sections,
+      startMin: base.startMin,
+      endMin: base.endMin,
+      count: base.count,
+      width: width,
+      height: height,
+      geo: { pad: pad, titleH: m.titleH, dayW: dayW, dayHeadH: m.dayHeadH, gap: gap }
+    };
+  }
+
+  /**
+   * 定稿：按目标比例挑排版、并把画布尺寸定下来。
+   *
+   * 宽的比例（平板横屏 4:3 之类）用网格；竖的比例（手机壁纸、平板竖屏）用分天排列。
+   * 画布宽度取该排版需要的自然宽度，高度 = 宽 / 比例，再把这个高度交回排版去**铺满**——
+   * 所以出来的图比例是准的，而且没有硬留出来的空白带。
+   */
+  function plan(courses, opts) {
+    var options = opts || {};
+    var ratio = Number(options.ratio) || 0;
+    var mode = (ratio && ratio < 1) ? "sections" : "grid";
+    var make = mode === "sections" ? layoutSections : layout;
+
+    var natural = make(courses, options);
+    if (natural.empty) return null;
+
+    var surface = {
+      width: Math.round(natural.width),
+      height: ratio ? Math.round(natural.width / ratio) : Math.round(natural.height)
+    };
+    var model = make(courses, Object.assign({}, options, {
+      surfaceWidth: surface.width,
+      surfaceHeight: surface.height
+    }));
+
+    return { mode: mode, model: model, surface: surface };
+  }
+
+  /* 标题区三家共用：标题、右上角那个小标签、副标题 */
+  function drawTitleBlock(ctx, options, palette, m, width, surface) {
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = palette.text;
+    ctx.font = "700 20px " + FONT;
+    ctx.textAlign = "left";
+    ctx.fillText(options.title || "课表", m.pad, m.pad + 24);
+
+    if (options.badge) {
+      ctx.font = "600 13px " + FONT;
+      var badgeW = ctx.measureText(options.badge).width + 20;
+      ctx.fillStyle = palette.accentSoft;
+      roundRect(ctx, surface.width - m.pad - badgeW, m.pad + 3, badgeW, 26, 13);
+      ctx.fill();
+      ctx.fillStyle = palette.accent;
+      ctx.textAlign = "center";
+      ctx.fillText(options.badge, surface.width - m.pad - badgeW / 2, m.pad + 21);
+    }
+
+    if (options.subtitle) {
+      ctx.fillStyle = palette.textDim;
+      ctx.font = "400 12px " + FONT;
+      ctx.textAlign = "left";
+      ctx.fillText(options.subtitle, m.pad, m.pad + 46);
+    }
+  }
+
+  /* 竖版：一天一段，段里每节课一张卡片 */
+  function drawSections(ctx, model, options, palette, m, placeOf) {
+    var surface = {
+      width: Math.round(options.surfaceWidth || model.width),
+      height: Math.round(options.surfaceHeight || model.height)
+    };
+
+    ctx.save();
+    ctx.fillStyle = palette.bg;
+    ctx.fillRect(0, 0, surface.width, surface.height);
+    drawTitleBlock(ctx, options, palette, m, surface.width, surface);
+
+    model.sections.forEach(function (section) {
+      var label = OP.Planner.WEEKDAYS_SHORT[section.day] || ("第" + section.day + "天");
+      var chipH = 28;
+      var chipY = section.y + (m.dayHeadH - chipH) / 2;
+
+      /* 左边那列：星期 */
+      ctx.fillStyle = palette.accentSoft;
+      roundRect(ctx, m.pad, chipY, m.dayW - 10, chipH, chipH / 2);
+      ctx.fill();
+      ctx.fillStyle = palette.accent;
+      ctx.font = "700 14px " + FONT;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, m.pad + (m.dayW - 10) / 2, chipY + chipH / 2 + 1);
+
+      /* 右边：每节课一张卡片 */
+      section.cards.forEach(function (card) {
+        var event = card.event;
+        var course = event.course;
+
+        ctx.fillStyle = palette.accentSoft;
+        roundRect(ctx, card.x, card.y, card.w, card.h, m.radius);
+        ctx.fill();
+        ctx.fillStyle = palette.accent;
+        roundRect(ctx, card.x, card.y + 4, 3, Math.max(6, card.h - 8), 1.5);
+        ctx.fill();
+
+        ctx.save();
+        ctx.beginPath();
+        roundRect(ctx, card.x, card.y, card.w, card.h, m.radius);
+        ctx.clip();
+
+        var textX = card.x + 14;
+        var textW = card.w - 28;
+        var nameSize = 15;
+        var metaSize = 12;
+        var nameLines = Math.max(1, Math.min(3, Math.floor((card.h - 26) / (nameSize + 5))));
+
+        ctx.font = "600 " + nameSize + "px " + FONT;
+        var lines = wrapText(ctx, course.name || "（没有课名）", textW, nameLines);
+        var place = placeOf(course);
+        var meta = course.start + "–" + course.end + (place ? " · " + place : "");
+        var metaLines = wrapText(ctx, meta, textW, card.h > 96 ? 2 : 1);
+
+        var blockH = lines.length * (nameSize + 5) + metaLines.length * (metaSize + 4) + 4;
+        var cursor = card.y + Math.max(10, (card.h - blockH) / 2) + nameSize;
+
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = palette.text;
+        lines.forEach(function (line) {
+          ctx.fillText(line, textX, cursor);
+          cursor += nameSize + 5;
+        });
+        ctx.fillStyle = palette.textDim;
+        ctx.font = "400 " + metaSize + "px " + FONT;
+        metaLines.forEach(function (line) {
+          ctx.fillText(line, textX, cursor + 1);
+          cursor += metaSize + 4;
+        });
+        ctx.restore();
+      });
+    });
+
+    ctx.restore();
+    return { width: surface.width, height: surface.height };
   }
 
   /* ---------- 画 ---------- */
@@ -270,9 +512,15 @@ window.OP = window.OP || {};
     var m = Object.assign({}, METRICS, options.metrics || {});
     var placeOf = options.placeOf || function () { return ""; };
 
-    var colW = model.days.length >= 6 ? m.colW6 : m.colW;
+    /* 竖版走另一套画法（分天排列），标题区是共用的 */
+    if (model.mode === "sections") {
+      return drawSections(ctx, model, options, palette, m, placeOf);
+    }
+
+    var colW = (model.geo && model.geo.colW) || (model.days.length >= 6 ? m.colW6 : m.colW);
     var gridW = colW * model.days.length;
-    var gridH = Math.max(m.minGridH, Math.round((model.endMin - model.startMin) * m.pxPerMin));
+    var gridH = (model.geo && model.geo.gridH) ||
+      Math.max(m.minGridH, Math.round((model.endMin - model.startMin) * m.pxPerMin));
     var width = m.pad * 2 + m.labelW + gridW;
     var height = m.pad * 2 + m.titleH + m.headH + gridH;
 
@@ -280,10 +528,10 @@ window.OP = window.OP || {};
     var gridLeft = m.pad + m.labelW;
     var pxPerMin = gridH / (model.endMin - model.startMin);
 
-    /* 选壁纸比例时画布比课表大，内容居中，多出来的地方铺底色 */
+    /* 画布就是排版算出来的尺寸（比例已经由排版摊平，不靠居中留白） */
     var surface = {
-      width: Math.round(options.surfaceWidth || width),
-      height: Math.round(options.surfaceHeight || height)
+      width: Math.round(options.surfaceWidth || model.width || width),
+      height: Math.round(options.surfaceHeight || model.height || height)
     };
     var offsetX = Math.max(0, Math.round((surface.width - width) / 2));
     var offsetY = Math.max(0, Math.round((surface.height - height) / 2));
@@ -410,50 +658,31 @@ window.OP = window.OP || {};
   }
 
   /**
-   * 按目标比例算画布尺寸（纯计算，能单测）。
-   *
-   * 只放大不缩小：课表按"刚好放下"的最小尺寸排，比例需要更多空间时往那个方向长，
-   * 多出来的由 draw() 居中留白。这样手机壁纸（竖长）不会把课表压扁、也不会裁掉。
-   */
-  function fitSurface(content, ratio, pad) {
-    var edge = pad === undefined ? 24 : pad;
-    var w = content.width + edge * 2;
-    var h = content.height + edge * 2;
-    if (ratio) {
-      if (w / h < ratio) w = h * ratio;
-      else h = w / ratio;
-    }
-    return { width: Math.round(w), height: Math.round(h) };
-  }
-
-  /**
    * 浏览器里用的入口：排好版、建 canvas、画，返回 canvas。
    * 空课表返回 null（调用方负责提示"还没有课程"）。
    */
   function render(courses, opts) {
     var options = opts || {};
-    var model = layout(courses, options);
-    if (model.empty) return null;
+    var planned = plan(courses, options);
+    if (!planned) return null;
+    var model = planned.model;
 
     var scale = options.scale || METRICS.scale;
-    var probe = document.createElement("canvas").getContext("2d");
-    var content = draw(probe, model, options);       // 先空跑一次量出内容尺寸
-    var surface = fitSurface(
-      { width: content.contentWidth, height: content.contentHeight },
-      options.ratio);
+    var surface = planned.surface;
+    var drawOptions = Object.assign({}, options, {
+      surfaceWidth: surface.width,
+      surfaceHeight: surface.height
+    });
 
     var canvas = document.createElement("canvas");
     canvas.width = Math.round(surface.width * scale);
     canvas.height = Math.round(surface.height * scale);
     var ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-    draw(ctx, model, Object.assign({}, options, {
-      surfaceWidth: surface.width,
-      surfaceHeight: surface.height
-    }));
+    draw(ctx, model, drawOptions);
 
     return {
-      canvas: canvas, model: model, ratio: options.ratio || 0,
+      canvas: canvas, model: model, mode: planned.mode, ratio: options.ratio || 0,
       width: surface.width, height: surface.height
     };
   }
@@ -464,8 +693,9 @@ window.OP = window.OP || {};
     hmToMin: hmToMin,
     minToHM: minToHM,
     assignLanes: assignLanes,
-    fitSurface: fitSurface,
     layout: layout,
+    layoutSections: layoutSections,
+    plan: plan,
     draw: draw,
     render: render
   };

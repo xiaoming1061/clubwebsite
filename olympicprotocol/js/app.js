@@ -1440,7 +1440,7 @@
     var dunno = list.filter(function (c) { return !c.tba && !c.buildingName; }).length;
 
     var notes = ["上游 " + report.rows + " 行，解析出 " + report.kept + " 条"];
-    if (report.skipped) notes.push("跳过 " + report.skipped + " 行（缺时间/缺代号）");
+    if (report.skipped) notes.push("跳过 " + report.skipped + " 行");
     if (tba) notes.push(tba + " 条地点待定");
     if (fresh) notes.push(fresh + " 条要新建楼栋");
     if (dunno) notes.push(dunno + " 条没写地点");
@@ -1556,7 +1556,8 @@
         return;
       }
 
-      $("#pullStatus").textContent = "读到了，确认一下再导入";
+      /* 成功时不再写那句说明：下面就是结果列表和「导入这些课」，看得见 */
+      $("#pullStatus").hidden = true;
       renderPullResult();
       renderPull();
     }).catch(function (err) {
@@ -1642,11 +1643,20 @@
   /* 生成好的那张图（canvas 和 blob）留在这里，给「保存」和「分享」两处用 */
   var shot = { canvas: null, blob: null, url: "" };
 
-  /* 导出比例：fit = 按内容（默认）；另外两个是壁纸。9:19.5 是 iPhone 竖屏比例 */
+  /* 导出比例：fit = 按内容（默认）；其余三个是壁纸尺寸。
+     比例决定排版：竖的比例用"分天排列"，横的用网格（见 exportimage.js 的 plan）。 */
   var SHOT_RATIOS = {
     fit: 0,
     phone: 9 / 19.5,
-    tablet: 3 / 4
+    tabletPortrait: 3 / 4,
+    tabletLandscape: 4 / 3
+  };
+
+  var SHOT_RATIO_LABELS = {
+    fit: "按内容自适应",
+    phone: "手机壁纸 9 : 19.5",
+    tabletPortrait: "平板竖屏 3 : 4",
+    tabletLandscape: "平板横屏 4 : 3"
   };
 
   /* 主色跟着页面主题走，别的地方用导出图自己的干净配色 */
@@ -1695,11 +1705,10 @@
     shot.blob = null;
 
     $("#imagePreview").src = shot.url;
-    var ratioLabel = ratioKey === "phone" ? "手机壁纸 9 : 19.5"
-      : (ratioKey === "tablet" ? "平板壁纸 3 : 4" : "按内容自适应");
+    /* 只说尺寸和比例，不再带"长按保存到相册"那句说明（用户要求去掉） */
     $("#imageHint").textContent =
-      "课表图片 " + built.canvas.width + "×" + built.canvas.height + " 像素 · " + ratioLabel +
-      "。手机上看不清就长按图片保存到相册。";
+      "课表图片 " + built.canvas.width + "×" + built.canvas.height + " 像素 · " +
+      (SHOT_RATIO_LABELS[ratioKey] || "");
 
     $("#imageBox").hidden = false;
   }
@@ -1743,7 +1752,12 @@
   /* 文件名带上比例，导两张不同比例的不会互相覆盖 */
   function shotFileName() {
     var ratioKey = $("#imageRatio").value || "fit";
-    var suffix = ratioKey === "phone" ? "-手机壁纸" : (ratioKey === "tablet" ? "-平板壁纸" : "");
+    var names = {
+      phone: "-手机壁纸",
+      tabletPortrait: "-平板竖屏",
+      tabletLandscape: "-平板横屏"
+    };
+    var suffix = names[ratioKey] || "";
     return "课表-" + P.dateKey(state.now) + suffix + ".png";
   }
 
