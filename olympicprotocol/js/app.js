@@ -818,26 +818,78 @@
     $("#mapLegend").hidden = mode !== "schematic";
   }
 
-  function renderSlideTabs() {
-    $$(".route-tab").forEach(function (btn) {
-      btn.classList.toggle("is-active", btn.dataset.slide === routeSlide);
+  /**
+   * 一组"左右滑动、一次只看一张"的卡片。
+   *
+   * 路线页那三张（路线规划 / 返回宿舍 / 自定义）和课表页那两张
+   * （拉取课表 / 截图导入）共用这一套：靠 scroll-snap 翻页，
+   * 点上面的切换条也能切，手指划完读停在哪一张。
+   *
+   * 注意切换条只在**自己这一组**里找（`#navId .route-tab`）。
+   * 以前是全局 `$$(".route-tab")`，两组同时存在时会互相把对方的选中态抹掉。
+   */
+  function makeSlides(config) {
+    var nav = $(config.nav);
+    var scroller = $(config.scroller);
+    var kinds = config.slides.slice();
+    var current = config.initial || kinds[0];
+    var onChange = config.onChange || function () {};
+
+    function tabs() {
+      return nav ? [].slice.call(nav.querySelectorAll(".route-tab")) : [];
+    }
+
+    function paint() {
+      tabs().forEach(function (btn) {
+        btn.classList.toggle("is-active", btn.getAttribute("data-slide") === current);
+      });
+    }
+
+    function go(kind, immediate) {
+      var idx = kinds.indexOf(kind);
+      if (idx < 0) return;
+      current = kind;
+      paint();
+      if (scroller) {
+        var left = idx * scroller.clientWidth;
+        if (immediate || !scroller.scrollTo) scroller.scrollLeft = left;
+        else scroller.scrollTo({ left: left, behavior: "smooth" });
+      }
+      onChange(current);
+    }
+
+    /* 手指划完，按停在哪一张决定"当前是哪张" */
+    if (scroller) {
+      var timer = null;
+      scroller.addEventListener("scroll", function () {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(function () {
+          var width = scroller.clientWidth || 1;
+          var idx = Math.max(0, Math.min(kinds.length - 1, Math.round(scroller.scrollLeft / width)));
+          if (kinds[idx] === current) return;
+          current = kinds[idx];
+          paint();
+          onChange(current);
+        }, 90);
+      });
+    }
+
+    tabs().forEach(function (btn) {
+      btn.addEventListener("click", function () { go(btn.getAttribute("data-slide")); });
     });
+
+    paint();
+    return {
+      go: go,
+      paint: paint,
+      current: function () { return current; },
+      /* 宽度变了（转屏 / 缩放）要重新对齐到当前那张 */
+      realign: function () { go(current, true); }
+    };
   }
 
-  /* 把某张卡片滑到眼前（点上面的切换条时用） */
-  function snapToSlide(kind) {
-    var scroller = $("#routeSlides");
-    var idx = SLIDES.indexOf(kind);
-    if (!scroller || idx < 0) return;
-    routeSlide = kind;
-    renderSlideTabs();
-    if (scroller.scrollTo) {
-      scroller.scrollTo({ left: idx * scroller.clientWidth, behavior: "smooth" });
-    } else {
-      scroller.scrollLeft = idx * scroller.clientWidth;
-    }
-    renderRouteMap();
-  }
+  var routeSlides = null;
+  var importSlides = null;
 
   /* ================= 渲染：返回宿舍 ================= */
 
@@ -1342,35 +1394,20 @@
     bad_response: "代理返回的不是 JSON（地址填对了吗？）"
   };
 
-  /* 上游写法。**默认 soap-aes**：2026-10 实测四种都通，但明文那两种读回来是空的
-     （加密那两种才有课），所以默认就用加密的；另外三种留着，万一 ITSC 又改回去。 */
-  var PULL_MODES = ["soap-aes", "form-aes", "soap-plain", "form-plain"];
-  var PULL_MODE_DEFAULT = PULL_MODES[0];
-
-  function pullMode() {
-    var saved = (data.settings && data.settings.pullMode) || "";
-    /* 老存档里可能是 "auto"（那时候还不知道哪种能读）——一并当成默认值 */
-    return PULL_MODES.indexOf(saved) >= 0 ? saved : PULL_MODE_DEFAULT;
-  }
-
-  function pullProxyUrl() {
-    return String((data.settings && data.settings.pullProxy) || "").trim();
-  }
+  /* 代理地址和上游写法都写死在这里（用户要求不要在界面上出现）：
+     走我们自己那台 Cloudflare Worker，凭据用 AES 加密——2026-10 实测
+     明文那两种读回来是空的，只有加密的能拿到课。 */
+  var PULL_PROXY = "https://cuhk-timetable-proxy.y1819400195-721.workers.dev/t/k7fq2m9x";
+  var PULL_MODE = "soap-aes";
 
   function renderPull() {
-    var proxy = $("#pullProxy");
     var sid = $("#pullSid");
     /* 正在打字的那一格别覆盖（跟宿舍搜索框一个道理） */
-    if (document.activeElement !== proxy) proxy.value = pullProxyUrl();
     if (document.activeElement !== sid) sid.value = (data.settings && data.settings.pullSid) || "";
-    var mode = $("#pullMode");
-    var want = pullMode();
-    /* 选中项跟设置不一致才改（免得把用户正在选的覆盖掉） */
-    if (mode.value !== want) mode.value = want;
 
     $("#pullState").textContent = pull.busy
       ? "拉取中…"
-      : (pullProxyUrl() ? "已配置" : "未配置");
+      : "就绪";
 
     var hasResult = pull.courses.length > 0;
     $("#btnPullImport").hidden = !hasResult;
@@ -1399,23 +1436,19 @@
     if (fresh) notes.push(fresh + " 条要新建楼栋");
     if (dunno) notes.push(dunno + " 条没写地点");
 
-    /* 上游没有"周次"字段，周次是从 START_DT/END_DT 按学期开始日算的。
-       如果这批数据跨了学期，第二学期的周次就是偏的——必须说清楚，不能悄悄算错。 */
+    /* 上游给的是一段日期，不是周次——直接照原样显示，不做任何换算 */
     var terms = report.terms || [];
-    var termWarn = "";
     if (terms.length > 1) {
       notes.push("跨 " + terms.length + " 个学期（" +
         terms.map(function (t) { return (t.descr || t.strm) + " " + t.count + " 条"; }).join("、") + "）");
-      termWarn = '<p class="plan-note">注意：上游给的是日期不是周次，"第几周"是按设置里' +
-        "那个学期开始日算的。这批跨了 " + terms.length + " 个学期，不属于那个学期的课周次会偏。" +
-        "想算准的话，把另一个学期的开始日告诉我——我加上「每学期一个开始日」。</p>";
     }
 
-    box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" + termWarn +
+    box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" +
       '<div class="pull-list">' + list.map(function (c) {
         var place = c.tba
           ? "地点待定"
           : (c.buildingId ? "" : "新楼栋：") + (c.buildingName || "（没写地点）") + (c.room ? " · " + c.room : "");
+        var range = P.dateRangeText(c);
         return '<div class="pull-item">' +
           '<div class="pull-head">' +
             '<span class="pull-day">' + esc(P.WEEKDAYS_SHORT[c.weekdays[0]] || "") + "</span>" +
@@ -1423,7 +1456,7 @@
             "</div>" +
           '<div class="pull-name">' + esc(c.name) + "</div>" +
           '<div class="pull-place">' + esc(place) + "</div>" +
-          '<div class="pull-weeks">第 ' + c.weeks[0] + "–" + c.weeks[1] + " 周</div>" +
+          (range ? '<div class="pull-weeks">' + esc(range) + "</div>" : "") +
         "</div>";
       }).join("") + "</div>";
 
@@ -1448,26 +1481,16 @@
   function pullTimetable() {
     if (pull.busy) return;
 
-    var url = pullProxyUrl();
+    var url = PULL_PROXY;
     var sid = $("#pullSid").value.trim();
     var pwd = $("#pullPwd").value;
 
-    if (!url) {
-      toast("还没填代理地址", "填你自己那台 Worker 的地址（形如 …/t/口令）", "warn");
-      $("#pullProxy").focus();
-      return;
-    }
-    if (!/^https:\/\//i.test(url)) {
-      toast("代理地址要以 https:// 开头", "页面本身是 https，明文地址会被浏览器直接拦掉", "warn");
-      return;
-    }
     if (!sid || !pwd) {
       toast("学号和密码都要填", "密码只用于这一次请求，不保存", "warn");
       return;
     }
 
-    /* 只记住地址和学号；密码不进 localStorage */
-    data.settings.pullProxy = url;
+    /* 只记住学号；密码不进 localStorage、也不进任何日志 */
     data.settings.pullSid = sid;
     save();
 
@@ -1478,7 +1501,7 @@
     renderPull();
 
     /* 每次都明确告诉代理用哪种写法——不依赖代理那台的默认值 */
-    var body = { sid: sid, pwd: pwd, mode: pullMode() };
+    var body = { sid: sid, pwd: pwd, mode: PULL_MODE };
 
     fetch(url, {
       method: "POST",
@@ -1497,7 +1520,6 @@
 
       var rows = json.courses || [];
       var built = OP.Timetable.toCourses(rows, {
-        termStart: (data.settings && data.settings.termStart) || "2026-09-07",
         buildings: (data.campus && data.campus.buildings) || []
       });
 
@@ -1578,7 +1600,9 @@
         weekdays: c.weekdays.slice(),
         start: c.start,
         end: c.end,
-        weeks: c.weeks.slice()
+        /* 上游给的是起止日期，照原样存下来（课表里就显示这一段） */
+        startDate: c.startDate || "",
+        endDate: c.endDate || ""
       });
       existing[key] = true;
       added++;
@@ -1823,7 +1847,10 @@
   function render() {
     renderTop();
     if (state.view === "today") renderToday();
-    else if (state.view === "route") { renderRoute(); renderDorm(); renderCustom(); renderSlideTabs(); }
+    else if (state.view === "route") {
+      renderRoute(); renderDorm(); renderCustom();
+      if (routeSlides) routeSlides.paint();
+    }
     else if (state.view === "course") renderCourse();
     else if (state.view === "settings") renderSettings();
     /* 内容变了，页尾留白要重新核对 */
@@ -1929,9 +1956,6 @@
     $("#cfTeacher").value = course ? (course.teacher || "") : "";
     $("#cfStart").value = course ? course.start : "08:00";
     $("#cfEnd").value = course ? course.end : "09:40";
-    var weeks = (course && course.weeks) || [1, 17];
-    $("#cfWeeksFrom").value = weeks[0];
-    $("#cfWeeksTo").value = weeks[1];
 
     $$('#cfWeekdays input[name="wd"]').forEach(function (input) {
       input.checked = !!(course && (course.weekdays || []).indexOf(Number(input.value)) >= 0);
@@ -1968,8 +1992,7 @@
       teacher: $("#cfTeacher").value.trim(),
       start: $("#cfStart").value,
       end: $("#cfEnd").value,
-      weekdays: days.sort(function (a, b) { return a - b; }),
-      weeks: [Number($("#cfWeeksFrom").value) || 1, Number($("#cfWeeksTo").value) || 17]
+      weekdays: days.sort(function (a, b) { return a - b; })
     };
 
     if (id) {
@@ -2496,8 +2519,6 @@
     var rows = $$(".ocr-row");
     if (!rows.length) return;
 
-    var weekFrom = Number($("#ocrWeekFrom").value) || 1;
-    var weekTo = Number($("#ocrWeekTo").value) || 17;
     var clearFirst = $("#ocrReplace").checked;
 
     if (clearFirst && !skipConfirm) {
@@ -2538,8 +2559,7 @@
         room: row.querySelector(".ocr-room").value.trim(),
         weekdays: [Number(row.querySelector(".ocr-day").value)],
         start: start,
-        end: end,
-        weeks: [weekFrom, weekTo]
+        end: end
       });
       added++;
     });
@@ -2632,33 +2652,26 @@
       });
     });
 
-    /* --- 路线页：三张卡片左右滑动 --- */
-    /* 点上面的切换条 = 滑到那张（对鼠标/键盘更顺手） */
-    $$(".route-tab").forEach(function (btn) {
-      btn.addEventListener("click", function () { snapToSlide(btn.dataset.slide); });
+    /* --- 路线页三张卡片：滑动切换，切到哪张地图就画哪张 --- */
+    routeSlides = makeSlides({
+      nav: "#routeNav",
+      scroller: "#routeSlides",
+      slides: SLIDES,
+      initial: routeSlide,
+      onChange: function (kind) {
+        routeSlide = kind;
+        /* 只重画地图：三张卡片的内容本身不受影响 */
+        renderRouteMap();
+      }
     });
 
-    /* 手指划完，按停在哪一张决定地图画什么。
-       用 scroll-snap 让浏览器自己吸附，这里只负责"读结果"，
-       不自己算手势——省事也不容易跟惯性打架。 */
-    var slidesBox = $("#routeSlides");
-    if (slidesBox) {
-      var slideTimer = null;
-      slidesBox.addEventListener("scroll", function () {
-        window.clearTimeout(slideTimer);
-        slideTimer = window.setTimeout(function () {
-          var width = slidesBox.clientWidth || 1;
-          var idx = Math.round(slidesBox.scrollLeft / width);
-          idx = Math.max(0, Math.min(SLIDES.length - 1, idx));
-          var kind = SLIDES[idx];
-          if (kind === routeSlide) return;
-          routeSlide = kind;
-          renderSlideTabs();
-          /* 只重画地图：三张卡片的内容本身不受影响 */
-          renderRouteMap();
-        }, 90);
-      });
-    }
+    /* --- 课表页两张卡片：拉取课表 / 截图导入（默认停在拉取） --- */
+    importSlides = makeSlides({
+      nav: "#importNav",
+      scroller: "#importSlides",
+      slides: ["pull", "ocr"],
+      initial: "pull"
+    });
 
     /* --- 自定义路线（选完就自动算） --- */
     /* 起点：候选里第一项是「我的位置」（id 为空字符串） */
@@ -3144,22 +3157,13 @@
       renderPull();
     });
 
-    $("#pullProxy").addEventListener("change", function () {
-      data.settings.pullProxy = $("#pullProxy").value.trim();
-      save();
-      renderPull();
-    });
     $("#pullSid").addEventListener("change", function () {
       data.settings.pullSid = $("#pullSid").value.trim();
       save();
     });
-    $("#pullMode").addEventListener("change", function () {
-      data.settings.pullMode = $("#pullMode").value;
-      save();
-    });
 
     /* 输入框里按回车直接拉（填完密码顺手敲回车最自然） */
-    ["#pullSid", "#pullPwd", "#pullProxy"].forEach(function (sel) {
+    ["#pullSid", "#pullPwd"].forEach(function (sel) {
       $(sel).addEventListener("keydown", function (ev) {
         if (ev.key === "Enter") {
           ev.preventDefault();
@@ -3352,11 +3356,8 @@
       measureBottomSpace();
       scheduleClearanceCheck();
       /* 宽度一变，三张卡片的"页宽"也变了，得重新对齐到当前那张 */
-      var scroller = $("#routeSlides");
-      if (scroller && state.view === "route") {
-        var idx = SLIDES.indexOf(routeSlide);
-        if (idx > 0) scroller.scrollLeft = idx * scroller.clientWidth;
-      }
+      if (routeSlides && state.view === "route") routeSlides.realign();
+      if (importSlides && state.view === "course") importSlides.realign();
     });
     window.addEventListener("orientationchange", function () {
       window.setTimeout(function () {

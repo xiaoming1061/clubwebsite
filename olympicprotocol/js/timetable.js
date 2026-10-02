@@ -83,38 +83,13 @@ window.OP = window.OP || {};
     return days;
   }
 
-  function addDays(date, n) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate() + n);
+  /* 日期统一成 "2026-09-07" 这种写法，界面上照原样显示 */
+  function fmtDate(value) {
+    var date = normDate(value);
+    if (!date) return "";
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
   }
-
-  /**
-   * 这套安排里**第一/最后一次真的上课**的那天。
-   *
-   * `START_DT` / `END_DT` 是整个上课安排的起止日期，不一定落在有课的那一天：
-   * 比如课只在周二上、但 END_DT 写的是 12 月 7 日（周一），
-   * 那最后一次上课其实是 12 月 1 日——按 END_DT 算周次就会多算一周。
-   * 所以从那个日期往前/往后找最近一个有课的日子（最多找 7 天）。
-   */
-  function firstMeetingOnOrAfter(date, weekdays) {
-    if (!date || !weekdays.length) return null;
-    for (var i = 0; i < 7; i++) {
-      var day = addDays(date, i);
-      if (weekdays.indexOf(OP.Planner.isoDow(day)) >= 0) return day;
-    }
-    return null;
-  }
-
-  function lastMeetingOnOrBefore(date, weekdays) {
-    if (!date || !weekdays.length) return null;
-    for (var i = 0; i < 7; i++) {
-      var day = addDays(date, -i);
-      if (weekdays.indexOf(OP.Planner.isoDow(day)) >= 0) return day;
-    }
-    return null;
-  }
-
-  /* 默认学期第一周的周一（和页面设置里的 termStart 同一个口径） */
-  var DEFAULT_TERM_START = "2026-09-07";
 
   function bare(text) {
     return String(text || "").toLowerCase().replace(/[_\s-]/g, "");
@@ -202,18 +177,16 @@ window.OP = window.OP || {};
    * 把上游那批行转成我们的课程。
    *
    * @param rows   上游返回的数组（原样，别改）
-   * @param opts   { termStart, buildings, minWeek, maxWeek }
+   * @param opts   { buildings }（termStart 已经用不上了：不再换算周次）
    * @returns { courses, report }
    *          courses 里每条：{ name, teacher, buildingId, buildingName, room,
-   *                           weekdays, start, end, weeks, lat, lng, code, type, raw }
+   *                           weekdays, start, end, startDate, endDate,
+   *                           lat, lng, code, type, raw }
    *          report：{ rows, kept, skipped, keys }
    */
   function toCourses(rows, opts) {
     var options = opts || {};
-    var termStart = options.termStart || DEFAULT_TERM_START;
     var buildings = options.buildings || [];
-    var minWeek = options.minWeek === undefined ? 1 : options.minWeek;
-    var maxWeek = options.maxWeek === undefined ? 17 : options.maxWeek;
 
     var courses = [];
     var keys = [];
@@ -255,23 +228,10 @@ window.OP = window.OP || {};
       }
       if (!weekdays.length) { skipped++; return; }
 
-      /* 周次：**上游没有这个字段**，只能从 START_DT / END_DT 换算成教学周。
-         先把两个日期挪到"真的上课的那天"，再除以 7——换算全靠设置里的学期开始日。 */
-      var from = minWeek;
-      var to = maxWeek;
-      var first = normDate(startDate);
-      var last = normDate(endDate);
-      if (first) {
-        var wk = OP.Planner.weekNumber(firstMeetingOnOrAfter(first, weekdays) || first, termStart);
-        if (wk !== null) from = Math.max(minWeek, wk);
-      }
-      if (last) {
-        var wk2 = OP.Planner.weekNumber(lastMeetingOnOrBefore(last, weekdays) || last, termStart);
-        /* 注意**不要**在这里夹到 maxWeek：那是"没有日期信息时的默认区间"，
-           不是硬上限。夹了会出现 from=19、to=17 这种倒过来的怪数字
-           （跨学期的课：第二学期从第 19 周算起，一夹就倒挂了）。 */
-        if (wk2 !== null) to = Math.max(from, wk2);
-      }
+      /* 上游没有"周次"字段，只有 START_DT / END_DT 两个日期。
+         所以就照原样留着这两个日期，页面上直接显示"开始日期 – 结束日期"。 */
+      var fromIso = fmtDate(startDate);
+      var toIso = fmtDate(endDate);
 
       /* 顺便记下这批数据属于哪个学期（STRM）。跨学期时周次会按同一个学期开始日算，
          第二学期就是偏的——界面要提示，见 app.js 的 renderPullResult。 */
@@ -328,7 +288,8 @@ window.OP = window.OP || {};
         weekdays: weekdays,
         start: start,
         end: end,
-        weeks: [from, to],
+        startDate: fromIso,
+        endDate: toIso,
         lat: hasCoords ? lat : null,
         lng: hasCoords ? lng : null,
         tba: venue.tba,
@@ -351,7 +312,7 @@ window.OP = window.OP || {};
 
   /**
    * 上游可能把"同一节课"拆成好几行（比如每个星期一行）。
-   * 这里按"代号 + 星期 + 时间 + 地点"合并，周次取并集里最宽的那段。
+   * 这里按"代号 + 星期 + 时间 + 地点"合并，日期区间取并集（最早开始到最晚结束）。
    */
   function mergeCourses(list) {
     var out = [];
@@ -368,10 +329,8 @@ window.OP = window.OP || {};
         return;
       }
       var merged = out[hit];
-      merged.weeks = [
-        Math.min(merged.weeks[0], c.weeks[0]),
-        Math.max(merged.weeks[1], c.weeks[1])
-      ];
+      if (c.startDate && (!merged.startDate || c.startDate < merged.startDate)) merged.startDate = c.startDate;
+      if (c.endDate && (!merged.endDate || c.endDate > merged.endDate)) merged.endDate = c.endDate;
     });
 
     return out;
@@ -388,8 +347,7 @@ window.OP = window.OP || {};
     weekdaysFromFlags: weekdaysFromFlags,
     DAY_FLAGS: DAY_FLAGS,
     samePlace: samePlace,
-    firstMeetingOnOrAfter: firstMeetingOnOrAfter,
-    lastMeetingOnOrBefore: lastMeetingOnOrBefore,
+    fmtDate: fmtDate,
     splitVenue: splitVenue,
     toCourses: toCourses,
     mergeCourses: mergeCourses

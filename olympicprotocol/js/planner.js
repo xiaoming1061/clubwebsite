@@ -147,15 +147,45 @@ window.OP = window.OP || {};
     });
   }
 
-  function courseOnDay(course, date, termStart) {
-    var wd = isoDow(date);
-    if ((course.weekdays || []).indexOf(wd) === -1) return false;
-    var weeks = course.weeks || [1, 30];
-    var from = weeks[0] || 1;
-    var to = weeks[1] || 30;
-    var wk = weekNumber(date, termStart);
-    if (wk === null) return true;
-    return wk >= from && wk <= to;
+  /**
+   * 这节课今天上不上。
+   *
+   * 只看星期几——**"适用周次"整套功能已经按用户要求删掉了**，
+   * 课表里不再有 `weeks` 这个概念（老存档里还留着的会被直接忽略）。
+   *
+   * 唯一的例外是从学校接口拉回来的课：上游给的是起止日期，那就按日期过滤，
+   * 否则第二学期的课会在第一学期就冒出来。
+   */
+  function courseOnDay(course, date) {
+    if ((course.weekdays || []).indexOf(isoDow(date)) === -1) return false;
+
+    var day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var from = parseDate(course.startDate);
+    var to = parseDate(course.endDate);
+    if (from && day.getTime() < from.getTime()) return false;
+    if (to && day.getTime() > to.getTime()) return false;
+    return true;
+  }
+
+  /* "2026-09-07" / Date → 当天零点的 Date；解析不出来给 null */
+  function parseDate(value) {
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    if (!value) return null;
+    var parsed = new Date(String(value) + "T00:00:00");
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function fmtDate(value) {
+    var date = parseDate(value);
+    if (!date) return "";
+    return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate());
+  }
+
+  /* 拉回来的课自带起止日期；手输/截图导入的没有，就返回空串 */
+  function dateRangeText(course) {
+    var from = fmtDate(course && course.startDate);
+    var to = fmtDate(course && course.endDate);
+    return (from && to) ? from + " – " + to : "";
   }
 
   function todayCourses(data, date) {
@@ -520,8 +550,10 @@ window.OP = window.OP || {};
   function weekText(course) {
     var days = (course.weekdays || []).slice().sort(function (a, b) { return a - b; })
       .map(function (d) { return WEEKDAYS_SHORT[d]; }).join("、");
-    var weeks = course.weeks || [1, 17];
-    return days + " · " + weeks[0] + "-" + weeks[1] + " 周";
+    /* 拉回来的课显示"开始日期 – 结束日期"（上游没有周次字段）；
+       手输 / 截图导入的课没有日期，就只有星期 */
+    var range = dateRangeText(course);
+    return range ? days + " · " + range : days;
   }
 
   OP.Planner = {
@@ -535,12 +567,16 @@ window.OP = window.OP || {};
     dateKey: dateKey,
     dateLabel: dateLabel,
     holidayOn: holidayOn,
+    parseDate: parseDate,
+    fmtDate: fmtDate,
+    dateRangeText: dateRangeText,
     cnTime: cnTime,
     minutesBetween: minutesBetween,
     humanGap: humanGap,
     buildingById: buildingById,
     filterBuildings: filterBuildings,
     courseById: courseById,
+    courseOnDay: courseOnDay,
     todayCourses: todayCourses,
     cancelledCourses: cancelledCourses,
     statusOf: statusOf,
