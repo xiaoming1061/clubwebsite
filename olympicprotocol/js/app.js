@@ -1561,8 +1561,28 @@
       renderPullResult();
       renderPull();
     }).catch(function (err) {
-      $("#pullStatus").textContent = "连不上代理：" + (err && err.message ? err.message : err);
-      toast("连不上代理", "检查代理地址、以及页面是不是 https", "err");
+      /* iOS Safari 对 fetch 失败只会说一句 "Load failed"，什么线索都没有。
+         再发一个 **no-cors 探针**：这种请求不受 CORS 约束，只回答一个问题——
+         "网络能不能碰到那台代理"。于是失败可以分成两类，提示才有用：
+           能碰到 → 是来源（origin）不在 Worker 白名单里；
+           碰不到 → 是网络层面到不了（常见：当前网络屏蔽了 workers.dev）。
+         no-cors 下响应是 opaque 的，拿不到内容，这里也不需要内容。 */
+      var origin = String((window.location && window.location.origin) || "（未知）");
+      $("#pullStatus").textContent = "连不上代理，正在确认是网络问题还是来源问题…";
+
+      return fetch(url, { method: "POST", mode: "no-cors", body: "{}" })
+        .then(function () {
+          $("#pullStatus").textContent =
+            "连不上代理：网络能通，但当前页面来源不在代理白名单里。" +
+            "把 " + origin + " 加进 Worker 的 ALLOWED_ORIGINS 就行。";
+          toast("代理拒绝了这次请求", "页面来源：" + origin, "err");
+        })
+        .catch(function () {
+          $("#pullStatus").textContent =
+            "连不上代理：网络层面就到不了那台机器（当前网络可能屏蔽了 workers.dev）。" +
+            "换个网络试试。页面来源：" + origin;
+          toast("网络到不了代理", "试试关掉 VPN，或换一个网络", "err");
+        });
     }).then(function () {
       pull.busy = false;
       /* 用完就把密码清掉，不留在一个已经打开的页面上 */
