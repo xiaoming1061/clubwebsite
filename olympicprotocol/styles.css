@@ -1196,6 +1196,13 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* 隐私说明那行小字：跟着输入框/虚线框走 */
+.field-note {
+  margin: calc(var(--space-xs) * -1) 0 var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
 /* ---------- 表单 ---------- */
 
 .form { display: flex; flex-direction: column; gap: 14px; }
@@ -1583,6 +1590,10 @@ body {
  * 正文用 --text（约 11.6:1），标题用对应语气的"加深色"（约 5:1 上下）。
  */
 .toast {
+  /* 文字在左、撤销按钮在右（按钮用 margin-left:auto 顶到最右边） */
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
   background: var(--surface-3);
   border: 1px solid var(--line);
   /* 圆角走 token，不再另写一个 12px */
@@ -1596,6 +1607,8 @@ body {
   -webkit-backdrop-filter: blur(16px);
   animation: toast-in var(--dur-toast) var(--ease-out);
 }
+
+.toast-text { flex: 1; min-width: 0; }
 
 /* 语气：**不再用左边那条 4px 竖条**（单边粗竖条是最典型的 AI 卡片签名），
    改成"标题色 + 标题前一个小圆点"——底色全部统一，一圈发丝线。 */
@@ -1621,7 +1634,10 @@ body {
    所以这里要单独打开——否则按钮点不到。 */
 .toast-action {
   appearance: none;
-  margin-top: 10px;
+  /* 顶到右边、跟文字垂直居中；原来在下面占一整行，看着像"另一个提示" */
+  margin-left: auto;
+  align-self: center;
+  flex: none;
   min-height: 36px;
   padding: 0 var(--space-sm);
   border: 1px solid var(--line);

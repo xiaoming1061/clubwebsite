@@ -280,9 +280,18 @@ window.OP = window.OP || {};
     var gridLeft = m.pad + m.labelW;
     var pxPerMin = gridH / (model.endMin - model.startMin);
 
+    /* 选壁纸比例时画布比课表大，内容居中，多出来的地方铺底色 */
+    var surface = {
+      width: Math.round(options.surfaceWidth || width),
+      height: Math.round(options.surfaceHeight || height)
+    };
+    var offsetX = Math.max(0, Math.round((surface.width - width) / 2));
+    var offsetY = Math.max(0, Math.round((surface.height - height) / 2));
+
     ctx.save();
     ctx.fillStyle = palette.bg;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, surface.width, surface.height);
+    ctx.translate(offsetX, offsetY);
 
     /* ---- 标题区 ---- */
     ctx.textBaseline = "alphabetic";
@@ -394,7 +403,27 @@ window.OP = window.OP || {};
     });
 
     ctx.restore();
-    return { width: width, height: height };
+    return {
+      width: surface.width, height: surface.height,
+      contentWidth: width, contentHeight: height
+    };
+  }
+
+  /**
+   * 按目标比例算画布尺寸（纯计算，能单测）。
+   *
+   * 只放大不缩小：课表按"刚好放下"的最小尺寸排，比例需要更多空间时往那个方向长，
+   * 多出来的由 draw() 居中留白。这样手机壁纸（竖长）不会把课表压扁、也不会裁掉。
+   */
+  function fitSurface(content, ratio, pad) {
+    var edge = pad === undefined ? 24 : pad;
+    var w = content.width + edge * 2;
+    var h = content.height + edge * 2;
+    if (ratio) {
+      if (w / h < ratio) w = h * ratio;
+      else h = w / ratio;
+    }
+    return { width: Math.round(w), height: Math.round(h) };
   }
 
   /**
@@ -408,16 +437,25 @@ window.OP = window.OP || {};
 
     var scale = options.scale || METRICS.scale;
     var probe = document.createElement("canvas").getContext("2d");
-    var size = draw(probe, model, options);          // 先空跑一次量出画布尺寸
+    var content = draw(probe, model, options);       // 先空跑一次量出内容尺寸
+    var surface = fitSurface(
+      { width: content.contentWidth, height: content.contentHeight },
+      options.ratio);
 
     var canvas = document.createElement("canvas");
-    canvas.width = Math.round(size.width * scale);
-    canvas.height = Math.round(size.height * scale);
+    canvas.width = Math.round(surface.width * scale);
+    canvas.height = Math.round(surface.height * scale);
     var ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-    draw(ctx, model, options);
+    draw(ctx, model, Object.assign({}, options, {
+      surfaceWidth: surface.width,
+      surfaceHeight: surface.height
+    }));
 
-    return { canvas: canvas, model: model, width: size.width, height: size.height };
+    return {
+      canvas: canvas, model: model, ratio: options.ratio || 0,
+      width: surface.width, height: surface.height
+    };
   }
 
   OP.ExportImage = {
@@ -426,6 +464,7 @@ window.OP = window.OP || {};
     hmToMin: hmToMin,
     minToHM: minToHM,
     assignLanes: assignLanes,
+    fitSurface: fitSurface,
     layout: layout,
     draw: draw,
     render: render

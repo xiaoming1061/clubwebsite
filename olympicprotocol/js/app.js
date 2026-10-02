@@ -179,11 +179,17 @@
    *
    * @param action { label, onAction } 可选：给提示条挂一个按钮（撤销用）
    */
+  /* 同时最多留几条提示条。语音播报、删课撤销、导入结果这些挤在一起时，
+     不加限制能把整页占满——超过就把最老的挤掉。 */
+  var MAX_TOASTS = 3;
+
   function toast(title, body, kind, action) {
     var wrap = $("#toasts");
     var el = document.createElement("div");
     el.className = "toast" + (kind ? " is-" + kind : "");
-    el.innerHTML = "<strong>" + esc(title) + "</strong>" + (body ? esc(body) : "");
+    /* 文字包一层：外层是 flex，撤销按钮才好摆到右边去 */
+    el.innerHTML = '<div class="toast-text"><strong>' + esc(title) + "</strong>" +
+      (body ? esc(body) : "") + "</div>";
 
     var life = 6500;
     if (action && action.label && typeof action.onAction === "function") {
@@ -201,6 +207,9 @@
     }
 
     wrap.appendChild(el);
+    while (wrap.children.length > MAX_TOASTS) {
+      wrap.removeChild(wrap.firstElementChild);
+    }
 
     var timer = window.setTimeout(remove, life);
     function remove() {
@@ -1443,8 +1452,17 @@
         terms.map(function (t) { return (t.descr || t.strm) + " " + t.count + " 条"; }).join("、") + "）");
     }
 
+    /* 预览按"周一 → 周五、早 → 晚"排好，跟导入后课表里的顺序一致
+       （上游是按班号/开班顺序返回的，直接列出来看着是乱的） */
+    var ordered = list.slice().sort(function (a, b) {
+      var dayA = Math.min.apply(null, a.weekdays);
+      var dayB = Math.min.apply(null, b.weekdays);
+      if (dayA !== dayB) return dayA - dayB;
+      return P.hm(a.start) - P.hm(b.start);
+    });
+
     box.innerHTML = '<p class="plan-note">' + esc(notes.join(" · ")) + "</p>" +
-      '<div class="pull-list">' + list.map(function (c) {
+      '<div class="pull-list">' + ordered.map(function (c) {
         var place = c.tba
           ? "地点待定"
           : (c.buildingId ? "" : "新楼栋：") + (c.buildingName || "（没写地点）") + (c.room ? " · " + c.room : "");
@@ -1624,6 +1642,13 @@
   /* 生成好的那张图（canvas 和 blob）留在这里，给「保存」和「分享」两处用 */
   var shot = { canvas: null, blob: null, url: "" };
 
+  /* 导出比例：fit = 按内容（默认）；另外两个是壁纸。9:19.5 是 iPhone 竖屏比例 */
+  var SHOT_RATIOS = {
+    fit: 0,
+    phone: 9 / 19.5,
+    tablet: 3 / 4
+  };
+
   /* 主色跟着页面主题走，别的地方用导出图自己的干净配色 */
   function accentToken() {
     var root = getComputedStyle(document.documentElement);
@@ -1647,6 +1672,7 @@
 
   function openTimetableImage() {
     var courses = data.courses || [];
+    var ratioKey = $("#imageRatio").value || "fit";
     var built = OP.ExportImage.render(courses, {
       title: "Olympic Protocol · 课表",
       subtitle: shotSubtitle(courses.length),
@@ -1655,7 +1681,8 @@
         return (wk !== null && wk >= 1) ? "第 " + wk + " 周" : "";
       })(),
       placeOf: shotPlace,
-      palette: { accent: accentToken() }
+      palette: { accent: accentToken() },
+      ratio: SHOT_RATIOS[ratioKey] || 0
     });
 
     if (!built) {
@@ -1668,13 +1695,11 @@
     shot.blob = null;
 
     $("#imagePreview").src = shot.url;
+    var ratioLabel = ratioKey === "phone" ? "手机壁纸 9 : 19.5"
+      : (ratioKey === "tablet" ? "平板壁纸 3 : 4" : "按内容自适应");
     $("#imageHint").textContent =
-      "课表图片 " + built.canvas.width + "×" + built.canvas.height + " 像素。" +
-      "手机上看不清就长按图片保存到相册。";
-
-    /* 能分享文件就显示「分享」——iOS 上它可以直接存进相册，比下载可靠 */
-    var share = $("#imageShare");
-    share.hidden = !(navigator.canShare && window.File && navigator.share);
+      "课表图片 " + built.canvas.width + "×" + built.canvas.height + " 像素 · " + ratioLabel +
+      "。手机上看不清就长按图片保存到相册。";
 
     $("#imageBox").hidden = false;
   }
@@ -1702,7 +1727,7 @@
 
   function saveTimetableImage() {
     if (!shot.url) return;
-    var name = "课表-" + P.dateKey(state.now) + ".png";
+    var name = shotFileName();
 
     /* 用 <a download> 下载。iOS Safari 对 download 支持不全，
        所以弹窗里那张图也能长按保存，两条路都留着。 */
@@ -1715,19 +1740,11 @@
     document.body.removeChild(link);
   }
 
-  function shareTimetableImage() {
-    shotBlob(function (blob) {
-      if (!blob) { saveTimetableImage(); return; }
-      var name = "课表-" + P.dateKey(state.now) + ".png";
-      var file = new File([blob], name, { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({ files: [file], title: "我的课表" }).catch(function () {
-          /* 用户取消分享不算错，什么都不做 */
-        });
-        return;
-      }
-      saveTimetableImage();
-    });
+  /* 文件名带上比例，导两张不同比例的不会互相覆盖 */
+  function shotFileName() {
+    var ratioKey = $("#imageRatio").value || "fit";
+    var suffix = ratioKey === "phone" ? "-手机壁纸" : (ratioKey === "tablet" ? "-平板壁纸" : "");
+    return "课表-" + P.dateKey(state.now) + suffix + ".png";
   }
 
   function renderCourse() {
@@ -2067,6 +2084,9 @@
     $("#cfTeacher").value = course ? (course.teacher || "") : "";
     $("#cfStart").value = course ? course.start : "08:00";
     $("#cfEnd").value = course ? course.end : "09:40";
+    /* 起止日期：从学校接口拉回来的课带着，这里要能看见、也能改 */
+    $("#cfStartDate").value = course ? (course.startDate || "") : "";
+    $("#cfEndDate").value = course ? (course.endDate || "") : "";
 
     $$('#cfWeekdays input[name="wd"]').forEach(function (input) {
       input.checked = !!(course && (course.weekdays || []).indexOf(Number(input.value)) >= 0);
@@ -2103,7 +2123,10 @@
       teacher: $("#cfTeacher").value.trim(),
       start: $("#cfStart").value,
       end: $("#cfEnd").value,
-      weekdays: days.sort(function (a, b) { return a - b; })
+      weekdays: days.sort(function (a, b) { return a - b; }),
+      /* 留空就是"整学期都上"（手输/截图导入的课都是这种） */
+      startDate: $("#cfStartDate").value || "",
+      endDate: $("#cfEndDate").value || ""
     };
 
     if (id) {
@@ -3272,7 +3295,8 @@
     $("#btnExportImage").addEventListener("click", openTimetableImage);
     $("#imageClose").addEventListener("click", closeTimetableImage);
     $("#imageSave").addEventListener("click", saveTimetableImage);
-    $("#imageShare").addEventListener("click", shareTimetableImage);
+    /* 换比例就重新画一张（同一份课表） */
+    $("#imageRatio").addEventListener("change", openTimetableImage);
     /* 点遮罩空白处也能关（跟确认框一个习惯） */
     $("#imageBox").addEventListener("click", function (ev) {
       if (ev.target === this) closeTimetableImage();
@@ -3321,29 +3345,8 @@
       }
     });
 
-    $("#btnExport").addEventListener("click", function () {
-      Store.exportFile(data);
-      toast("已导出", "文件里包含课表和楼栋坐标", "ok");
-    });
-
-    $("#btnImport").addEventListener("click", function () { $("#importFile").click(); });
-    $("#importFile").addEventListener("change", function () {
-      var file = this.files && this.files[0];
-      if (!file) return;
-      Store.readFile(file).then(function (next) {
-        var outcome = Store.applyImport(data, next);
-        saveAndRender();
-        var detail = [];
-        if (outcome.addedBuildings) detail.push("新增 " + outcome.addedBuildings + " 栋楼");
-        if (outcome.replacedCourses) detail.push("课表已替换");
-        toast("导入成功", detail.join("；") || "内容已合并", "ok");
-        /* 新导入的课表若带来没坐标的楼栋，顺手去 OSM 补齐 */
-        window.setTimeout(function () { runAutoFill(true); }, 900);
-      }).catch(function () {
-        toast("导入失败", "文件不是有效的 JSON", "err");
-      });
-      this.value = "";
-    });
+    /* JSON 的「导出 / 导入」两颗按钮按用户要求从「全部课程」卡片上撤掉了。
+       Store.exportFile / readFile / applyImport 都还在，想恢复入口把按钮加回来即可。 */
 
     $("#btnResetData").addEventListener("click", function () {
       askConfirm("课表和楼栋都会变回默认的（楼栋 = 内置校区数据，课表 = 空），确定吗？", function () {
